@@ -125,7 +125,7 @@ do
         echo ${filesForArchive[@]}
         echo
 
-        tmpDir=$(mktemp --directory --dry-run --tmpdir="${hsmBase}/requests")
+        tmpDir=$(mktemp --directory --dry-run --tmpdir="${mountPoint}/${hsmBase}/requests")
         echo "      creating temporary directory ${tmpDir}"
         mkdir -p "${tmpDir}"
         cd "${tmpDir}"
@@ -137,7 +137,7 @@ do
             ln -s "${realFile}" "${flagFile}"
         done
 
-        tarDir="${hsmBase}/archives/${osmTemplate}/${storageGroup}"
+        tarDir="${mountPoint}/${hsmBase}/archives/${osmTemplate}/${storageGroup}"
         echo "      creating output directory ${tarDir}"
         mkdir -p "${tarDir}"
         echo "StoreName ${osmTemplate}" > "${tarDir}/.(tag)(OSMTemplate)"
