@@ -18,27 +18,37 @@
 # by hsm-internal.sh. 
 #
 # Parameters: 
-# 
-#   $hsmBase: This is base directory that will be used by the scripts to perform 
-#             their task. Below this direcotry there have to be two sub directories:
-#             "archives" and "requests". "archives" has to be tagged with hsmInstance
-#             "osm" and "CUSTODIAL"/"NEARLINE" and "requests" has to be configured 
-#             to be "REPLICA"/"ONLINE".
-#             (i.e., 
-#               # chimera-cli writetag ${hsmBase}/requests AccessLatency ONLINE
-#               # chimera-cli writetag ${hsmBase}/requests RetentionPolicy REPLICA
-#               # chimera-cli writetag ${hsmBase}/archives AccessLatency NEARLINE
-#               # chimera-cli writetag ${hsmBase}/archives RetentionPolicy CUSTODIAL
-#             )
-#             
-#             The directory containing the actual user files has to have hsmType
-#             and hsmInstance set to "dcache".
 #
-#
-#  $dataDir:  This is the nfs exported directory as configured in /etc/exports. 
+#  $dcachePrefix:
+#             This is the nfs exported directory as configured in /etc/exports.
 #             E.g., "/data"
 #
-#  $minSize   minimum size of archives
+#   $mountPoint:
+#             This is the mount point where dCache is mounted with nfs 4.1
+#             E.g., "/pnfs/4"
+#
+#   $hsmBase:
+#             This is base directory that will be used by the scripts to perform
+#             their task relative to $mountPoint respectively $dcachePrefix. Below this
+#             directory there have to be two sub directories: "archives" and "requests".
+#             "archives" has to be tagged with hsmInstance "osm" and "CUSTODIAL"/"NEARLINE"
+#             and "requests" has to be configured to be "REPLICA"/"ONLINE".
+#             (i.e., 
+#               # chimera-cli writetag "${dcachePrefix}/${hsmBase}/requests" AccessLatency ONLINE
+#               # chimera-cli writetag "${dcachePrefix}/${hsmBase}/requests" RetentionPolicy REPLICA
+#               # chimera-cli writetag "${dcachePrefix}/${hsmBase}/archives" AccessLatency NEARLINE
+#               # chimera-cli writetag "${dcachePrefix}/${hsmBase}/archives" RetentionPolicy CUSTODIAL
+#               OR
+#               # echo "ONLINE" > "${mountPoint}/${hsmBase}/requests/.(tag)(AccessLatency)"
+#               # echo "REPLICA" > "${mountPoint}/${hsmBase}/requests/.(tag)(RetentionPolicy)"
+#               # echo "NEARLINE" > "${mountPoint}/${hsmBase}/archives/.(tag)(AccessLatency)"
+#               # echo "CUSTODIAL" > "${mountPoint}/${hsmBase}/archives/.(tag)(RetentionPolicy)"
+#             )
+#             E.g., "hsm"
+#
+#  $minSize:
+#             This is the minimum size of archives to be created.
+#             E.g. "1073741824" (1gb)
 #
 #######################################################
 #
@@ -47,8 +57,8 @@
 LOG=/tmp/pack-files.log
 IFS=$'\n'
 mountPoint="/pnfs/4"
-hsmBase="/pnfs/4/hsm"
-dataDir="/data"
+hsmBase="hsm"
+dcachePrefix="/data"
 minSize=0
 
 ######################################################
@@ -56,7 +66,7 @@ minSize=0
 #   functions
 # 
 usage() {
-    echo "Usage: pack-files.sh <hsmBase> <dataDir>" | tee -a $LOG >&2
+    echo "Usage: pack-files.sh <dcachePrefix> <mountPoint> <hsmBase> <minSize>" | tee -a $LOG >&2
 }
 report() {
     echo "`date +"%D-%T"` ($$) $pnfsid $1" | tee -a $LOG >&2
@@ -74,8 +84,8 @@ errorReport() {
 #
 #   main
 #
-echo "Looking for archivation requests in ${hsmBase}/requests"
-cd "${hsmBase}/requests"
+echo "Looking for archivation requests in ${mountPoint}/${hsmBase}/requests"
+cd "${mountPoint}/${hsmBase}/requests"
 
 flagDirs=($(find . -mindepth 2 -maxdepth 2 -type d))
 dirCount=${#flagDirs[@]}
@@ -83,7 +93,7 @@ echo "  found " $dirCount " request groups."
 
 for group in ${flagDirs}
 do
-    groupDir="${hsmBase}/requests/${group:2}"
+    groupDir="${mountPoint}/${hsmBase}/requests/${group:2}"
     
     echo "    processing flag files in ${groupDir}"
     cd "${groupDir}"
@@ -92,7 +102,7 @@ do
     
     [ $flagFilesCount -le 0 ] && continue
 
-    dcacheFileDir=$(cat ".(pathof)(${flagFiles})" | sed "s%${dataDir}%${mountPoint}%")
+    dcacheFileDir=$(cat ".(pathof)(${flagFiles})" | sed "s%${dcachePrefix}%${mountPoint}%")
     realFileDir=$(dirname ${dcacheFileDir})
         
     osmTemplate=$(cat "${realFileDir}/.(tag)(OSMTemplate)" | sed 's/StoreName \(.*\)/\1/')
