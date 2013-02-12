@@ -56,11 +56,30 @@
 #
 LOG=/tmp/pack-files.log
 IFS=$'\n'
-mountPoint="/pnfs/4"
-hsmBase="hsm"
-dcachePrefix="/data"
-minSize=0
 
+if [ ${1} -ne "" ] ; then
+ dcachePrefix=${1}
+ else
+ dcachePrefix="/data"
+fi
+
+if [ ${2} -ne "" ] ; then
+ mountPoint=${2}
+ else
+ mountPoint="/pnfs/4"
+fi
+
+if [ ${3} -ne "" ] ; then
+ hsmBase=${3}
+ else
+ hsmBase="hsm"
+fi
+
+if [ ${4} -ne "" ] ; then
+ minSize=${4}
+ else
+ minSize=0
+fi
 ######################################################
 #
 #   functions
@@ -69,7 +88,7 @@ usage() {
     echo "Usage: pack-files.sh <dcachePrefix> <mountPoint> <hsmBase> <minSize>" | tee -a $LOG >&2
 }
 report() {
-    echo "`date +"%D-%T"` ($$) $pnfsid $1" | tee -a $LOG >&2
+    echo "`date +"%D-%T"` ($$) $id $1" | tee -a $LOG >&2
 }
 problem() {
     echo "($$) $2 ($1)" | tee -a $LOG >&2
@@ -84,66 +103,68 @@ errorReport() {
 #
 #   main
 #
-echo "Looking for archivation requests in ${mountPoint}/${hsmBase}/requests"
-cd "${mountPoint}/${hsmBase}/requests"
+requestsDir="${mountPoint}/${hsmBase}/requests"
+archivesDir="${mountPoint}/${hsmBase}/archives"
+echo "Looking for archivation requests in ${requestsDir}"
+cd "${requestsDir}"
 
 flagDirs=($(find . -mindepth 2 -maxdepth 2 -type d))
 dirCount=${#flagDirs[@]}
-echo "  found " $dirCount " request groups."
+echo "  found $dirCount request groups."
 
 for group in ${flagDirs}
 do
-    groupDir="${mountPoint}/${hsmBase}/requests/${group:2}"
-    
+    groupDir="${requestsDir}/${group:2}"
     echo "    processing flag files in ${groupDir}"
     cd "${groupDir}"
     flagFiles=($(ls -t -1))
     flagFilesCount=${#flagFiles[@]}
-    
-    [ $flagFilesCount -le 0 ] && continue
 
-    dcacheFileDir=$(cat ".(pathof)(${flagFiles})" | sed "s%${dcachePrefix}%${mountPoint}%")
-    realFileDir=$(dirname ${dcacheFileDir})
-        
-    osmTemplate=$(cat "${realFileDir}/.(tag)(OSMTemplate)" | sed 's/StoreName \(.*\)/\1/')
-    storageGroup=$(cat "${realFileDir}/.(tag)(sGroup)")
-    hsmType=$(cat "${realFileDir}/.(tag)(HSMType)")
-    hsmInstance=$(cat "${realFileDir}/.(tag)(hsmInstance)")
+    [ $flagFilesCount -eq 0 ] && continue
+
+    tmpUserFilePath=$(cat ".(pathof)(${flagFiles})" | sed "s%${dcachePrefix}%${mountPoint}%")
+    userFileDir=$(dirname ${tmpUserFilePath})
+
+    osmTemplate=$(cat "${userFileDir}/.(tag)(OSMTemplate)" | sed 's/StoreName \(.*\)/\1/')
+    storageGroup=$(cat "${userFileDir}/.(tag)(sGroup)")
+    hsmType=$(cat "${userFileDir}/.(tag)(HSMType)")
+    hsmInstance=$(cat "${userFileDir}/.(tag)(hsmInstance)")
     echo "    using $hsmType://$hsmInstance/?store=$osmTemplate&group=$storageGroup"
-        
+
     sumSize=0
     fileToArchiveNumber=1
     while [ ${sumSize} -le ${minSize} ] && [ ${fileToArchiveNumber} -le ${flagFilesCount} ]; do
-        realFile=${realFileDir}/$(cat ".(nameof)($flagFiles[$fileToArchiveNumber])")
+        realFile=${userFileDir}/$(cat ".(nameof)($flagFiles[$fileToArchiveNumber])")
         sumSize=$(($sumSize + $(stat -c%s ${realFile})))
         fileToArchiveNumber=$(($fileToArchiveNumber+1))
     done
-    
+    fileToArchiveNumber=$((${fileToArchiveNumber}-1))
+
     if [ ${sumSize} -ge ${minSize} ] ; then
-        filesForArchive=${flagFiles[@]:0:$(($fileToArchiveNumber-1))}
-        echo "    Packing ${#filesForArchive[@]} files:"
-        echo ${filesForArchive[@]}
+        idsOfFilesForArchive=${flagFiles[@]:0:$fileToArchiveNumber}
+        echo "    Packing ${#idsOfFilesForArchive[@]} files:"
+        echo ${idsOfFilesForArchive[@]}
         echo
 
-        tmpDir=$(mktemp --directory --dry-run --tmpdir="${mountPoint}/${hsmBase}/requests")
+        tmpDir=$(mktemp --directory --dry-run --tmpdir="${requestsDir}")
         echo "      creating temporary directory ${tmpDir}"
         mkdir -p "${tmpDir}"
         cd "${tmpDir}"
 
-        echo "      creating symlinks from ${realFileDir} to ${tmpDir} for files"
-        for flagFile in ${filesForArchive} ; do
-            realFile=${realFileDir}/$(cat ".(nameof)(${flagFile})")
-            echo "       linking $realFile to $flagFile"
-            ln -s "${realFile}" "${flagFile}"
+        echo "      creating symlinks from ${userFileDir} to ${tmpDir} for files"
+        for id in ${idsOfFilesForArchive} ; do
+            realFile=${userFileDir}/$(cat ".(nameof)(${id})")
+            echo "       linking $realFile to $id"
+            ln -s "${realFile}" "${id}"
         done
 
-        tarDir="${mountPoint}/${hsmBase}/archives/${osmTemplate}/${storageGroup}"
+        tarDir="${archivesDir}/${osmTemplate}/${storageGroup}"
         echo "      creating output directory ${tarDir}"
         mkdir -p "${tarDir}"
         echo "StoreName ${osmTemplate}" > "${tarDir}/.(tag)(OSMTemplate)"
         echo "${storageGroup}" > "${tarDir}/.(tag)(sGroup)"
-        tarFile=$(mktemp --dry-run --suffix=".tar" --tmpdir="${tarDir}" sfa.XXXX)
 
+        tarFile=$(mktemp --dry-run --suffix=".tar" --tmpdir="${tarDir}" sfa.XXXXX)
         echo "      packing archive ${tarFile}"
         tar cvhf "${tarFile}" *
         
@@ -154,13 +175,13 @@ do
         fi
         
         tarPnfsid=$(cat "${tarDir}/.(id)($(basename ${tarFile}))")
-        echo "      success. Stored archive with PnfsId ${tarPnfsid} into ${tarDir}."
+        echo "      success. Stored archive ${tarFile} with PnfsId ${tarPnfsid}."
             
         cd "${groupDir}"
         echo "      creating answer files "
-        for pnfsid in ${filesForArchive} ; do
-            answerFile=${pnfsid}.answer
-            echo "$hsmType://$hsmInstance/?store=$osmTemplate&group=$storageGroup&bfid=${pnfsid}:${tarPnfsid}" > "${answerFile}"
+        for id in ${idsOfFilesForArchive} ; do
+            answerFile=${id}.answer
+            echo "$hsmType://$hsmInstance/?store=$osmTemplate&group=$storageGroup&bfid=${id}:${tarPnfsid}" > "${answerFile}"
         done
             
         echo "      deleting temporary directory"
