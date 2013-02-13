@@ -19,7 +19,7 @@
 #
 # Parameters: 
 #
-#  $dcachePrefix:
+#   $dcachePrefix:
 #             This is the nfs exported directory as configured in /etc/exports.
 #             E.g., "/data"
 #
@@ -46,7 +46,7 @@
 #             )
 #             E.g., "hsm"
 #
-#  $minSize:
+#   $minSize:
 #             This is the minimum size of archives to be created.
 #             E.g. "1073741824" (1gb)
 #
@@ -57,29 +57,6 @@
 LOG=/tmp/pack-files.log
 IFS=$'\n'
 
-if [ ${1} -ne "" ] ; then
- dcachePrefix=${1}
- else
- dcachePrefix="/data"
-fi
-
-if [ ${2} -ne "" ] ; then
- mountPoint=${2}
- else
- mountPoint="/pnfs/4"
-fi
-
-if [ ${3} -ne "" ] ; then
- hsmBase=${3}
- else
- hsmBase="hsm"
-fi
-
-if [ ${4} -ne "" ] ; then
- minSize=${4}
- else
- minSize=0
-fi
 ######################################################
 #
 #   functions
@@ -103,34 +80,52 @@ errorReport() {
 #
 #   main
 #
+# check usage
+if [ $# -ne 4 ]
+then 
+    usage
+    exit 4
+fi
+# assign parameters
+dcachePrefix="${1}"
+mountPoint="${2}"
+hsmBase="${3}"
+minSize="${4}"
+# construct absolute requests and archives dirs 
 requestsDir="${mountPoint}/${hsmBase}/requests"
 archivesDir="${mountPoint}/${hsmBase}/archives"
-echo "Looking for archivation requests in ${requestsDir}"
+# checking for existing flag directories for archivation requests
+report "Looking for archivation requests in ${requestsDir}"
 cd "${requestsDir}"
 
 flagDirs=($(find . -mindepth 2 -maxdepth 2 -type d))
 dirCount=${#flagDirs[@]}
-echo "  found $dirCount request groups."
-
-for group in ${flagDirs}
+report "  found $dirCount request groups."
+# iterate over all found OSMTemplate/sGroup directory combinations 
+for group in ${flagDirs[@]}
 do
+    # construct absolute dir name. Espectially the first two chars of the relative group dir
+    # have to be omitted. 
     groupDir="${requestsDir}/${group:2}"
-    echo "    processing flag files in ${groupDir}"
+    report "    processing flag files in ${groupDir}"
     cd "${groupDir}"
-    flagFiles=($(ls -t -1))
+    # collect all files in group directory sorted by their age, oldest first
+    flagFiles=($(ls -t -r -1))
     flagFilesCount=${#flagFiles[@]}
-
+    # if directory is empty continue with next group directory
     [ $flagFilesCount -eq 0 ] && continue
 
+    # create path of the user file dir
     tmpUserFilePath=$(cat ".(pathof)(${flagFiles})" | sed "s%${dcachePrefix}%${mountPoint}%")
     userFileDir=$(dirname ${tmpUserFilePath})
-
+    # remember tags of user files for later
     osmTemplate=$(cat "${userFileDir}/.(tag)(OSMTemplate)" | sed 's/StoreName \(.*\)/\1/')
     storageGroup=$(cat "${userFileDir}/.(tag)(sGroup)")
     hsmType=$(cat "${userFileDir}/.(tag)(HSMType)")
     hsmInstance=$(cat "${userFileDir}/.(tag)(hsmInstance)")
-    echo "    using $hsmType://$hsmInstance/?store=$osmTemplate&group=$storageGroup"
-
+    report "    using $hsmType://$hsmInstance/?store=$osmTemplate&group=$storageGroup"
+    
+    # loop over files and collect until their size exceeds $minSize
     sumSize=0
     fileToArchiveNumber=1
     while [ ${sumSize} -le ${minSize} ] && [ ${fileToArchiveNumber} -le ${flagFilesCount} ]; do
@@ -138,53 +133,60 @@ do
         sumSize=$(($sumSize + $(stat -c%s ${realFile})))
         fileToArchiveNumber=$(($fileToArchiveNumber+1))
     done
+    # substract one, because we counted one too far before
     fileToArchiveNumber=$((${fileToArchiveNumber}-1))
 
-    if [ ${sumSize} -ge ${minSize} ] ; then
-        idsOfFilesForArchive=${flagFiles[@]:0:$fileToArchiveNumber}
-        echo "    Packing ${#idsOfFilesForArchive[@]} files:"
-        echo ${idsOfFilesForArchive[@]}
-        echo
+    # if the combined size is not enough continue with next group dir 
+    [ ${sumSize} -lt ${minSize} ] && continue
+    
+    # create list of files for archive
+    idsOfFilesForArchive=${flagFiles[@]:0:$fileToArchiveNumber}
+    report "    Packing ${#idsOfFilesForArchive[@]} files:"
 
-        tmpDir=$(mktemp --directory --dry-run --tmpdir="${requestsDir}")
-        echo "      creating temporary directory ${tmpDir}"
-        mkdir -p "${tmpDir}"
-        cd "${tmpDir}"
+    # create temporary directory and create symlinks named after the files pnfsid to user files in it
+    tmpDir=$(mktemp --directory --dry-run --tmpdir="${requestsDir}")
+    report "      creating temporary directory ${tmpDir}"
+    mkdir -p "${tmpDir}"
+    cd "${tmpDir}"
 
-        echo "      creating symlinks from ${userFileDir} to ${tmpDir} for files"
-        for id in ${idsOfFilesForArchive} ; do
-            realFile=${userFileDir}/$(cat ".(nameof)(${id})")
-            echo "       linking $realFile to $id"
-            ln -s "${realFile}" "${id}"
-        done
+    report "      creating symlinks from ${userFileDir} to ${tmpDir} for files"
+    for pnfsid in ${idsOfFilesForArchive[@]} ; do
+        filename=$(cat ".(nameof)(${pnfsid})")
+        [ $? -ne 0 ] && continue
 
-        tarDir="${archivesDir}/${osmTemplate}/${storageGroup}"
-        echo "      creating output directory ${tarDir}"
-        mkdir -p "${tarDir}"
-        echo "StoreName ${osmTemplate}" > "${tarDir}/.(tag)(OSMTemplate)"
-        echo "${storageGroup}" > "${tarDir}/.(tag)(sGroup)"
+        realFile=${userFileDir}/${filename}
+        ln -s "${realFile}" "${pnfsid}"
+    done
 
-        tarFile=$(mktemp --dry-run --suffix=".tar" --tmpdir="${tarDir}" sfa.XXXXX)
-        echo "      packing archive ${tarFile}"
-        tar cvhf "${tarFile}" *
-        
-        tarError=$?
-        if [ ${tarError} -ne 0 ] ; then 
-            rm -rf "${tmpDir}"
-            problem ${tarError} "Creation of archive ${tarFile} file failed."
-        fi
-        
-        tarPnfsid=$(cat "${tarDir}/.(id)($(basename ${tarFile}))")
-        echo "      success. Stored archive ${tarFile} with PnfsId ${tarPnfsid}."
-            
-        cd "${groupDir}"
-        echo "      creating answer files "
-        for id in ${idsOfFilesForArchive} ; do
-            answerFile=${id}.answer
-            echo "$hsmType://$hsmInstance/?store=$osmTemplate&group=$storageGroup&bfid=${id}:${tarPnfsid}" > "${answerFile}"
-        done
-            
-        echo "      deleting temporary directory"
+    # create directory for the archive and then pack all files by their pnfsid-link-name in an archive
+    tarDir="${archivesDir}/${osmTemplate}/${storageGroup}"
+    report "      creating output directory ${tarDir}"
+    mkdir -p "${tarDir}"
+    echo "StoreName ${osmTemplate}" > "${tarDir}/.(tag)(OSMTemplate)"
+    echo "${storageGroup}" > "${tarDir}/.(tag)(sGroup)"
+
+    tarFile=$(mktemp --dry-run --suffix=".tar" --tmpdir="${tarDir}" sfa.XXXXX)
+    report "      packing archive ${tarFile}"
+    tar cvhf "${tarFile}" *
+    # if creating the tar failed, we have a problem and will stop right here, after deleting our temporary link dir 
+    tarError=$?
+    if [ ${tarError} -ne 0 ] ; then 
         rm -rf "${tmpDir}"
+        problem ${tarError} "Creation of archive ${tarFile} file failed."
     fi
+
+    # if we succeeded we take the pnfsid of the just generated tar and create answer files in the group dir
+    tarPnfsid=$(cat "${tarDir}/.(id)($(basename ${tarFile}))")
+    report "      success. Stored archive ${tarFile} with PnfsId ${tarPnfsid}."
+
+    cd "${groupDir}"
+    report "      creating answer files "
+    for pnfsid in ${idsOfFilesForArchive[@]} ; do
+        answerFile=${pnfsid}.answer
+        echo "$hsmType://$hsmInstance/?store=$osmTemplate&group=$storageGroup&bfid=${pnfsid}:${tarPnfsid}" > "${answerFile}"
+    done
+
+    # now we are finished with this group dir and can delete the temporary files
+    report "      deleting temporary directory"
+    rm -rf "${tmpDir}"
 done
