@@ -65,7 +65,7 @@ usage() {
     echo "Usage: pack-files.sh <dcachePrefix> <mountPoint> <hsmBase> <minSize>" | tee -a $LOG >&2
 }
 report() {
-    echo "`date +"%D-%T"` ($$) $id $1" | tee -a $LOG >&2
+    echo "`date +"%D-%T"` ($$) $1" | tee -a $LOG >&2
 }
 problem() {
     echo "($$) $2 ($1)" | tee -a $LOG >&2
@@ -75,7 +75,7 @@ errorReport() {
     echo "($$) $1" | tee -a ${LOG} >&2
     return 0
 }
-              
+
 ######################################################
 #
 #   main
@@ -101,14 +101,16 @@ cd "${requestsDir}"
 flagDirs=($(find . -mindepth 2 -maxdepth 2 -type d))
 dirCount=${#flagDirs[@]}
 report "  found $dirCount request groups."
+
 # iterate over all found OSMTemplate/sGroup directory combinations 
 for group in ${flagDirs[@]}
 do
-    # construct absolute dir name. Espectially the first two chars of the relative group dir
-    # have to be omitted. 
+    # construct absolute dir name. Especially the first two chars (i.e., "./") of the
+    # relative group dir have to be omitted.
     groupDir="${requestsDir}/${group:2}"
     report "    processing flag files in ${groupDir}"
     cd "${groupDir}"
+
     # collect all files in group directory sorted by their age, oldest first
     flagFiles=($(ls -t -r -1))
     flagFilesCount=${#flagFiles[@]}
@@ -124,7 +126,7 @@ do
     hsmType=$(cat "${userFileDir}/.(tag)(HSMType)")
     hsmInstance=$(cat "${userFileDir}/.(tag)(hsmInstance)")
     report "    using $hsmType://$hsmInstance/?store=$osmTemplate&group=$storageGroup"
-    
+
     # loop over files and collect until their size exceeds $minSize
     sumSize=0
     fileToArchiveNumber=1
@@ -133,17 +135,18 @@ do
         sumSize=$(($sumSize + $(stat -c%s ${realFile})))
         fileToArchiveNumber=$(($fileToArchiveNumber+1))
     done
-    # substract one, because we counted one too far before
+    # subtract one, because we counted one too far before
     fileToArchiveNumber=$((${fileToArchiveNumber}-1))
 
-    # if the combined size is not enough continue with next group dir 
+    # if the combined size is not enough, continue with next group dir
     [ ${sumSize} -lt ${minSize} ] && continue
-    
-    # create list of files for archive
+
+    # create sub-list of pnfsids of the files to archive
     idsOfFilesForArchive=${flagFiles[@]:0:$fileToArchiveNumber}
     report "    Packing ${#idsOfFilesForArchive[@]} files:"
 
-    # create temporary directory and create symlinks named after the files pnfsid to user files in it
+    # create temporary directory and create symlinks named after the file's
+    # pnfsid to the corresponding user files in it
     tmpDir=$(mktemp --directory --dry-run --tmpdir="${requestsDir}")
     report "      creating temporary directory ${tmpDir}"
     mkdir -p "${tmpDir}"
@@ -178,8 +181,8 @@ do
     # if we succeeded we take the pnfsid of the just generated tar and create answer files in the group dir
     tarPnfsid=$(cat "${tarDir}/.(id)($(basename ${tarFile}))")
     report "      success. Stored archive ${tarFile} with PnfsId ${tarPnfsid}."
-
     cd "${groupDir}"
+
     report "      creating answer files "
     for pnfsid in ${idsOfFilesForArchive[@]} ; do
         answerFile=${pnfsid}.answer
