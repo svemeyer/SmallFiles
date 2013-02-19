@@ -50,55 +50,56 @@ errorReport() {
 resolvePnfsID() {
 
    pnfsID=$1
-#
-   fullname=`cat "${pnfsMountpoint}/.(nameof)($pnfsID)"`
-   while :
-     do
-       pnfsID=`cat "${pnfsMountpoint}/.(parent)($pnfsID)" 2>/dev/null`
-       if [ $? -ne 0 ] ; then return 1 ; fi
-       if [ "$pnfsID" = "000000000000000000000000000000000000" ] ; then break ; fi
-       fullname=`cat "${pnfsMountpoint}/.(nameof)($pnfsID)"`"/"$fullname
-   done
-   echo "/"$fullname
-   return 0
+   echo "$(chimera-cli pathof ${pnfsID})"
+##
+#   fullname=`cat "${pnfsMountpoint}/.(nameof)($pnfsID)"`
+#   while :
+#     do
+#       pnfsID=`cat "${pnfsMountpoint}/.(parent)($pnfsID)" 2>/dev/null`
+#       if [ $? -ne 0 ] ; then return 1 ; fi
+#       if [ "$pnfsID" = "000000000000000000000000000000000000" ] ; then break ; fi
+#       fullname=`cat "${pnfsMountpoint}/.(nameof)($pnfsID)"`"/"$fullname
+#   done
+#   echo "/"$fullname
+#   return 0
 
 }
 #
-#########################################################
+##########################################################
+##
+##  Map the canonical file name into the local filename 
+##  Argument : canonical file path (on the server)
+##  Returns  : local filepath
+##  expects  : pnfsMountpoint
+##
+##
+#mapCanonicalToLocal() {
 #
-#  Map the canonical file name into the local filename 
-#  Argument : canonical file path (on the server)
-#  Returns  : local filepath
-#  expects  : pnfsMountpoint
+#  canonicalPath=$1
 #
+#  r=`mount 2>/dev/null | 
+#     grep "$pnfsMountpoint" |
+#     awk '{ split($1,a,":") ; print a[2] }'`
 #
-mapCanonicalToLocal() {
-
-  canonicalPath=$1
-
-  r=`mount 2>/dev/null | 
-     grep "$pnfsMountpoint" |
-     awk '{ split($1,a,":") ; print a[2] }'`
-
-  localPath=`expr "$1" : "$r\(.*\)" 2>/dev/null`
-
-  if [ $? -ne 0 ] ; then return $? ; fi
-
-  localPath=`echo $localPath | 
-             awk '{ if( substr($1,1,1) != "/" ){ 
-                      printf"/%s\n",$1 
-                    }else{
-                      print $1
-                    }
-
-             }'`
-
-  if [ $? -ne 0 ] ; then return 2 ; fi
-
-  echo ${pnfsMountpoint}${localPath}
-  return 0
-
-}
+#  localPath=`expr "$1" : "$r\(.*\)" 2>/dev/null`
+#
+#  if [ $? -ne 0 ] ; then return $? ; fi
+#
+#  localPath=`echo $localPath | 
+#             awk '{ if( substr($1,1,1) != "/" ){ 
+#                      printf"/%s\n",$1 
+#                    }else{
+#                      print $1
+#                    }
+#
+#             }'`
+#
+#  if [ $? -ne 0 ] ; then return 2 ; fi
+#
+#  echo ${pnfsMountpoint}${localPath}
+#  return 0
+#
+#}
 #
 getStorageInfoKey() {
 
@@ -130,7 +131,8 @@ datasetPut() {
 #
     if [ -f ${requestFlag}.answer ] ; then
 #
-       reply=`cat ${requestFlag}.answer`
+       reply=$(chimera-cli readlevel ${requestFlag} 5)
+       #reply=`cat ${requestFlag}.answer`
        report "Request answer found : ${reply}" 
        iserror=`expr "${reply}" : "ERROR \([0-9]*\).*"`
        if [ $? -eq 0 ] ; then
@@ -296,10 +298,10 @@ if [ $command = "get" ] ; then
    #
    report "Archive file is (canonical) : ${archiveFile}"
    #
-   archiveFile=`mapCanonicalToLocal ${archiveFile}`
-   if [ $? -ne 0 ] ; then problem 33 "Mapping from canonical to local archive file failed" ; fi
-   #
-   report "Archive file is (local)     : ${archiveFile}"
+   # archiveFile=`mapCanonicalToLocal ${archiveFile}`
+   # if [ $? -ne 0 ] ; then problem 33 "Mapping from canonical to local archive file failed" ; fi
+   ##
+   # report "Archive file is (local)     : ${archiveFile}"
    #
    originalId=`expr ${getBfid} : "\(.*\):.*" 2>/dev/null`
    report "Data File Pnfs ID : ${originalId}"
@@ -308,7 +310,8 @@ if [ $command = "get" ] ; then
    #
    report "Extracting file into $localDir"
    #
-   cd ${localDir}
+   # cd ${localDir}
+   # LD_PRELOAD=special tar lib
    tar xf $archiveFile $originalId 2>>$LOG
    rc=$?
    cd -

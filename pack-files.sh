@@ -161,6 +161,17 @@ do
         ln -s "${realFile}" "${pnfsid}"
     done
 
+    # create the manifest file containing pnfsid to chimera path mappings
+    report "     creating manifest file in ${tmpDir}/META-INF"
+    mkdir "${tmpDir}/META-INF"
+    manifest="Date: $(date)\n"
+    for pnfsid in ${idsOfFilesForArchive[@]} ; do
+        filepath=$(cat ".(pathof)(${pnfsid})")
+        manifest="${manifest}${pnfsid}:${filepath}\n"
+    done
+    echo $manifest >> "${tmpDir}/META-INF/MANIFEST.MF"
+    manifest=""
+    
     # create directory for the archive and then pack all files by their pnfsid-link-name in an archive
     tarDir="${archivesDir}/${osmTemplate}/${storageGroup}"
     report "      creating output directory ${tarDir}"
@@ -183,10 +194,12 @@ do
     report "      success. Stored archive ${tarFile} with PnfsId ${tarPnfsid}."
     cd "${groupDir}"
 
-    report "      creating answer files "
+    report "      storing URIs"
     for pnfsid in ${idsOfFilesForArchive[@]} ; do
         answerFile=${pnfsid}.answer
-        echo "$hsmType://$hsmInstance/?store=$osmTemplate&group=$storageGroup&bfid=${pnfsid}:${tarPnfsid}" > "${answerFile}"
+        uri="$hsmType://$hsmInstance/?store=$osmTemplate&group=$storageGroup&bfid=${pnfsid}:${tarPnfsid}"
+        echo "${uri}" > ".(use)(5)($pnfsid}"
+        echo "${uri}" > "${answerFile}"
     done
 
     # now we are finished with this group dir and can delete the temporary files
