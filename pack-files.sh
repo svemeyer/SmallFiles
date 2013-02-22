@@ -125,22 +125,20 @@ do
     storageGroup=$(cat "${userFileDir}/.(tag)(sGroup)")
     hsmType=$(cat "${userFileDir}/.(tag)(HSMType)")
     hsmInstance=$(cat "${userFileDir}/.(tag)(hsmInstance)")
-    report "    using $hsmType://$hsmInstance/?store=$osmTemplate&group=$storageGroup"
-    report "      for $flagFilesCount files in $(pwd)"
+    report "    using $hsmType://$hsmInstance/?store=$osmTemplate&group=$storageGroup for $flagFilesCount files in $(pwd)"
 
     # loop over files and collect until their size exceeds $minSize
     sumSize=0
     fileToArchiveNumber=0
     while [[ ${minSize} == 0 || ${sumSize} -le ${minSize} ]] && [[ ${fileToArchiveNumber} -lt ${flagFilesCount}  ]]; do
         dotFile=".(nameof)(${flagFiles[${fileToArchiveNumber}]})"
-        report "getting name from dotFile $dotFile"
         realFile=${userFileDir}/$(cat "${dotFile}")
         sumSize=$(($sumSize + $(stat -c%s ${realFile})))
         fileToArchiveNumber=$(($fileToArchiveNumber+1))
     done
 
     # if the combined size is not enough, continue with next group dir
-    [ ${sumSize} -lt ${minSize} ] && continue
+    [ ${sumSize} -lt ${minSize} ] && report "      combined size smaller than ${minSize}. No archive created." && continue
 
     report "    fileToArchiveNumer: $fileToArchiveNumber"
     IFS=$' '
@@ -189,8 +187,8 @@ do
 
     tarFile=$(mktemp --dry-run --suffix=".tar" --tmpdir="${tarDir}" sfa.XXXXX)
     report "      packing archive ${tarFile}"
-    tar cvhf "${tarFile}" *
-    # if creating the tar failed, we have a problem and will stop right here, after deleting our temporary link dir 
+    tar chf "${tarFile}" *
+    # if creating the tar failed, we have a problem and will stop right here
     tarError=$?
     if [ ${tarError} -ne 0 ] ; then
         problem ${tarError} "Creation of archive ${tarFile} file failed."
