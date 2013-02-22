@@ -140,11 +140,9 @@ do
     # if the combined size is not enough, continue with next group dir
     [ ${sumSize} -lt ${minSize} ] && report "      combined size smaller than ${minSize}. No archive created." && continue
 
-    report "    fileToArchiveNumer: $fileToArchiveNumber"
     IFS=$' '
     # create sub-list of pnfsids of the files to archive
     idsOfFilesForArchive=(${flagFiles[@]:0:${fileToArchiveNumber}})
-    report "    ids: ${idsOfFilesForArchive}"
     report "    Packing ${#idsOfFilesForArchive[@]} files:"
 
     # create temporary directory and create symlinks named after the file's
