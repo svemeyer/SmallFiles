@@ -149,16 +149,16 @@ do
 
     # create temporary directory and create symlinks named after the file's
     # pnfsid to the corresponding user files in it
-    tmpDir=$(mktemp --directory --dry-run --tmpdir=${requestsDir})
-    report "      creating temporary directory ${tmpDir}"
-    mkdir -p "${tmpDir}"
+    tmpDir=$(mktemp --directory)
+    report "      created temporary directory ${tmpDir}"
 
     trap "rm -rf \"${tmpDir}\"" EXIT
     cd "${tmpDir}"
 
     report "      creating symlinks from ${userFileDir} to ${tmpDir} for files"
     for pnfsid in ${idsOfFilesForArchive[@]}; do
-        filename=$(cat ".(nameof)(${pnfsid})")
+        filename=$(cat "${mountPoint}/.(nameof)(${pnfsid})")
+        # skip if the user file for the pnfsid does not exist
         [ $? -ne 0 ] && continue
 
         realFile=${userFileDir}/${filename}
@@ -170,7 +170,8 @@ do
     mkdir "${tmpDir}/META-INF"
     manifest="Date: $(date)\n"
     for pnfsid in ${idsOfFilesForArchive[@]}; do
-        filepath=$(cat ".(pathof)(${pnfsid})")
+        filepath=$(cat "${mountPoint}/.(pathof)(${pnfsid})")
+        # again, skip if user file does not exist
         [ $? -ne 0 ] && continue
 
         manifest="${manifest}${pnfsid}:${filepath}\n"
@@ -190,9 +191,7 @@ do
     tar chf "${tarFile}" *
     # if creating the tar failed, we have a problem and will stop right here
     tarError=$?
-    if [ ${tarError} -ne 0 ] ; then
-        problem ${tarError} "Creation of archive ${tarFile} file failed."
-    fi
+    [ ${tarError} -ne 0 ] && problem ${tarError} "Creation of archive ${tarFile} file failed."
 
     # if we succeeded we take the pnfsid of the just generated tar and create answer files in the group dir
     tarPnfsid=$(cat "${tarDir}/.(id)($(basename ${tarFile}))")
