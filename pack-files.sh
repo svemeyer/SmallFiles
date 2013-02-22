@@ -55,7 +55,6 @@
 #   prerequisites
 #
 LOG=/tmp/pack-files.log
-IFS=$'\n'
 
 ######################################################
 #
@@ -98,7 +97,9 @@ archivesDir="${mountPoint}/${hsmBase}/archives"
 report "Looking for archivation requests in ${requestsDir}"
 cd "${requestsDir}"
 
+IFS=$'\n'
 flagDirs=($(find . -mindepth 2 -maxdepth 2 -type d))
+IFS=$' '
 dirCount=${#flagDirs[@]}
 report "  found $dirCount request groups."
 
@@ -110,12 +111,22 @@ do
     groupDir="${requestsDir}/${group:2}"
     report "    processing flag files in ${groupDir}"
     cd "${groupDir}"
+    [ -f ".lock" ] && report "      skipping locked directory $groupDir" && continue
+    touch ".lock"
+    trap "rm -f \"${groupDir}/.lock\"" SIGINT SIGTERM
 
     # collect all files in group directory sorted by their age, oldest first
+    IFS=$'\n'
     flagFiles=($(ls -t -r -1))
+    IFS=$' '
     flagFilesCount=${#flagFiles[@]}
     # if directory is empty continue with next group directory
-    [ $flagFilesCount -eq 0 ] && continue
+    if [ $flagFilesCount -eq 0 ]
+    then
+        report "      skipping empty directory $groupDir"
+        rm -f "${groupDir}/.lock"
+        continue
+    fi
 
     # create path of the user file dir
     tmpUserFilePath=$(cat ".(pathof)(${flagFiles})" | sed "s%${dcachePrefix}%${mountPoint}%")
@@ -141,7 +152,6 @@ do
     # if the combined size is not enough, continue with next group dir
     [ ${sumSize} -lt ${minSize} ] && report "      combined size smaller than ${minSize}. No archive created." && continue
 
-    IFS=$' '
     # create sub-list of pnfsids of the files to archive
     idsOfFilesForArchive=(${flagFiles[@]:0:${fileToArchiveNumber}})
     report "    Packing ${#idsOfFilesForArchive[@]} files:"
@@ -149,34 +159,25 @@ do
     # create temporary directory and create symlinks named after the file's
     # pnfsid to the corresponding user files in it
     tmpDir=$(mktemp --directory)
-    trap "rm -rf \"${tmpDir}\"" EXIT
+    mkdir "${tmpDir}/META-INF"
+    trap "rm -rf \"${tmpDir}\"" SIGINT SIGTERM
     report "      created temporary directory ${tmpDir}"
     cd "${tmpDir}"
 
-    report "      creating symlinks from ${userFileDir} to ${tmpDir} for files"
-    for pnfsid in ${idsOfFilesForArchive[@]}; do
-        filename=$(cat "${mountPoint}/.(nameof)(${pnfsid})")
-        # skip if the user file for the pnfsid does not exist
-        [ $? -ne 0 ] && continue
-
-        realFile=${userFileDir}/${filename}
-        ln -s "${realFile}" "${pnfsid}"
-    done
-
-    # create the manifest file containing pnfsid to chimera path mappings
-    report "      creating manifest file in ${tmpDir}/META-INF"
-    mkdir "${tmpDir}/META-INF"
+    report "      creating symlinks and manifest for files from ${userFileDir} in ${tmpDir}"
     manifest="Date: $(date)\n"
     for pnfsid in ${idsOfFilesForArchive[@]}; do
         filepath=$(cat "${mountPoint}/.(pathof)(${pnfsid})")
-        # again, skip if user file does not exist
+        # skip if the user file for the pnfsid does not exist
         [ $? -ne 0 ] && continue
 
+        realFile=${userFileDir}/$(basename ${filepath})
+        ln -s "${realFile}" "${pnfsid}"
         manifest="${manifest}${pnfsid}:${filepath}\n"
     done
     echo -e $manifest >> "${tmpDir}/META-INF/MANIFEST.MF"
     manifest=""
-    
+
     # create directory for the archive and then pack all files by their pnfsid-link-name in an archive
     tarDir="${archivesDir}/${osmTemplate}/${storageGroup}"
     report "      creating output directory ${tarDir}"
@@ -189,7 +190,7 @@ do
     tar chf "${tarFile}" *
     # if creating the tar failed, we have a problem and will stop right here
     tarError=$?
-    [ ${tarError} -ne 0 ] && [ $(rm -rf ${tarFile}) ] || problem ${tarError} "Creation of archive ${tarFile} file failed."
+    [ ${tarError} -ne 0 ] && [ $(rm -rf ${tarFile}) ] && problem ${tarError} "Creation of archive ${tarFile} file failed."
 
     # if we succeeded we take the pnfsid of the just generated tar and create answer files in the group dir
     tarPnfsid=$(cat "${tarDir}/.(id)($(basename ${tarFile}))")
@@ -203,4 +204,7 @@ do
         echo "${uri}" > ".(use)(5)(${pnfsid})"
         echo "${uri}" > "${answerFile}"
     done
+
+    rm -f "${groupDir}/.lock"
+    rm -rf "${tmpDir}"
 done
