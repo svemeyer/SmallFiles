@@ -149,9 +149,8 @@ do
     # create temporary directory and create symlinks named after the file's
     # pnfsid to the corresponding user files in it
     tmpDir=$(mktemp --directory)
-    report "      created temporary directory ${tmpDir}"
-
     trap "rm -rf \"${tmpDir}\"" EXIT
+    report "      created temporary directory ${tmpDir}"
     cd "${tmpDir}"
 
     report "      creating symlinks from ${userFileDir} to ${tmpDir} for files"
@@ -190,7 +189,7 @@ do
     tar chf "${tarFile}" *
     # if creating the tar failed, we have a problem and will stop right here
     tarError=$?
-    [ ${tarError} -ne 0 ] && problem ${tarError} "Creation of archive ${tarFile} file failed."
+    [ ${tarError} -ne 0 ] && [ $(rm -rf ${tarFile}) ] || problem ${tarError} "Creation of archive ${tarFile} file failed."
 
     # if we succeeded we take the pnfsid of the just generated tar and create answer files in the group dir
     tarPnfsid=$(cat "${tarDir}/.(id)($(basename ${tarFile}))")
