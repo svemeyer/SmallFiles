@@ -98,7 +98,7 @@ archivesDir="${mountPoint}/${hsmBase}/archives"
 report "Looking for archivation requests in ${requestsDir}"
 cd "${requestsDir}"
 
-flagDirs=($(find . -mindepth 2 -maxdepth 2 -type d))
+flagDirs=($(find . -mindepth 2 -maxdepth 2 -type d -path "./tmp.*" -prune -o -print))
 dirCount=${#flagDirs[@]}
 report "  found $dirCount request groups."
 
@@ -126,34 +126,40 @@ do
     hsmType=$(cat "${userFileDir}/.(tag)(HSMType)")
     hsmInstance=$(cat "${userFileDir}/.(tag)(hsmInstance)")
     report "    using $hsmType://$hsmInstance/?store=$osmTemplate&group=$storageGroup"
+    report "      for $flagFilesCount files in $(pwd)"
 
     # loop over files and collect until their size exceeds $minSize
     sumSize=0
-    fileToArchiveNumber=1
-    while [ ${sumSize} -le ${minSize} ] && [ ${fileToArchiveNumber} -le ${flagFilesCount} ]; do
-        realFile=${userFileDir}/$(cat ".(nameof)($flagFiles[$fileToArchiveNumber])")
+    fileToArchiveNumber=0
+    while [[ ${minSize} == 0 || ${sumSize} -le ${minSize} ]] && [[ ${fileToArchiveNumber} -lt ${flagFilesCount}  ]]; do
+        dotFile=".(nameof)(${flagFiles[${fileToArchiveNumber}]})"
+        report "getting name from dotFile $dotFile"
+        realFile=${userFileDir}/$(cat "${dotFile}")
         sumSize=$(($sumSize + $(stat -c%s ${realFile})))
         fileToArchiveNumber=$(($fileToArchiveNumber+1))
     done
-    # subtract one, because we counted one too far before
-    fileToArchiveNumber=$((${fileToArchiveNumber}-1))
 
     # if the combined size is not enough, continue with next group dir
     [ ${sumSize} -lt ${minSize} ] && continue
 
+    report "    fileToArchiveNumer: $fileToArchiveNumber"
+    IFS=$' '
     # create sub-list of pnfsids of the files to archive
-    idsOfFilesForArchive=${flagFiles[@]:0:$fileToArchiveNumber}
+    idsOfFilesForArchive=(${flagFiles[@]:0:${fileToArchiveNumber}})
+    report "    ids: ${idsOfFilesForArchive}"
     report "    Packing ${#idsOfFilesForArchive[@]} files:"
 
     # create temporary directory and create symlinks named after the file's
     # pnfsid to the corresponding user files in it
-    tmpDir=$(mktemp --directory --dry-run --tmpdir="${requestsDir}")
+    tmpDir=$(mktemp --directory --dry-run --tmpdir=${requestsDir})
     report "      creating temporary directory ${tmpDir}"
     mkdir -p "${tmpDir}"
+
+    trap "rm -rf \"${tmpDir}\"" EXIT
     cd "${tmpDir}"
 
     report "      creating symlinks from ${userFileDir} to ${tmpDir} for files"
-    for pnfsid in ${idsOfFilesForArchive[@]} ; do
+    for pnfsid in ${idsOfFilesForArchive[@]}; do
         filename=$(cat ".(nameof)(${pnfsid})")
         [ $? -ne 0 ] && continue
 
@@ -162,14 +168,16 @@ do
     done
 
     # create the manifest file containing pnfsid to chimera path mappings
-    report "     creating manifest file in ${tmpDir}/META-INF"
+    report "      creating manifest file in ${tmpDir}/META-INF"
     mkdir "${tmpDir}/META-INF"
     manifest="Date: $(date)\n"
-    for pnfsid in ${idsOfFilesForArchive[@]} ; do
+    for pnfsid in ${idsOfFilesForArchive[@]}; do
         filepath=$(cat ".(pathof)(${pnfsid})")
+        [ $? -ne 0 ] && continue
+
         manifest="${manifest}${pnfsid}:${filepath}\n"
     done
-    echo $manifest >> "${tmpDir}/META-INF/MANIFEST.MF"
+    echo -e $manifest >> "${tmpDir}/META-INF/MANIFEST.MF"
     manifest=""
     
     # create directory for the archive and then pack all files by their pnfsid-link-name in an archive
@@ -184,8 +192,7 @@ do
     tar cvhf "${tarFile}" *
     # if creating the tar failed, we have a problem and will stop right here, after deleting our temporary link dir 
     tarError=$?
-    if [ ${tarError} -ne 0 ] ; then 
-        rm -rf "${tmpDir}"
+    if [ ${tarError} -ne 0 ] ; then
         problem ${tarError} "Creation of archive ${tarFile} file failed."
     fi
 
@@ -198,11 +205,7 @@ do
     for pnfsid in ${idsOfFilesForArchive[@]} ; do
         answerFile=${pnfsid}.answer
         uri="$hsmType://$hsmInstance/?store=$osmTemplate&group=$storageGroup&bfid=${pnfsid}:${tarPnfsid}"
-        echo "${uri}" > ".(use)(5)($pnfsid}"
+        echo "${uri}" > ".(use)(5)(${pnfsid})"
         echo "${uri}" > "${answerFile}"
     done
-
-    # now we are finished with this group dir and can delete the temporary files
-    report "      deleting temporary directory"
-    rm -rf "${tmpDir}"
 done
