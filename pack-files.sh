@@ -98,7 +98,7 @@ archivesDir="${mountPoint}/${hsmBase}/archives"
 report "Looking for archivation requests in ${requestsDir}"
 cd "${requestsDir}"
 
-flagDirs=($(find . -mindepth 2 -maxdepth 2 -type d -path "./tmp.*" -prune -o -print))
+flagDirs=($(find . -mindepth 2 -maxdepth 2 -type d))
 dirCount=${#flagDirs[@]}
 report "  found $dirCount request groups."
 
@@ -125,7 +125,8 @@ do
     storageGroup=$(cat "${userFileDir}/.(tag)(sGroup)")
     hsmType=$(cat "${userFileDir}/.(tag)(HSMType)")
     hsmInstance=$(cat "${userFileDir}/.(tag)(hsmInstance)")
-    report "    using $hsmType://$hsmInstance/?store=$osmTemplate&group=$storageGroup for $flagFilesCount files in $(pwd)"
+    uriTemplate="$hsmType://$hsmInstance/?store=$osmTemplate&group=$storageGroup"
+    report "    using $uriTemplate for $flagFilesCount files in $(pwd)"
 
     # loop over files and collect until their size exceeds $minSize
     sumSize=0
@@ -199,7 +200,7 @@ do
     report "      storing URIs"
     for pnfsid in ${idsOfFilesForArchive[@]} ; do
         answerFile=${pnfsid}.answer
-        uri="$hsmType://$hsmInstance/?store=$osmTemplate&group=$storageGroup&bfid=${pnfsid}:${tarPnfsid}"
+        uri="${uriTemplate}&bfid=${pnfsid}:${tarPnfsid}"
         echo "${uri}" > ".(use)(5)(${pnfsid})"
         echo "${uri}" > "${answerFile}"
     done
