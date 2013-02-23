@@ -109,11 +109,14 @@ do
     # construct absolute dir name. Especially the first two chars (i.e., "./") of the
     # relative group dir have to be omitted.
     groupDir="${requestsDir}/${group:2}"
+
+    # /usr/share/dcache/lib/pack-dir.sh "${dcachePrefix}" "${mountPoint}" "${archivesDir}" "${groupDir}" ${minSize}
+
     report "    processing flag files in ${groupDir}"
     cd "${groupDir}"
     [ -f ".lock" ] && report "      skipping locked directory $groupDir" && continue
     touch ".lock"
-    trap "rm -f \"${groupDir}/.lock\"" SIGINT SIGTERM
+    trap "rm -f \"${groupDir}/.lock\"" SIGINT SIGTERM EXIT
 
     # collect all files in group directory sorted by their age, oldest first
     IFS=$'\n'
@@ -150,7 +153,12 @@ do
     done
 
     # if the combined size is not enough, continue with next group dir
-    [ ${sumSize} -lt ${minSize} ] && report "      combined size smaller than ${minSize}. No archive created." && continue
+    if [ ${sumSize} -lt ${minSize} ]
+    then 
+        report "      combined size smaller than ${minSize}. No archive created." 
+        rm -f "S{groupDir}/.lock"
+        continue
+    fi
 
     # create sub-list of pnfsids of the files to archive
     idsOfFilesForArchive=(${flagFiles[@]:0:${fileToArchiveNumber}})
@@ -170,6 +178,8 @@ do
         filepath=$(cat "${mountPoint}/.(pathof)(${pnfsid})")
         # skip if the user file for the pnfsid does not exist
         [ $? -ne 0 ] && continue
+        # skip if an answer file already exists
+        [ -f "${pnfsid}.answer" ] && continue
 
         realFile=${userFileDir}/$(basename ${filepath})
         ln -s "${realFile}" "${pnfsid}"
@@ -190,7 +200,13 @@ do
     tar chf "${tarFile}" *
     # if creating the tar failed, we have a problem and will stop right here
     tarError=$?
-    [ ${tarError} -ne 0 ] && [ $(rm -rf ${tarFile}) ] && problem ${tarError} "Creation of archive ${tarFile} file failed."
+    if [ ${tarError} -ne 0 ] 
+    then 
+        rm -rf ${tmpDir}
+        rm -rf ${tarFile} 
+        rm -f "${groupDir}/.lock" 
+        problem ${tarError} "Creation of archive ${tarFile} file failed. Cleaning up ${tmpDir}, . "
+    fi
 
     # if we succeeded we take the pnfsid of the just generated tar and create answer files in the group dir
     tarPnfsid=$(cat "${tarDir}/.(id)($(basename ${tarFile}))")
@@ -205,6 +221,7 @@ do
         echo "${uri}" > "${answerFile}"
     done
 
+    report "      cleaning up ${tmpDir} and removing lock ${groupDir}/.lock"
     rm -f "${groupDir}/.lock"
     rm -rf "${tmpDir}"
 done
