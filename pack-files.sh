@@ -116,7 +116,7 @@ do
     cd "${groupDir}"
     if mkdir "${groupDir}/.lock"
     then
-      trap "rmdir -f \"${groupDir}/.lock\"" SIGINT SIGTERM
+      trap "rmdir \"${groupDir}/.lock\"" SIGINT SIGTERM
     else
       report "      skipping locked directory $groupDir"
       continue
@@ -124,7 +124,7 @@ do
 
     # collect all files in group directory sorted by their age, oldest first
     IFS=$'\n'
-    flagFiles=($(ls -t -r -1))
+    flagFiles=($(ls -t -r -1|grep -e '^[A-Z0-9]\{36\}$'))
     IFS=$' '
     flagFilesCount=${#flagFiles[@]}
     # if directory is empty continue with next group directory
@@ -160,7 +160,7 @@ do
     if [ ${sumSize} -lt ${minSize} ]
     then 
         report "      combined size smaller than ${minSize}. No archive created." 
-        rm -f "S{groupDir}/.lock"
+        rmdir "${groupDir}/.lock"
         continue
     fi
 
@@ -208,7 +208,7 @@ do
     then 
         rm -rf ${tmpDir}
         rm -rf ${tarFile} 
-        rmdir -f "${groupDir}/.lock"
+        rmdir "${groupDir}/.lock"
         problem ${tarError} "Creation of archive ${tarFile} file failed. Cleaning up ${tmpDir}, . "
     fi
 
@@ -226,6 +226,6 @@ do
     done
 
     report "      cleaning up ${tmpDir} and removing lock ${groupDir}/.lock"
-    rmdir -f "${groupDir}/.lock"
+    rmdir "${groupDir}/.lock"
     rm -rf "${tmpDir}"
 done
