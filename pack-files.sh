@@ -114,9 +114,13 @@ do
 
     report "    processing flag files in ${groupDir}"
     cd "${groupDir}"
-    [ -f ".lock" ] && report "      skipping locked directory $groupDir" && continue
-    touch ".lock"
-    trap "rm -f \"${groupDir}/.lock\"" SIGINT SIGTERM EXIT
+    if mkdir "${groupDir}/.lock"
+    then
+      trap "rmdir -f \"${groupDir}/.lock\"" SIGINT SIGTERM
+    else
+      report "      skipping locked directory $groupDir"
+      continue
+    fi
 
     # collect all files in group directory sorted by their age, oldest first
     IFS=$'\n'
@@ -204,7 +208,7 @@ do
     then 
         rm -rf ${tmpDir}
         rm -rf ${tarFile} 
-        rm -f "${groupDir}/.lock" 
+        rmdir -f "${groupDir}/.lock"
         problem ${tarError} "Creation of archive ${tarFile} file failed. Cleaning up ${tmpDir}, . "
     fi
 
@@ -222,6 +226,6 @@ do
     done
 
     report "      cleaning up ${tmpDir} and removing lock ${groupDir}/.lock"
-    rm -f "${groupDir}/.lock"
+    rmdir -f "${groupDir}/.lock"
     rm -rf "${tmpDir}"
 done
