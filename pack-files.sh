@@ -117,7 +117,7 @@ do
     lockDir="${groupDir}/.lock"
     if mkdir "${lockDir}"
     then
-      trap "rm -rf \"${lockDir}\"" SIGINT SIGTERM
+      trap "rm -rf \"${lockDir}\"" SIGINT SIGTERM EXIT
     else
       report "      skipping locked directory $groupDir"
       continue
@@ -125,7 +125,7 @@ do
 
     # collect all files in group directory sorted by their age, oldest first
     IFS=$'\n'
-    flagFiles=($(ls -t -r -1|grep -e '^[A-Z0-9]\{36\}$'))
+    flagFiles=($(ls -t -r |grep -e '^[A-Z0-9]\{36\}$'))
     IFS=$' '
     flagFilesCount=${#flagFiles[@]}
     # if directory is empty continue with next group directory
@@ -151,7 +151,7 @@ do
     mkdir "${tmpDir}/META-INF"
     trap "rm -rf \"${tmpDir}\"" SIGINT SIGTERM
     manifest="${tmpDir}/META-INF/MANIFEST.MF"
-    manifest="Date: $(date)\n"
+    echo "Date: $(date)" > "${manifest}"
     report "      created temporary directory ${tmpDir}"
 
     # loop over files and collect until their size exceeds $minSize
@@ -167,8 +167,8 @@ do
         sumSize=$(($sumSize + $(stat -c%s ${realFile})))
         ln -s "${realFile}" "${tmpDir}/${pnfsid}"
 
-        echo -e "${manifest}${pnfsid}:${chimeraPath}\n" >> "${manifest}"
-        [ sumSize -ge $minSize ] && break
+        echo "${manifest}${pnfsid}:${chimeraPath}" >> "${manifest}"
+        [ ${sumSize} -ge $minSize ] && break
     done
 
     # if the combined size is not enough, continue with next group dir
@@ -209,7 +209,10 @@ do
     cd "${groupDir}"
 
     report "      storing URIs"
-    for pnfsid in $(ls -1 "${tmpDir}"|grep -e '^[A-Z0-9]\{36\}$') ; do
+    IFS=$'\n'
+    flagFiles=($(ls "${tmpDir}"|grep -e '^[A-Z0-9]\{36\}$'))
+    IFS=$' '
+    for pnfsid in ${flagFiles[@]} ; do
         answerFile=${pnfsid}.answer
         uri="${uriTemplate}&bfid=${pnfsid}:${tarPnfsid}"
         echo "${uri}" > ".(use)(5)(${pnfsid})"
