@@ -206,7 +206,7 @@ do
 
 
     tarFile=$(mktemp --dry-run --suffix=".tar" --tmpdir="${tarDir}" DARC-XXXXX)
-    trap "cleanupLock; cleanupTmpDir; cleanupTar; exit 130" SIGINT SIGTERM
+    trap "cleanupLock; cleanupTmpDir; cleanupArchive; exit 130" SIGINT SIGTERM
 
     report "      packing archive ${tarFile}"
     tar chf "${tarFile}" *
