@@ -114,9 +114,10 @@ do
 
     report "    processing flag files in ${groupDir}"
     cd "${groupDir}"
-    if mkdir "${groupDir}/.lock"
+    lockDir="${groupDir}/.lock"
+    if mkdir "${lockDir}"
     then
-      trap "rmdir \"${groupDir}/.lock\"" SIGINT SIGTERM
+      trap "rm -rf \"${lockDir}\"" SIGINT SIGTERM
     else
       report "      skipping locked directory $groupDir"
       continue
@@ -131,7 +132,7 @@ do
     if [ $flagFilesCount -eq 0 ]
     then
         report "      skipping empty directory $groupDir"
-        rmdir "${groupDir}/.lock"
+        rm -rf "${groupDir}/.lock"
         continue
     fi
 
@@ -141,92 +142,82 @@ do
     # remember tags of user files for later
     osmTemplate=$(cat "${userFileDir}/.(tag)(OSMTemplate)" | sed 's/StoreName \(.*\)/\1/')
     storageGroup=$(cat "${userFileDir}/.(tag)(sGroup)")
-    hsmType=$(cat "${userFileDir}/.(tag)(HSMType)")
     hsmInstance=$(cat "${userFileDir}/.(tag)(hsmInstance)")
-    uriTemplate="$hsmType://$hsmInstance/?store=$osmTemplate&group=$storageGroup"
+    uriTemplate="$hsmInstance://$hsmInstance/?store=$osmTemplate&group=$storageGroup"
     report "    using $uriTemplate for $flagFilesCount files in $(pwd)"
+
+    # create temporary directory
+    tmpDir=$(mktemp --directory)
+    mkdir "${tmpDir}/META-INF"
+    trap "rm -rf \"${tmpDir}\"" SIGINT SIGTERM
+    manifest="${tmpDir}/META-INF/MANIFEST.MF"
+    manifest="Date: $(date)\n"
+    report "      created temporary directory ${tmpDir}"
 
     # loop over files and collect until their size exceeds $minSize
     sumSize=0
-    fileToArchiveNumber=0
-    while [[ ${minSize} == 0 || ${sumSize} -le ${minSize} ]] && [[ ${fileToArchiveNumber} -lt ${flagFilesCount}  ]]; do
-        dotFile=".(nameof)(${flagFiles[${fileToArchiveNumber}]})"
-        realFile=${userFileDir}/$(cat "${dotFile}")
+    for pnfsid in ${flagFiles[@]}; do
+        # skip if an answer file already exists
+        [ -f "${pnfsid}.answer" ] && continue
+        dotFile=".(pathof)(${pnfsid})"
+        chimeraPath=$(cat "${mountPoint}/${dotFile}")
+        # skip if the user file for the pnfsid does not exist
+        [ $? -ne 0 ] && continue
+        realFile=${userFileDir}/$(basename "${chimeraPath}")
         sumSize=$(($sumSize + $(stat -c%s ${realFile})))
-        fileToArchiveNumber=$(($fileToArchiveNumber+1))
+        ln -s "${realFile}" "${tmpDir}/${pnfsid}"
+
+        echo -e "${manifest}${pnfsid}:${chimeraPath}\n" >> "${manifest}"
+        [ sumSize -ge $minSize ] && break
     done
 
     # if the combined size is not enough, continue with next group dir
     if [ ${sumSize} -lt ${minSize} ]
     then 
         report "      combined size smaller than ${minSize}. No archive created." 
-        rmdir "${groupDir}/.lock"
+        rm -rf "${lockDir}"
+        rm -rf "${tmpDir}"
         continue
     fi
 
-    # create sub-list of pnfsids of the files to archive
-    idsOfFilesForArchive=(${flagFiles[@]:0:${fileToArchiveNumber}})
-    report "    Packing ${#idsOfFilesForArchive[@]} files:"
-
-    # create temporary directory and create symlinks named after the file's
-    # pnfsid to the corresponding user files in it
-    tmpDir=$(mktemp --directory)
-    mkdir "${tmpDir}/META-INF"
-    trap "rm -rf \"${tmpDir}\"" SIGINT SIGTERM
-    report "      created temporary directory ${tmpDir}"
     cd "${tmpDir}"
-
-    report "      creating symlinks and manifest for files from ${userFileDir} in ${tmpDir}"
-    manifest="Date: $(date)\n"
-    for pnfsid in ${idsOfFilesForArchive[@]}; do
-        filepath=$(cat "${mountPoint}/.(pathof)(${pnfsid})")
-        # skip if the user file for the pnfsid does not exist
-        [ $? -ne 0 ] && continue
-        # skip if an answer file already exists
-        [ -f "${pnfsid}.answer" ] && continue
-
-        realFile=${userFileDir}/$(basename ${filepath})
-        ln -s "${realFile}" "${pnfsid}"
-        manifest="${manifest}${pnfsid}:${filepath}\n"
-    done
-    echo -e $manifest >> "${tmpDir}/META-INF/MANIFEST.MF"
-    manifest=""
 
     # create directory for the archive and then pack all files by their pnfsid-link-name in an archive
     tarDir="${archivesDir}/${osmTemplate}/${storageGroup}"
-    report "      creating output directory ${tarDir}"
+    report "      creating directory ${tarDir}"
     mkdir -p "${tarDir}"
     echo "StoreName ${osmTemplate}" > "${tarDir}/.(tag)(OSMTemplate)"
     echo "${storageGroup}" > "${tarDir}/.(tag)(sGroup)"
 
-    tarFile=$(mktemp --dry-run --suffix=".tar" --tmpdir="${tarDir}" sfa.XXXXX)
+    tarFile=$(mktemp --dry-run --suffix=".tar" --tmpdir="${tarDir}" DARC-XXXXX)
     report "      packing archive ${tarFile}"
     tar chf "${tarFile}" *
-    # if creating the tar failed, we have a problem and will stop right here
+    # if creating the tar failed, we stop right here
     tarError=$?
     if [ ${tarError} -ne 0 ] 
     then 
         rm -rf ${tmpDir}
-        rm -rf ${tarFile} 
-        rmdir "${groupDir}/.lock"
+        rm -f ${tarFile}
+        rm -rf "${lockDir}"
         problem ${tarError} "Creation of archive ${tarFile} file failed. Cleaning up ${tmpDir}, . "
     fi
 
     # if we succeeded we take the pnfsid of the just generated tar and create answer files in the group dir
     tarPnfsid=$(cat "${tarDir}/.(id)($(basename ${tarFile}))")
     report "      success. Stored archive ${tarFile} with PnfsId ${tarPnfsid}."
+
     cd "${groupDir}"
 
     report "      storing URIs"
-    for pnfsid in ${idsOfFilesForArchive[@]} ; do
+    for pnfsid in $(ls -1 "${tmpDir}"|grep -e '^[A-Z0-9]\{36\}$') ; do
         answerFile=${pnfsid}.answer
         uri="${uriTemplate}&bfid=${pnfsid}:${tarPnfsid}"
         echo "${uri}" > ".(use)(5)(${pnfsid})"
         echo "${uri}" > "${answerFile}"
     done
 
-    report "      cleaning up ${tmpDir} and removing lock ${groupDir}/.lock"
-    rmdir "${groupDir}/.lock"
+    report "    cleaning up ${tmpDir} and removing lock ${lockDir}"
+    rm -rf "${lockDir}"
     rm -rf "${tmpDir}"
 done
-report "done."
+report "finished."
