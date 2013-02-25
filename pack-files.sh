@@ -120,7 +120,7 @@ do
       report "      skipping locked directory $groupDir"
       continue
     fi
-    trap "rm -rf \"${lockDir}\"; exit 130" SIGINT SIGTERM
+    trap "report \"interrupted. Cleaning up.\"; rm -rf \"${lockDir}\"; exit 130" SIGINT SIGTERM
 
     # collect all files in group directory sorted by their age, oldest first
     IFS=$'\n'
@@ -147,7 +147,7 @@ do
 
     # create temporary directory
     tmpDir=$(mktemp --directory)
-    trap "rm -rf \"${lockDir}\"; rm -rf \"${tmpDir}\"; exit 130" SIGINT SIGTERM
+    trap "report \"interrupted. Cleaning up.\"; rm -rf \"${lockDir}\"; rm -rf \"${tmpDir}\"; exit 130" SIGINT SIGTERM
     mkdir "${tmpDir}/META-INF"
     manifest="${tmpDir}/META-INF/MANIFEST.MF"
     echo "Date: $(date)" > "${manifest}"
