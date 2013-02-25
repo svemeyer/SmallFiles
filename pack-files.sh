@@ -80,16 +80,16 @@ errorReport() {
 #   traps
 #
 cleanupLock() {
+    report "    removing lock ${lockDir}"
     rmdir "${lockDir}"
-    report "cleaning up lock ${lockDir}"
 }
 cleanupTmpDir() {
+    report "    cleaning up tmp directory ${tmpDir}"
     rm -rf "${tmpDir}"
-    report "cleaning up tmp directory ${tmpDir}"
 }
 cleanupArchive() {
+    report "    deleting archive ${tarFile}"
     rm -f "${tarFile}"
-    report "deleting archive ${tarFile}"
 }
 ######################################################
 #
@@ -122,8 +122,8 @@ report "  found $dirCount request groups."
 # iterate over all found OSMTemplate/sGroup directory combinations 
 for group in ${flagDirs[@]}
 do
-    # construct absolute dir name. Especially the first two chars (i.e., "./") of the
-    # relative group dir have to be omitted.
+    # construct absolute dir name by concatenating requestDir with group
+    # while omitting leading "./" of the latter one.
     groupDir="${requestsDir}/${group:2}"
 
     # /usr/share/dcache/lib/pack-dir.sh "${dcachePrefix}" "${mountPoint}" "${archivesDir}" "${groupDir}" ${minSize}
@@ -133,33 +133,39 @@ do
     lockDir="${groupDir}/.lock"
     if ! mkdir "${lockDir}"
     then
-      report "      skipping locked directory $groupDir"
+      report "    leaving locked directory $groupDir"
       continue
     fi
     trap "cleanupLock; exit 130" SIGINT SIGTERM
 
-    # collect all files in group directory sorted by their age, oldest first
+    # approximate average file size
     IFS=$'\n'
-    flagFiles=($(ls -U|grep -e '^[A-Z0-9]\{36\}$'))
+    flagFiles=($(ls -U|head -n 25|grep -e '^[A-Z0-9]\{36\}$'))
+    bytes=0
+    for file in ${flagFiles}; do
+        bytes=$(($bytes+$(stat -c%s "${file}")))
+    done
+    # get twice as much as approximately needed
+    flagFiles=($(ls -U|head -n $((50*$minSize / $bytes))|grep -e '^[A-Z0-9]\{36\}$'))
     IFS=$' '
     flagFilesCount=${#flagFiles[@]}
     # if directory is empty continue with next group directory
     if [ $flagFilesCount -eq 0 ]
     then
-        report "      skipping empty directory $groupDir"
         cleanupLock
+        report "    leaving empty directory ${groupDir}"
         continue
     fi
 
     # create path of the user file dir
-    tmpUserFilePath=$(cat ".(pathof)(${flagFiles})" | sed "s%${dcachePrefix}%${mountPoint}%")
+    tmpUserFilePath=$(cat ".(pathof)(${flagFiles[0]})" | sed "s%${dcachePrefix}%${mountPoint}%")
     userFileDir=$(dirname ${tmpUserFilePath})
     # remember tags of user files for later
     osmTemplate=$(cat "${userFileDir}/.(tag)(OSMTemplate)" | sed 's/StoreName \(.*\)/\1/')
     storageGroup=$(cat "${userFileDir}/.(tag)(sGroup)")
     hsmInstance=$(cat "${userFileDir}/.(tag)(hsmInstance)")
     uriTemplate="$hsmInstance://$hsmInstance/?store=$osmTemplate&group=$storageGroup"
-    report "    using $uriTemplate for $flagFilesCount files in $(pwd)"
+    report "      using $uriTemplate for $flagFilesCount files in $(pwd)"
 
     # create temporary directory
     tmpDir=$(mktemp --directory)
@@ -189,9 +195,10 @@ do
     # if the combined size is not enough, continue with next group dir
     if [ ${sumSize} -lt ${minSize} ]
     then 
-        report "      combined size smaller than ${minSize}. No archive created." 
+        report "      combined size smaller than ${minSize}. No archive created."
         cleanupLock
         cleanupTmpDir
+        report "    leaving ${groupDir}"
         continue
     fi
 
@@ -229,16 +236,16 @@ do
 
     report "      storing URIs"
     IFS=$'\n'
-    flagFiles=($(ls -U "${tmpDir}"|grep -e '^[A-Z0-9]\{36\}$'))
-    IFS=$' '
-    for pnfsid in ${flagFiles[@]} ; do
+    for pnfsid in $(ls -U "${tmpDir}"|grep -e '^[A-Z0-9]\{36\}$'); do
         answerFile=${pnfsid}.answer
         uri="${uriTemplate}&bfid=${pnfsid}:${tarPnfsid}"
         echo "${uri}" > ".(use)(5)(${pnfsid})"
         echo "${uri}" > "${answerFile}"
     done
+    IFS=$' '
 
     cleanupLock
     cleanupTmpDir
+    report "    leaving ${groupDir}"
 done
 report "finished."
