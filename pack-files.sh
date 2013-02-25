@@ -77,6 +77,22 @@ errorReport() {
 
 ######################################################
 #
+#   traps
+#
+cleanupLock() {
+    rmdir "${lockDir}"
+    report "cleaning up lock ${lockDir}"
+}
+cleanupTmpDir() {
+    rm -rf "${tmpDir}"
+    report "cleaning up tmp directory ${tmpDir}"
+}
+cleanupArchive() {
+    rm -f "${tarFile}"
+    report "deleting archive ${tarFile}"
+}
+######################################################
+#
 #   main
 #
 # check usage
@@ -120,7 +136,7 @@ do
       report "      skipping locked directory $groupDir"
       continue
     fi
-    trap "report \"interrupted. Cleaning up.\"; rm -rf \"${lockDir}\"; exit 130" SIGINT SIGTERM
+    trap "cleanupLock; exit 130" SIGINT SIGTERM
 
     # collect all files in group directory sorted by their age, oldest first
     IFS=$'\n'
@@ -131,7 +147,7 @@ do
     if [ $flagFilesCount -eq 0 ]
     then
         report "      skipping empty directory $groupDir"
-        rm -rf "${lockDir}"
+        cleanupLock
         continue
     fi
 
@@ -147,7 +163,7 @@ do
 
     # create temporary directory
     tmpDir=$(mktemp --directory)
-    trap "report \"interrupted. Cleaning up.\"; rm -rf \"${lockDir}\"; rm -rf \"${tmpDir}\"; exit 130" SIGINT SIGTERM
+    trap "cleanupLock; cleanupTmpDir; exit 130" SIGINT SIGTERM
     mkdir "${tmpDir}/META-INF"
     manifest="${tmpDir}/META-INF/MANIFEST.MF"
     echo "Date: $(date)" > "${manifest}"
@@ -174,8 +190,8 @@ do
     if [ ${sumSize} -lt ${minSize} ]
     then 
         report "      combined size smaller than ${minSize}. No archive created." 
-        rm -rf "${lockDir}"
-        rm -rf "${tmpDir}"
+        cleanupLock
+        cleanupTmpDir
         continue
     fi
 
@@ -188,18 +204,22 @@ do
     echo "StoreName ${osmTemplate}" > "${tarDir}/.(tag)(OSMTemplate)"
     echo "${storageGroup}" > "${tarDir}/.(tag)(sGroup)"
 
+
     tarFile=$(mktemp --dry-run --suffix=".tar" --tmpdir="${tarDir}" DARC-XXXXX)
+    trap "cleanupLock; cleanupTmpDir; cleanupTar; exit 130" SIGINT SIGTERM
+
     report "      packing archive ${tarFile}"
     tar chf "${tarFile}" *
     # if creating the tar failed, we stop right here
     tarError=$?
     if [ ${tarError} -ne 0 ] 
     then 
-        rm -rf ${tmpDir}
-        rm -f ${tarFile}
-        rm -rf "${lockDir}"
-        problem ${tarError} "Creation of archive ${tarFile} file failed. Cleaning up ${tmpDir}, . "
+        cleanupLock
+        cleanupTmpDir
+        cleanupArchive
+        problem ${tarError} "creation of archive ${tarFile} file failed. Exiting"
     fi
+    trap "cleanupLock; cleanupTmpDir; exit 130" SIGINT SIGTERM
 
     # if we succeeded we take the pnfsid of the just generated tar and create answer files in the group dir
     tarPnfsid=$(cat "${tarDir}/.(id)($(basename ${tarFile}))")
@@ -218,8 +238,7 @@ do
         echo "${uri}" > "${answerFile}"
     done
 
-    report "    cleaning up ${tmpDir} and removing lock ${lockDir}"
-    rm -rf "${lockDir}"
-    rm -rf "${tmpDir}"
+    cleanupLock
+    cleanupTmpDir
 done
 report "finished."
