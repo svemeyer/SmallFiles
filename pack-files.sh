@@ -131,7 +131,7 @@ do
     if [ $flagFilesCount -eq 0 ]
     then
         report "      skipping empty directory $groupDir"
-        rm -f "${groupDir}/.lock"
+        rmdir "${groupDir}/.lock"
         continue
     fi
 
@@ -229,3 +229,4 @@ do
     rmdir "${groupDir}/.lock"
     rm -rf "${tmpDir}"
 done
+report "done."
