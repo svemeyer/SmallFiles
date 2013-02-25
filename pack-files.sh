@@ -117,7 +117,7 @@ do
     lockDir="${groupDir}/.lock"
     if mkdir "${lockDir}"
     then
-      trap "rm -rf \"${lockDir}\"" SIGINT SIGTERM EXIT
+      trap "rm -rf \"${lockDir}\"; exit 130" SIGINT SIGTERM
     else
       report "      skipping locked directory $groupDir"
       continue
@@ -125,7 +125,7 @@ do
 
     # collect all files in group directory sorted by their age, oldest first
     IFS=$'\n'
-    flagFiles=($(ls -t -r |grep -e '^[A-Z0-9]\{36\}$'))
+    flagFiles=($(ls -U|grep -e '^[A-Z0-9]\{36\}$'))
     IFS=$' '
     flagFilesCount=${#flagFiles[@]}
     # if directory is empty continue with next group directory
@@ -149,7 +149,7 @@ do
     # create temporary directory
     tmpDir=$(mktemp --directory)
     mkdir "${tmpDir}/META-INF"
-    trap "rm -rf \"${tmpDir}\"" SIGINT SIGTERM
+    trap "rm -rf \"${tmpDir}\"; exit 130" SIGINT SIGTERM
     manifest="${tmpDir}/META-INF/MANIFEST.MF"
     echo "Date: $(date)" > "${manifest}"
     report "      created temporary directory ${tmpDir}"
@@ -210,7 +210,7 @@ do
 
     report "      storing URIs"
     IFS=$'\n'
-    flagFiles=($(ls "${tmpDir}"|grep -e '^[A-Z0-9]\{36\}$'))
+    flagFiles=($(ls -U "${tmpDir}"|grep -e '^[A-Z0-9]\{36\}$'))
     IFS=$' '
     for pnfsid in ${flagFiles[@]} ; do
         answerFile=${pnfsid}.answer
