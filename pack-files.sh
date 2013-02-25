@@ -115,13 +115,12 @@ do
     report "    processing flag files in ${groupDir}"
     cd "${groupDir}"
     lockDir="${groupDir}/.lock"
-    if mkdir "${lockDir}"
+    if ! mkdir "${lockDir}"
     then
-      trap "rm -rf \"${lockDir}\"; exit 130" SIGINT SIGTERM
-    else
       report "      skipping locked directory $groupDir"
       continue
     fi
+    trap "rm -rf \"${lockDir}\"; exit 130" SIGINT SIGTERM
 
     # collect all files in group directory sorted by their age, oldest first
     IFS=$'\n'
@@ -132,7 +131,7 @@ do
     if [ $flagFilesCount -eq 0 ]
     then
         report "      skipping empty directory $groupDir"
-        rm -rf "${groupDir}/.lock"
+        rm -rf "${lockDir}"
         continue
     fi
 
@@ -148,8 +147,8 @@ do
 
     # create temporary directory
     tmpDir=$(mktemp --directory)
+    trap "rm -rf \"${lockDir}\"; rm -rf \"${tmpDir}\"; exit 130" SIGINT SIGTERM
     mkdir "${tmpDir}/META-INF"
-    trap "rm -rf \"${tmpDir}\"; exit 130" SIGINT SIGTERM
     manifest="${tmpDir}/META-INF/MANIFEST.MF"
     echo "Date: $(date)" > "${manifest}"
     report "      created temporary directory ${tmpDir}"
