@@ -80,6 +80,12 @@ errorReport() {
 getFileSize() {
     echo $(stat -c%s "${1}")
 }
+
+getUserFileDirectoryFromFlag() {
+    local tmp=$(cat ".(pathof)(${1})" | sed "s%${dcachePrefix}%${mountPoint}%")
+    echo $(dirname "${tmp}")
+}
+
 ######################################################
 #
 #   traps
@@ -116,24 +122,16 @@ requestsDir="${mountPoint}/${hsmBase}/requests"
 archivesDir="${mountPoint}/${hsmBase}/archives"
 # checking for existing flag directories for archivation requests
 report "Looking for archivation requests in ${requestsDir}"
-cd "${requestsDir}"
 
 IFS=$'\n'
-flagDirs=($(find . -mindepth 2 -maxdepth 2 -type d))
+flagDirs=($(find "${requestsDir}" -mindepth 2 -maxdepth 2 -type d))
 IFS=$' '
 dirCount=${#flagDirs[@]}
 report "  found $dirCount request groups."
 
 # iterate over all found OSMTemplate/sGroup directory combinations 
-for group in ${flagDirs[@]}
+for groupDir in ${flagDirs[@]}
 do
-    # construct absolute dir name by concatenating requestDir with group
-    # while omitting leading "./" of the latter one.
-    groupDir="${requestsDir}/${group:2}"
-
-    # /usr/share/dcache/lib/pack-dir.sh "${dcachePrefix}" "${mountPoint}" "${archivesDir}" "${groupDir}" ${minSize}
-
-    cd "${groupDir}"
     report "    processing flag files in ${groupDir}"
 
     lockDir="${groupDir}/.lock"
@@ -154,13 +152,12 @@ do
     fi
 
     # create path of the user file dir
-    tmpUserFilePath=$(cat ".(pathof)(${firstFlag})" | sed "s%${dcachePrefix}%${mountPoint}%")
-    userFileDir=$(dirname ${tmpUserFilePath})
+    userFileDir=$(getUserFileDirectoryFromFlag "${firstFlag}")
     # remember tags of user files for later
     osmTemplate=$(cat "${userFileDir}/.(tag)(OSMTemplate)" | sed 's/StoreName \(.*\)/\1/')
     storageGroup=$(cat "${userFileDir}/.(tag)(sGroup)")
     hsmInstance=$(cat "${userFileDir}/.(tag)(hsmInstance)")
-    uriTemplate="$hsmInstance://$hsmInstance/?store=$osmTemplate&group=$storageGroup"
+    uriTemplate="${hsmInstance}://${hsmInstance}/?store=${osmTemplate}&group=${storageGroup}"
     report "      using $uriTemplate for files in $userFileDir"
 
     if [ ${minSize} -gt 0 ]
@@ -168,10 +165,10 @@ do
         report "      estimating average file size from $averageFileCount files in ${userFileDir}"
         # approximate average file size from a couple of files
         IFS=$'\n'
-        flagFiles=($(ls -U|grep -e "${pnfsidRegex}"|head -n $averageFileCount))
+        flagFiles=($(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|head -n $averageFileCount))
         bytes=0
-        for file in ${flagFiles[@]}; do
-            userFileName=$(cat "${mountPoint}/.(nameof)(${file})")
+        for pnfsidFlag in ${flagFiles[@]}; do
+            userFileName=$(cat "${mountPoint}/.(nameof)(${pnfsidFlag})")
             userFilePath="${userFileDir}/${userFileName}"
             fileSize=$(getFileSize "${userFilePath}")
             bytes=$((${bytes}+${fileSize}))
@@ -181,12 +178,12 @@ do
         # get a little more than estimated (3/2)
         estimatedFileCount=$(((3*${averageFileCount}*${minSize}) / (2*${bytes})))
         report "      considering ${estimatedFileCount} files"
-        flagFiles=($(ls -U|grep -e "${pnfsidRegex}"|head -n ${estimatedFileCount}))
+        flagFiles=($(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|head -n ${estimatedFileCount}))
         IFS=$' '
     else
         report "      considering all files"
         IFS=$'\n'
-        flagFiles=($(ls -U|grep -e "${pnfsidRegex}"))
+        flagFiles=($(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"))
         IFS=$' '
     fi
 
@@ -205,7 +202,7 @@ do
     fileCount=0
     for pnfsid in ${flagFiles[@]}; do
         # skip if an answer file already exists
-        [ -f "${pnfsid}.answer" ] && continue
+        [ -f "${groupDir}/${pnfsid}.answer" ] && continue
         chimeraPath=$(cat "${mountPoint}/.(pathof)(${pnfsid})")
         # skip if the user file for the pnfsid does not exist
         [ $? -ne 0 ] && continue
@@ -215,7 +212,7 @@ do
         ln -s "${realFile}" "${tmpDir}/${pnfsid}"
 
         echo "${pnfsid}:${chimeraPath}" >> "${manifest}"
-        [ ${minSize} -eq 0 ] && report "gimme more" && continue
+        [ ${minSize} -eq 0 ] && continue
         [ ${sumSize} -ge $minSize ] && break
     done
 
