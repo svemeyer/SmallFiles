@@ -55,6 +55,8 @@
 #   prerequisites
 #
 LOG=/tmp/pack-files.log
+averageFileCount=100
+pnfsidRegex="^[ABCDEF0123456789]\{36\}$"
 
 ######################################################
 #
@@ -128,29 +130,20 @@ do
 
     # /usr/share/dcache/lib/pack-dir.sh "${dcachePrefix}" "${mountPoint}" "${archivesDir}" "${groupDir}" ${minSize}
 
-    report "    processing flag files in ${groupDir}"
     cd "${groupDir}"
+    report "    processing flag files in ${groupDir}"
+
     lockDir="${groupDir}/.lock"
     if ! mkdir "${lockDir}"
     then
-      report "    leaving locked directory $groupDir"
+      report "    leaving locked directory ${groupDir}"
       continue
     fi
     trap "cleanupLock; exit 130" SIGINT SIGTERM
 
-    # approximate average file size
-    IFS=$'\n'
-    flagFiles=($(ls -U|head -n 25|grep -e '^[A-Z0-9]\{36\}$'))
-    bytes=0
-    for file in ${flagFiles}; do
-        bytes=$(($bytes+$(stat -c%s "${file}")))
-    done
-    # get twice as much as approximately needed
-    flagFiles=($(ls -U|head -n $((50*$minSize / $bytes))|grep -e '^[A-Z0-9]\{36\}$'))
-    IFS=$' '
-    flagFilesCount=${#flagFiles[@]}
+    firstFlag=$(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|head -n 1)
     # if directory is empty continue with next group directory
-    if [ $flagFilesCount -eq 0 ]
+    if [ -z $firstFlag ]
     then
         cleanupLock
         report "    leaving empty directory ${groupDir}"
@@ -158,49 +151,81 @@ do
     fi
 
     # create path of the user file dir
-    tmpUserFilePath=$(cat ".(pathof)(${flagFiles[0]})" | sed "s%${dcachePrefix}%${mountPoint}%")
+    tmpUserFilePath=$(cat ".(pathof)(${firstFlag})" | sed "s%${dcachePrefix}%${mountPoint}%")
     userFileDir=$(dirname ${tmpUserFilePath})
     # remember tags of user files for later
     osmTemplate=$(cat "${userFileDir}/.(tag)(OSMTemplate)" | sed 's/StoreName \(.*\)/\1/')
     storageGroup=$(cat "${userFileDir}/.(tag)(sGroup)")
     hsmInstance=$(cat "${userFileDir}/.(tag)(hsmInstance)")
     uriTemplate="$hsmInstance://$hsmInstance/?store=$osmTemplate&group=$storageGroup"
-    report "      using $uriTemplate for $flagFilesCount files in $(pwd)"
+    report "      using $uriTemplate for files in $userFileDir"
+
+    if [ ${minSize} -gt 0 ]
+    then
+        report "      estimating average file size from $averageFileCount files in ${userFileDir}"
+        # approximate average file size from a couple of files
+        IFS=$'\n'
+        flagFiles=($(ls -U|grep -e "${pnfsidRegex}"|head -n $averageFileCount))
+        bytes=0
+        for file in ${flagFiles[@]}; do
+            userFileName=$(cat "${mountPoint}/.(nameof)(${file})")
+            userFilePath="${userFileDir}/${userFileName}"
+            fileSize=$(stat -c%s "${userFilePath}")
+            bytes=$((${bytes}+${fileSize}))
+        done
+        report "      average file size = ${bytes} / ${averageFileCount} = $((${bytes} / ${averageFileCount}))"
+
+        # get a little more than estimated (3/2)
+        estimatedFileCount=$(((3*${averageFileCount}*${minSize}) / (2*${bytes})))
+        report "      considering ${estimatedFileCount} files"
+        flagFiles=($(ls -U|grep -e "${pnfsidRegex}"|head -n ${estimatedFileCount}))
+        IFS=$' '
+    else
+        report "      considering all files"
+        IFS=$'\n'
+        flagFiles=($(ls -U|grep -e "${pnfsidRegex}"))
+        IFS=$' '
+    fi
 
     # create temporary directory
     tmpDir=$(mktemp --directory)
     trap "cleanupLock; cleanupTmpDir; exit 130" SIGINT SIGTERM
+    report "      created temporary directory ${tmpDir}"
+
+    # initialise manifest file
     mkdir "${tmpDir}/META-INF"
     manifest="${tmpDir}/META-INF/MANIFEST.MF"
     echo "Date: $(date)" > "${manifest}"
-    report "      created temporary directory ${tmpDir}"
 
     # loop over files and collect until their size exceeds $minSize
     sumSize=0
+    fileCount=0
     for pnfsid in ${flagFiles[@]}; do
         # skip if an answer file already exists
         [ -f "${pnfsid}.answer" ] && continue
-        dotFile=".(pathof)(${pnfsid})"
-        chimeraPath=$(cat "${mountPoint}/${dotFile}")
+        chimeraPath=$(cat "${mountPoint}/.(pathof)(${pnfsid})")
         # skip if the user file for the pnfsid does not exist
         [ $? -ne 0 ] && continue
         realFile=${userFileDir}/$(basename "${chimeraPath}")
         sumSize=$(($sumSize + $(stat -c%s ${realFile})))
+        fileCount=$((${fileCount} + 1))
         ln -s "${realFile}" "${tmpDir}/${pnfsid}"
 
-        echo "${manifest}${pnfsid}:${chimeraPath}" >> "${manifest}"
+        echo "${pnfsid}:${chimeraPath}" >> "${manifest}"
+        [ ${minSize} -eq 0 ] && report "gimme more" && continue
         [ ${sumSize} -ge $minSize ] && break
     done
 
     # if the combined size is not enough, continue with next group dir
     if [ ${sumSize} -lt ${minSize} ]
-    then 
-        report "      combined size smaller than ${minSize}. No archive created."
+    then
+        report "      combined size ${sumSize} < ${minSize}. No archive created."
         cleanupLock
         cleanupTmpDir
         report "    leaving ${groupDir}"
         continue
     fi
+    echo "Total ${sumSize} bytes in ${fileCount} files" >> "${manifest}"
 
     cd "${tmpDir}"
 
@@ -210,7 +235,6 @@ do
     mkdir -p "${tarDir}"
     echo "StoreName ${osmTemplate}" > "${tarDir}/.(tag)(OSMTemplate)"
     echo "${storageGroup}" > "${tarDir}/.(tag)(sGroup)"
-
 
     tarFile=$(mktemp --dry-run --suffix=".tar" --tmpdir="${tarDir}" DARC-XXXXX)
     trap "cleanupLock; cleanupTmpDir; cleanupArchive; exit 130" SIGINT SIGTERM
@@ -234,10 +258,10 @@ do
 
     cd "${groupDir}"
 
-    report "      storing URIs"
+    report "      storing URIs in ${groupDir}"
     IFS=$'\n'
-    for pnfsid in $(ls -U "${tmpDir}"|grep -e '^[A-Z0-9]\{36\}$'); do
-        answerFile=${pnfsid}.answer
+    for pnfsid in $(ls -U "${tmpDir}"|grep -e "${pnfsidRegex}"); do
+        answerFile="${pnfsid}.answer"
         uri="${uriTemplate}&bfid=${pnfsid}:${tarPnfsid}"
         echo "${uri}" > ".(use)(5)(${pnfsid})"
         echo "${uri}" > "${answerFile}"
