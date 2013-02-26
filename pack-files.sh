@@ -82,7 +82,7 @@ getFileSize() {
 }
 
 getUserFileDirectoryFromFlag() {
-    local tmp=$(cat ".(pathof)(${1})" | sed "s%${dcachePrefix}%${mountPoint}%")
+    local tmp=$(cat "${mountPoint}/.(pathof)(${1})" | sed "s%${dcachePrefix}%${mountPoint}%")
     echo $(dirname "${tmp}")
 }
 
