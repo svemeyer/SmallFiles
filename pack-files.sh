@@ -77,6 +77,9 @@ errorReport() {
     return 0
 }
 
+getFileSize() {
+    echo $(stat -c%s "${1}")
+}
 ######################################################
 #
 #   traps
@@ -170,7 +173,7 @@ do
         for file in ${flagFiles[@]}; do
             userFileName=$(cat "${mountPoint}/.(nameof)(${file})")
             userFilePath="${userFileDir}/${userFileName}"
-            fileSize=$(stat -c%s "${userFilePath}")
+            fileSize=$(getFileSize "${userFilePath}")
             bytes=$((${bytes}+${fileSize}))
         done
         report "      average file size = ${bytes} / ${averageFileCount} = $((${bytes} / ${averageFileCount}))"
@@ -207,7 +210,7 @@ do
         # skip if the user file for the pnfsid does not exist
         [ $? -ne 0 ] && continue
         realFile=${userFileDir}/$(basename "${chimeraPath}")
-        sumSize=$(($sumSize + $(stat -c%s ${realFile})))
+        sumSize=$(($sumSize + $(getFileSize "${realFile}")))
         fileCount=$((${fileCount} + 1))
         ln -s "${realFile}" "${tmpDir}/${pnfsid}"
 
@@ -248,7 +251,7 @@ do
         cleanupLock
         cleanupTmpDir
         cleanupArchive
-        problem ${tarError} "creation of archive ${tarFile} file failed. Exiting"
+        problem ${tarError} "Error: Creation of archive ${tarFile} file failed. Exiting"
     fi
     trap "cleanupLock; cleanupTmpDir; exit 130" SIGINT SIGTERM
 
