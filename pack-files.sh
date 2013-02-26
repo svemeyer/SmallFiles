@@ -55,7 +55,7 @@
 #   prerequisites
 #
 LOG=/tmp/pack-files.log
-averageFileCount=100
+averageFileCount=20
 pnfsidRegex="^[ABCDEF0123456789]\{36\}$"
 
 ######################################################
@@ -166,17 +166,16 @@ do
         # approximate average file size from a couple of files
         IFS=$'\n'
         flagFiles=($(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|head -n $averageFileCount))
-        bytes=0
+        smallestSize=${minSize}
         for pnfsidFlag in ${flagFiles[@]}; do
             userFileName=$(cat "${mountPoint}/.(nameof)(${pnfsidFlag})")
             userFilePath="${userFileDir}/${userFileName}"
             fileSize=$(getFileSize "${userFilePath}")
-            bytes=$((${bytes}+${fileSize}))
+            smallestSize=$(( ${smallestSize} < ${fileSize} ? ${smallestSize} : ${fileSize} ))
         done
-        report "      average file size = ${bytes} / ${averageFileCount} = $((${bytes} / ${averageFileCount}))"
+        report "      smallest file size = ${smallestSize}"
 
-        # get a little more than estimated (3/2)
-        estimatedFileCount=$(((3*${averageFileCount}*${minSize}) / (2*${bytes})))
+        estimatedFileCount=$(( 2*${minSize} / ${smallestSize} ))
         report "      considering ${estimatedFileCount} files"
         flagFiles=($(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|head -n ${estimatedFileCount}))
         IFS=$' '
@@ -206,14 +205,16 @@ do
         chimeraPath=$(cat "${mountPoint}/.(pathof)(${pnfsid})")
         # skip if the user file for the pnfsid does not exist
         [ $? -ne 0 ] && continue
-        realFile=${userFileDir}/$(basename "${chimeraPath}")
-        sumSize=$(($sumSize + $(getFileSize "${realFile}")))
+        fileName=$(basename "${chimeraPath}")
+        realFile="${userFileDir}/${fileName}"
+        fileSize=$(getFileSize "${realFile}")
+        sumSize=$((${sumSize}+${fileSize}))
         fileCount=$((${fileCount} + 1))
         ln -s "${realFile}" "${tmpDir}/${pnfsid}"
 
         echo "${pnfsid}:${chimeraPath}" >> "${manifest}"
         [ ${minSize} -eq 0 ] && continue
-        [ ${sumSize} -ge $minSize ] && break
+        [ ${sumSize} -ge ${minSize} ] && break
     done
 
     # if the combined size is not enough, continue with next group dir
@@ -226,8 +227,7 @@ do
         continue
     fi
     echo "Total ${sumSize} bytes in ${fileCount} files" >> "${manifest}"
-
-    cd "${tmpDir}"
+    report "      archiving ${fileCount} files with a total of ${sumSize} bytes"
 
     # create directory for the archive and then pack all files by their pnfsid-link-name in an archive
     tarDir="${archivesDir}/${osmTemplate}/${storageGroup}"
@@ -240,6 +240,7 @@ do
     trap "cleanupLock; cleanupTmpDir; cleanupArchive; exit 130" SIGINT SIGTERM
 
     report "      packing archive ${tarFile}"
+    cd "${tmpDir}"
     tar chf "${tarFile}" *
     # if creating the tar failed, we stop right here
     tarError=$?
@@ -256,15 +257,12 @@ do
     tarPnfsid=$(cat "${tarDir}/.(id)($(basename ${tarFile}))")
     report "      success. Stored archive ${tarFile} with PnfsId ${tarPnfsid}."
 
-    cd "${groupDir}"
-
     report "      storing URIs in ${groupDir}"
     IFS=$'\n'
     for pnfsid in $(ls -U "${tmpDir}"|grep -e "${pnfsidRegex}"); do
-        answerFile="${pnfsid}.answer"
         uri="${uriTemplate}&bfid=${pnfsid}:${tarPnfsid}"
-        echo "${uri}" > ".(use)(5)(${pnfsid})"
-        echo "${uri}" > "${answerFile}"
+        echo "${uri}" > "${groupDir}/.(use)(5)(${pnfsid})"
+        echo "${uri}" > "${groupDir}/${pnfsid}.answer"
     done
     IFS=$' '
 
