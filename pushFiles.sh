@@ -6,12 +6,11 @@ then
     exit 1
 fi
 
-echo creating $1 small files in $2
+echo "creating $1 small files in $2"
 i=1
-while [ $i -le $1 ]
+for i in $(seq $1)
 do
-    echo $i > "${2}/smallfile.$i"
-    i=$(($i+1))
+    echo $i > $(mktemp --dry-run --tmpdir="${2}" sfXXXXXXXXXX)
 done
 
 echo "done."
