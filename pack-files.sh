@@ -46,7 +46,7 @@
 #             )
 #             E.g., "hsm"
 #
-#   $minSize:
+#   $targetSize:
 #             This is the minimum size of archives to be created.
 #             E.g. "1073741824" (1gb)
 #
@@ -81,11 +81,49 @@ getFileSize() {
     echo $(stat -c%s "${1}")
 }
 
+getFileSizeByPnfsId() {
+    local fileName=$(cat "${userFileDir}/.(nameof)(${1}))")
+    local filePath="${userFileDir}/${fileName}"
+    echo $(getFileSize ${filePath})
+}
+
 getUserFileDirectoryFromFlag() {
     local tmp=$(cat "${mountPoint}/.(pathof)(${1})" | sed "s%${dcachePrefix}%${mountPoint}%")
     echo $(dirname "${tmp}")
 }
 
+filterDeleted() {
+    while read id
+    do
+        local fileName=$(cat "${userFileDir}/.(nameof)(${id}))")
+        local filePath="${userFileDir}/${fileName}"
+        [ -f ${filePath} ] && echo ${id}
+    done
+}
+
+filterAnswered() {
+    while read id
+    do
+        [ ! -f "${groupDir}/${id}.answer" ] && echo ${id}
+    done
+}
+# reads pnfsids and collects as many as needed to create the archive
+# $1 - number of bytes to collect
+# sets the following two variables
+collectFiles() {
+    sumSize=0
+    while read id
+    do
+        if  [ ${1} -ne 0 ]
+        then
+            [ ${sumSize} -ge ${1} ] && break
+        fi
+        sumSize=$((${sumSize}+$(getFileSizeByPnfsId "${id}")))
+        echo "${id}"
+    done
+    # append total size. (hack #1)
+    echo ${sumSize}
+}
 ######################################################
 #
 #   traps
@@ -116,8 +154,8 @@ fi
 dcachePrefix="${1}"
 mountPoint="${2}"
 hsmBase="${3}"
-minSize="${4}"
-# construct absolute requests and archives dirs 
+targetSize="${4}"
+# construct absolute requests and archives dirs
 requestsDir="${mountPoint}/${hsmBase}/requests"
 archivesDir="${mountPoint}/${hsmBase}/archives"
 # checking for existing flag directories for archivation requests
@@ -160,30 +198,22 @@ do
     uriTemplate="${hsmInstance}://${hsmInstance}/?store=${osmTemplate}&group=${storageGroup}"
     report "      using $uriTemplate for files in $userFileDir"
 
-    if [ ${minSize} -gt 0 ]
-    then
-        report "      estimating average file size from $averageFileCount files in ${userFileDir}"
-        # approximate average file size from a couple of files
-        IFS=$'\n'
-        flagFiles=($(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|head -n $averageFileCount))
-        smallestSize=${minSize}
-        for pnfsidFlag in ${flagFiles[@]}; do
-            userFileName=$(cat "${mountPoint}/.(nameof)(${pnfsidFlag})")
-            userFilePath="${userFileDir}/${userFileName}"
-            fileSize=$(getFileSize "${userFilePath}")
-            smallestSize=$(( ${smallestSize} < ${fileSize} ? ${smallestSize} : ${fileSize} ))
-        done
-        report "      smallest file size = ${smallestSize}"
+    IFS=$'\n'
+    flagFiles=($(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|filterAnswered|filterDeleted|collectFiles "${targetSize}"))
+    IFS=$' '
 
-        estimatedFileCount=$(( 2*${minSize} / ${smallestSize} ))
-        report "      considering ${estimatedFileCount} files"
-        flagFiles=($(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|head -n ${estimatedFileCount}))
-        IFS=$' '
-    else
-        report "      considering all files"
-        IFS=$'\n'
-        flagFiles=($(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"))
-        IFS=$' '
+    # read sum of files which comes as the last element of $flagFiles (hack #1) and unset it afterwards
+    fileCount=$((${#flagFiles[@]}-1))
+    sumSize=${flagFiles[${fileCount}]}
+    unset flagFiles[${fileCount}]}
+    # if the combined size is not enough, continue with next group dir
+    if [ ${sumSize} -lt ${targetSize} ]
+    then
+        report "      combined size ${sumSize} < ${targetSize}. No archive created."
+        cleanupLock
+        cleanupTmpDir
+        report "    leaving ${groupDir}"
+        continue
     fi
 
     # create temporary directory
@@ -197,35 +227,15 @@ do
     echo "Date: $(date)" > "${manifest}"
 
     # loop over files and collect until their size exceeds $minSize
-    sumSize=0
-    fileCount=0
     for pnfsid in ${flagFiles[@]}; do
-        # skip if an answer file already exists
-        [ -f "${groupDir}/${pnfsid}.answer" ] && continue
         chimeraPath=$(cat "${mountPoint}/.(pathof)(${pnfsid})")
-        # skip if the user file for the pnfsid does not exist
-        [ $? -ne 0 ] && continue
         fileName=$(basename "${chimeraPath}")
         realFile="${userFileDir}/${fileName}"
-        fileSize=$(getFileSize "${realFile}")
-        sumSize=$((${sumSize}+${fileSize}))
-        fileCount=$((${fileCount} + 1))
         ln -s "${realFile}" "${tmpDir}/${pnfsid}"
 
         echo "${pnfsid}:${chimeraPath}" >> "${manifest}"
-        [ ${minSize} -eq 0 ] && continue
-        [ ${sumSize} -ge ${minSize} ] && break
     done
 
-    # if the combined size is not enough, continue with next group dir
-    if [ ${sumSize} -lt ${minSize} ]
-    then
-        report "      combined size ${sumSize} < ${minSize}. No archive created."
-        cleanupLock
-        cleanupTmpDir
-        report "    leaving ${groupDir}"
-        continue
-    fi
     echo "Total ${sumSize} bytes in ${fileCount} files" >> "${manifest}"
     report "      archiving ${fileCount} files with a total of ${sumSize} bytes"
 
