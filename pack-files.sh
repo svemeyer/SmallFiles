@@ -145,16 +145,24 @@ cleanupArchive() {
 #   main
 #
 # check usage
+if [ $(whoami) != "root" ]
+then
+    report "pack-files.sh needs to run as root."
+    exit 5
+fi
+
 if [ $# -ne 4 ]
 then 
     usage
     exit 4
 fi
+
 # assign parameters
 dcachePrefix="${1}"
 mountPoint="${2}"
 hsmBase="${3}"
 targetSize="${4}"
+
 # construct absolute requests and archives dirs
 requestsDir="${mountPoint}/${hsmBase}/requests"
 archivesDir="${mountPoint}/${hsmBase}/archives"
