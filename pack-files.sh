@@ -95,9 +95,13 @@ getUserFileDirectoryFromFlag() {
 filterDeleted() {
     while read id
     do
-        local fileName=$(cat "${userFileDir}/.(nameof)(${id}))")
-        local filePath="${userFileDir}/${fileName}"
-        [ -f ${filePath} ] && echo ${id}
+        filename=$(cat "${groupDir}/.(nameof)(${id})")
+        if [ $? -ne 0 ]
+        then
+            echo "ERROR: 1 Archivation request flag ${id} refers to a non existing file." > "${groupDir}/${id}.answer"
+        else
+            echo ${id}
+        fi
     done
 }
 
@@ -130,6 +134,7 @@ collectFiles() {
 #
 cleanupLock() {
     report "    removing lock ${lockDir}"
+    rm -f "${lockDir}/$$"
     rmdir "${lockDir}"
 }
 cleanupTmpDir() {
@@ -188,7 +193,9 @@ do
     fi
     trap "cleanupLock; exit 130" SIGINT SIGTERM
 
-    firstFlag=$(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|head -n 1)
+    touch "${lockDir}/$$"
+
+    firstFlag=$(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|filterAnswered|filterDeleted|head -n 1)
     # if directory is empty continue with next group directory
     if [ -z $firstFlag ]
     then
@@ -276,13 +283,10 @@ do
     report "      success. Stored archive ${tarFile} with PnfsId ${tarPnfsid}."
 
     report "      storing URIs in ${groupDir}"
-    IFS=$'\n'
-    for pnfsid in $(ls -U "${tmpDir}"|grep -e "${pnfsidRegex}"); do
+    for pnfsid in ${flagFiles[@]}; do
         uri="${uriTemplate}&bfid=${pnfsid}:${tarPnfsid}"
-        echo "${uri}" > "${groupDir}/.(use)(5)(${pnfsid})"
         echo "${uri}" > "${groupDir}/${pnfsid}.answer"
     done
-    IFS=$' '
 
     cleanupLock
     cleanupTmpDir
