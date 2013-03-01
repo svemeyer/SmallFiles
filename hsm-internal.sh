@@ -50,56 +50,55 @@ errorReport() {
 resolvePnfsID() {
 
    pnfsID=$1
-   echo "$(chimera-cli pathof ${pnfsID})"
-##
-#   fullname=`cat "${pnfsMountpoint}/.(nameof)($pnfsID)"`
-#   while :
-#     do
-#       pnfsID=`cat "${pnfsMountpoint}/.(parent)($pnfsID)" 2>/dev/null`
-#       if [ $? -ne 0 ] ; then return 1 ; fi
-#       if [ "$pnfsID" = "000000000000000000000000000000000000" ] ; then break ; fi
-#       fullname=`cat "${pnfsMountpoint}/.(nameof)($pnfsID)"`"/"$fullname
-#   done
-#   echo "/"$fullname
-#   return 0
+#
+   fullname=`cat "${pnfsMountpoint}/.(nameof)($pnfsID)"`
+   while :
+     do
+       pnfsID=`cat "${pnfsMountpoint}/.(parent)($pnfsID)" 2>/dev/null`
+       if [ $? -ne 0 ] ; then return 1 ; fi
+       if [ "$pnfsID" = "000000000000000000000000000000000000" ] ; then break ; fi
+       fullname=`cat "${pnfsMountpoint}/.(nameof)($pnfsID)"`"/"$fullname
+   done
+   echo "/"$fullname
+   return 0
 
 }
 #
-##########################################################
-##
-##  Map the canonical file name into the local filename 
-##  Argument : canonical file path (on the server)
-##  Returns  : local filepath
-##  expects  : pnfsMountpoint
-##
-##
-#mapCanonicalToLocal() {
+#########################################################
 #
-#  canonicalPath=$1
+#  Map the canonical file name into the local filename 
+#  Argument : canonical file path (on the server)
+#  Returns  : local filepath
+#  expects  : pnfsMountpoint
 #
-#  r=`mount 2>/dev/null | 
-#     grep "$pnfsMountpoint" |
-#     awk '{ split($1,a,":") ; print a[2] }'`
 #
-#  localPath=`expr "$1" : "$r\(.*\)" 2>/dev/null`
-#
-#  if [ $? -ne 0 ] ; then return $? ; fi
-#
-#  localPath=`echo $localPath | 
-#             awk '{ if( substr($1,1,1) != "/" ){ 
-#                      printf"/%s\n",$1 
-#                    }else{
-#                      print $1
-#                    }
-#
-#             }'`
-#
-#  if [ $? -ne 0 ] ; then return 2 ; fi
-#
-#  echo ${pnfsMountpoint}${localPath}
-#  return 0
-#
-#}
+mapCanonicalToLocal() {
+
+  canonicalPath=$1
+
+  r=`mount 2>/dev/null | 
+     grep "${pnfsMountpoint}" |
+     awk '{ split($1,a,":") ; print a[2] }'`
+
+  localPath=`expr "$1" : "$r\(.*\)" 2>/dev/null`
+
+  if [ $? -ne 0 ] ; then return $? ; fi
+
+  localPath=`echo "${localPath}" |
+             awk '{ if( substr($1,1,1) != "/" ){ 
+                      printf"/%s\n",$1 
+                    }else{
+                      print $1
+                    }
+
+             }'`
+
+  if [ $? -ne 0 ] ; then return 2 ; fi
+
+  echo ${pnfsMountpoint}${localPath}
+  return 0
+
+}
 #
 getStorageInfoKey() {
 
@@ -124,28 +123,27 @@ datasetPut() {
 #
 #  Generate PATH
 #
-    requestPath=${yhsmBase}/requests/${ystore}/${ygroup}
-    requestFlag=${requestPath}/${ybfid} 
+    requestPath="${yhsmBase}/requests/${ystore}/${ygroup}"
+    requestFlag="${requestPath}/${ybfid}"
 #
     report "Using request flag : ${requestFlag}"
 #
-    if [ -f ${requestFlag}.answer ] ; then
+    if [ -f "${requestFlag}.answer" ] ; then
 #
-       reply=$(chimera-cli readlevel ${requestFlag} 5)
-       #reply=`cat ${requestFlag}.answer`
+       reply=`cat ${requestFlag}.answer`
        report "Request answer found : ${reply}" 
        iserror=`expr "${reply}" : "ERROR \([0-9]*\).*"`
        if [ $? -eq 0 ] ; then
           report "Found error ${iserror}"
-          rm -rf ${requestFlag} ${requestFlag}.answer
+          rm -rf "${requestFlag}" "${requestFlag}.answer"
           return ${iserror}
        else 
-          rm -rf ${requestFlag} ${requestFlag}.answer
+          rm -rf "${requestFlag}" "${requestFlag}.answer"
           echo $reply
           return 0 
        fi
 #
-    elif [ -f ${requestFlag} ] ; then
+    elif [ -f "${requestFlag}" ] ; then
 #
        report "Still waiting" 
        problem 2 "Not yet ready"
@@ -214,9 +212,9 @@ fi
 #
 # assign the manditory arguments
 #
-command=$1
-pnfsid=$2
-filename=$3
+command="${1}"
+pnfsid="${2}"
+filename="${3}"
 #
 ###############################################################
 #
@@ -274,9 +272,9 @@ if [ $command = "get" ] ; then
    #
    report "Splitting URI into pieces"
    #
-   getStore=`expr $uri : ".*/?store=\(.*\)&group.*"`
-   getGroup=`expr $uri : ".*group=\(.*\)&bfid.*"`
-   getBfid=`expr $uri : ".*bfid=\(.*\)"`
+   getStore=`expr "${uri}" : ".*/?store=\(.*\)&group.*"`
+   getGroup=`expr "${uri}" : ".*group=\(.*\)&bfid.*"`
+   getBfid=`expr "${uri}" : ".*bfid=\(.*\)"`
    #
    report "URI : ${uri}"
    report "Store=${getStore}; Group=${getGroup}; Bfid=${getBfid}"
@@ -286,33 +284,32 @@ if [ $command = "get" ] ; then
    #
    # Is this an archive ?
    #
-   archiveId=`expr ${getBfid} : ".*:\(.*\)" 2>/dev/null` 
+   archiveId=`expr "${getBfid}" : ".*:\(.*\)" 2>/dev/null`
    if [ $? -ne 0 ] ; then
       problem 1 "This is not an archive : ${getBfid}"
    fi
    #
    # find archived path
    #
-   archiveFile=`resolvePnfsID $archiveId`
+   archiveFile=`resolvePnfsID "${archiveId}"`
    if [ $? -ne 0 ] ; then problem 2 "Problem resolving $archiveId" ; fi
    #
    report "Archive file is (canonical) : ${archiveFile}"
    #
-   # archiveFile=`mapCanonicalToLocal ${archiveFile}`
-   # if [ $? -ne 0 ] ; then problem 33 "Mapping from canonical to local archive file failed" ; fi
-   ##
-   # report "Archive file is (local)     : ${archiveFile}"
+   archiveFile=`mapCanonicalToLocal "${archiveFile}"`
+   if [ $? -ne 0 ] ; then problem 33 "Mapping from canonical to local archive file failed" ; fi
    #
-   originalId=`expr ${getBfid} : "\(.*\):.*" 2>/dev/null`
+   report "Archive file is (local)     : ${archiveFile}"
+   #
+   originalId=`expr "${getBfid}" : "\(.*\):.*" 2>/dev/null`
    report "Data File Pnfs ID : ${originalId}"
    #
-   localDir=`dirname $filename`
+   localDir=`dirname "${filename}"`
    #
    report "Extracting file into $localDir"
    #
-   # cd ${localDir}
-   # LD_PRELOAD=special tar lib
-   tar xf $archiveFile $originalId 2>>$LOG
+   cd "${localDir}"
+   tar xf "${archiveFile}" "${originalId}" 2>>$LOG
    rc=$?
    cd -
    if [ $rc -ne 0 ] ; then problem 4 "Tar couldn't replay the file" ; fi
@@ -325,7 +322,7 @@ elif [ $command = "put" ] ; then
 #
 #   and the put
 #
-   filesize=`ls -l ${filename} 2>/dev/null | awk '{ print $5 }'`
+   filesize=`stat -c%s "${filename}" 2>/dev/null`
    #
    #  check for existence of file
    #  NOTE : if the filesize is zero, we are expected to return 31, so that
