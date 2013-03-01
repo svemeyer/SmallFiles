@@ -335,7 +335,7 @@ elif [ $command = "put" ] ; then
    #  now, finally copy the file to the HSM
    #  (we assume the bfid to be returned)
    #
-   result=`datasetPut ${hsmBase} ${store} ${group} ${pnfsid}` || exit $?
+   result=`datasetPut "${hsmBase}" "${store}" "${group}" "${pnfsid}"` || exit $?
    #
    # osm://osm/?store=sql&group=chimera&bfid=3434.0.994.1188400818542
    #
