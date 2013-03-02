@@ -130,7 +130,7 @@ datasetPut() {
 #
     if [ -f "${requestFlag}.answer" ] ; then
 #
-       reply=`cat ${requestFlag}.answer`
+       reply=$(cat "${requestFlag}.answer")
        report "Request answer found : ${reply}" 
        iserror=`expr "${reply}" : "ERROR \([0-9]*\).*"`
        if [ $? -eq 0 ] ; then
@@ -138,9 +138,14 @@ datasetPut() {
           rm -rf "${requestFlag}" "${requestFlag}.answer"
           return ${iserror}
        else 
-          rm -rf "${requestFlag}" "${requestFlag}.answer"
-          echo $reply
-          return 0 
+          rm "${requestFlag}.answer"
+          if [ $? -eq 0 ]
+          then
+              rm "${requestFlag}"
+              echo $reply
+              return 0
+           fi
+           problem 1 "Could not remove answer file. Keep waiting."
        fi
 #
     elif [ -f "${requestFlag}" ] ; then
@@ -151,8 +156,8 @@ datasetPut() {
     else
 #
        report "Initializing request" 
-       mkdir -p ${requestPath} 2>/dev/null
-       touch ${requestFlag}
+       mkdir -p "${requestPath}" 2>/dev/null
+       touch "${requestFlag}"
        problem 3 "Request Initialized (async)"
 #
     fi
