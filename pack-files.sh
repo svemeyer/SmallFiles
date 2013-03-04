@@ -215,12 +215,16 @@ do
 
     IFS=$'\n'
     flagFiles=($(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|filterAnswered|filterDeleted|collectFiles "${targetSize}"))
-    IFS=$' '
 
     # read sum of files which comes as the last element of $flagFiles (hack #1) and unset it afterwards
     fileCount=$((${#flagFiles[@]}-1))
     sumSize=${flagFiles[${fileCount}]}
     unset flagFiles[${fileCount}]}
+
+    # sort and make sure we have every file name only one (NFS client bug)
+    flagFiles=($(printf '%s\n' "${flagFiles[@]}"|sort|uniq))
+    IFS=$' '
+
     # if the combined size is not enough, continue with next group dir
     if [ ${sumSize} -lt ${targetSize} ]
     then
