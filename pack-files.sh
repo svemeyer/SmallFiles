@@ -95,20 +95,17 @@ getUserFileDirectoryFromFlag() {
 filterDeleted() {
     while read id
     do
-        filename=$(cat "${groupDir}/.(nameof)(${id})")
-        if [ $? -ne 0 ]
-        then
-            echo "ERROR: 1 Archivation request flag ${id} refers to a non existing file." > "${groupDir}/${id}.answer"
-        else
-            echo ${id}
-        fi
+        cat "${groupDir}/.(nameof)(${id})" > /dev/null
+        [ $? -ne 0 ] || echo ${id}
     done
 }
 
 filterAnswered() {
+    local chimeraPath="${dcachePrefix}/${hsmBase}/requests/${osmTemplate}/${storageGroup}"
     while read id
     do
-        [ ! -f "${groupDir}/${id}.answer" ] && echo ${id}
+        local answer=$(chimera-cli readlevel "${chimeraPath}/${id}" 5)
+        [ -z "${answer}" ] && echo ${id}
     done
 }
 # reads pnfsids and collects as many as needed to create the archive
@@ -195,7 +192,7 @@ do
 
     touch "${lockDir}/$$"
 
-    firstFlag=$(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|filterAnswered|filterDeleted|head -n 1)
+    firstFlag=$(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|head -n 1)
     # if directory is empty continue with next group directory
     if [ -z $firstFlag ]
     then
@@ -221,7 +218,7 @@ do
     sumSize=${flagFiles[${fileCount}]}
     unset flagFiles[${fileCount}]}
 
-    # sort and make sure we have every file name only one (NFS client bug)
+    # sort and make sure we have every file name only one (probably this bug: https://bugzilla.redhat.com/show_bug.cgi?id=739222)
     flagFiles=($(printf '%s\n' "${flagFiles[@]}"|sort|uniq))
     IFS=$' '
 
@@ -282,14 +279,15 @@ do
     fi
     trap "cleanupLock; cleanupTmpDir; exit 130" SIGINT SIGTERM
 
-    # if we succeeded we take the pnfsid of the just generated tar and create answer files in the group dir
+    # if we succeeded we take the pnfsid of the just generated tar and create the replies
     tarPnfsid=$(cat "${tarDir}/.(id)($(basename ${tarFile}))")
     report "      success. Stored archive ${tarFile} with PnfsId ${tarPnfsid}."
 
+    chimeraPath="${dcachePrefix}/${hsmBase}/requests/${osmTemplate}/${storageGroup}"
     report "      storing URIs in ${groupDir}"
     for pnfsid in ${flagFiles[@]}; do
         uri="${uriTemplate}&bfid=${pnfsid}:${tarPnfsid}"
-        echo "${uri}" > "${groupDir}/${pnfsid}.answer"
+        chimera-cli writelevel "${chimeraPath}/${pnfsid}" 5 "${uri}"
     done
 
     cleanupLock
