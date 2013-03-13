@@ -89,11 +89,6 @@ getUserFileFromFlag() {
     cat "${mountPoint}/.(pathof)(${1})" | sed "s%${chimeraDataPrefix}%${mountPoint}%"
 }
 
-getUserFileDirectoryFromFlag() {
-    local tmp=$(getUserFileFromFlag "${1}")
-    echo $(dirname "${tmp}")
-}
-
 getFileSizeByPnfsId() {
     local fileName=$(getUserFileFromFlag "${1}")
     echo $(getFileSize "${fileName}")
@@ -200,23 +195,12 @@ do
     # create pid file in lock directory
     touch "${lockDir}/$$"
 
-    firstFlag=$(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|head -n 1)
-    # if directory is empty continue with next group directory
-    if [ -z $firstFlag ]
-    then
-        cleanupLock
-        report "    leaving empty directory ${groupDir}"
-        continue
-    fi
-
-    # create path of the user file dir
-    userFileDir=$(getUserFileDirectoryFromFlag "${firstFlag}")
     # remember tags of user files for later
-    osmTemplate=$(cat "${userFileDir}/.(tag)(OSMTemplate)" | sed 's/StoreName \(.*\)/\1/')
-    storageGroup=$(cat "${userFileDir}/.(tag)(sGroup)")
-    hsmInstance=$(cat "${userFileDir}/.(tag)(hsmInstance)")
+    osmTemplate=$(expr "${groupDir}" : ".*/\([^/]*\)/[^/]*$")
+    storageGroup=$(expr "${groupDir}" : ".*/\([^/]*\)$")
+    hsmInstance="dcache"
     uriTemplate="${hsmInstance}://${hsmInstance}/?store=${osmTemplate}&group=${storageGroup}"
-    report "      using $uriTemplate for files in $userFileDir"
+    report "      using $uriTemplate for files with OSMTemplate=$osmTemplate and sGroup=$storageGroup"
 
     IFS=$'\n'
     flagFiles=($(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|filterAnswered|filterDeleted|collectFiles "${targetSize}"))
