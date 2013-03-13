@@ -128,24 +128,20 @@ datasetPut() {
 #
     report "Using request flag : ${requestFlag}"
 #
-    if [ -f "${requestFlag}.answer" ] ; then
+    reply=$(chimera-cli readlevel "/data/hsm/requests/${ystore}/${ygroup}/${ybfid}" 5)
+    #  reply=$(cat "${requestPath}/.(use)(5)(${ybfid})")
+    if [ ! -z "${reply}" ] ; then
 #
-       reply=$(cat "${requestFlag}.answer")
-       report "Request answer found : ${reply}" 
+       report "Request answer found : ${reply}"
        iserror=`expr "${reply}" : "ERROR \([0-9]*\).*"`
        if [ $? -eq 0 ] ; then
           report "Found error ${iserror}"
-          rm -rf "${requestFlag}" "${requestFlag}.answer"
+          rm -rf "${requestFlag}"
           return ${iserror}
        else 
-          rm "${requestFlag}.answer"
-          if [ $? -eq 0 ]
-          then
-              rm "${requestFlag}"
-              echo $reply
-              return 0
-           fi
-           problem 1 "Could not remove answer file. Keep waiting."
+          rm "${requestFlag}"
+          echo $reply
+          return 0
        fi
 #
     elif [ -f "${requestFlag}" ] ; then
