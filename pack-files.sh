@@ -12,14 +12,14 @@
 # This script (pack-files.sh) will take those empty files' names, and create a 
 # temporary directory containing a collection of symbolic links to the corresponding
 # (small) files. If this collection exceeds some configured size (default 1gb) 
-# the files are packed in an archive (tar) file in $hsmDir. Afterwards the files 
+# the files are packed in an archive file in $hsmDir. Afterwards the files
 # in $flagdir are filled with a special uri that contains the file's and the 
 # archive's pnfsids. This uri is then picked up and stored with the file in chimera 
 # by hsm-internal.sh. 
 #
 # Parameters: 
 #
-#   $dcachePrefix:
+#   $chimeraDataPrefix:
 #             This is the nfs exported directory as configured in /etc/exports.
 #             E.g., "/data"
 #
@@ -63,7 +63,7 @@ pnfsidRegex="^[ABCDEF0123456789]\{36\}$"
 #   functions
 # 
 usage() {
-    echo "Usage: pack-files.sh <dcachePrefix> <mountPoint> <hsmBase> <minSize>" | tee -a $LOG >&2
+    echo "Usage: pack-files.sh <chimeraDataPrefix> <mountPoint> <hsmBase> <minSize>" | tee -a $LOG >&2
 }
 report() {
     echo "`date +"%D-%T"` ($$) $1" | tee -a $LOG >&2
@@ -81,15 +81,22 @@ getFileSize() {
     echo $(stat -c%s "${1}")
 }
 
-getFileSizeByPnfsId() {
-    local fileName=$(cat "${userFileDir}/.(nameof)(${1}))")
-    local filePath="${userFileDir}/${fileName}"
-    echo $(getFileSize ${filePath})
+getChimeraUserFileFromFlag() {
+    cat "${mountPoint}/.(pathof)(${1})"
+}
+
+getUserFileFromFlag() {
+    cat "${mountPoint}/.(pathof)(${1})" | sed "s%${chimeraDataPrefix}%${mountPoint}%"
 }
 
 getUserFileDirectoryFromFlag() {
-    local tmp=$(cat "${mountPoint}/.(pathof)(${1})" | sed "s%${dcachePrefix}%${mountPoint}%")
+    local tmp=$(getUserFileFromFlag "${1}")
     echo $(dirname "${tmp}")
+}
+
+getFileSizeByPnfsId() {
+    local fileName=$(getUserFileFromFlag "${1}")
+    echo $(getFileSize "${fileName}")
 }
 
 filterDeleted() {
@@ -101,10 +108,10 @@ filterDeleted() {
 }
 
 filterAnswered() {
-    local chimeraPath="${dcachePrefix}/${hsmBase}/requests/${osmTemplate}/${storageGroup}"
+    local chimeraRequestsGroupDir="${chimeraDataPrefix}/${hsmBase}/requests/${osmTemplate}/${storageGroup}"
     while read id
     do
-        local answer=$(chimera-cli readlevel "${chimeraPath}/${id}" 5)
+        local answer=$(chimera-cli readlevel "${chimeraRequestsGroupDir}/${id}" 5)
         [ -z "${answer}" ] && echo ${id}
     done
 }
@@ -112,7 +119,7 @@ filterAnswered() {
 # $1 - number of bytes to collect
 # sets the following two variables
 collectFiles() {
-    sumSize=0
+    local sumSize=0
     while read id
     do
         if  [ ${1} -ne 0 ]
@@ -139,8 +146,8 @@ cleanupTmpDir() {
     rm -rf "${tmpDir}"
 }
 cleanupArchive() {
-    report "    deleting archive ${tarFile}"
-    rm -f "${tarFile}"
+    report "    deleting archive ${archiveFile}"
+    rm -f "${archiveFile}"
 }
 ######################################################
 #
@@ -160,7 +167,7 @@ then
 fi
 
 # assign parameters
-dcachePrefix="${1}"
+chimeraDataPrefix="${1}"
 mountPoint="${2}"
 hsmBase="${3}"
 targetSize="${4}"
@@ -190,6 +197,7 @@ do
     fi
     trap "cleanupLock; exit 130" SIGINT SIGTERM
 
+    # create pid file in lock directory
     touch "${lockDir}/$$"
 
     firstFlag=$(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|head -n 1)
@@ -217,9 +225,6 @@ do
     fileCount=$((${#flagFiles[@]}-1))
     sumSize=${flagFiles[${fileCount}]}
     unset flagFiles[${fileCount}]}
-
-    # sort and make sure we have every file name only one (probably this bug: https://bugzilla.redhat.com/show_bug.cgi?id=739222)
-    flagFiles=($(printf '%s\n' "${flagFiles[@]}"|sort|uniq))
     IFS=$' '
 
     # if the combined size is not enough, continue with next group dir
@@ -242,52 +247,53 @@ do
     manifest="${tmpDir}/META-INF/MANIFEST.MF"
     echo "Date: $(date)" > "${manifest}"
 
-    # loop over files and collect until their size exceeds $minSize
     for pnfsid in ${flagFiles[@]}; do
-        chimeraPath=$(cat "${mountPoint}/.(pathof)(${pnfsid})")
-        fileName=$(basename "${chimeraPath}")
-        realFile="${userFileDir}/${fileName}"
-        ln -s "${realFile}" "${tmpDir}/${pnfsid}"
+        filePath=$(getUserFileFromFlag "${pnfsid}")
+        fileName=$(basename "${filePath}")
+        ln -s "${filePath}" "${tmpDir}/${pnfsid}"
 
-        echo "${pnfsid}:${chimeraPath}" >> "${manifest}"
+        chimeraFilePath=$(getChimeraUserFileFromFlag "${pnfsid}")
+        echo "${pnfsid}:${chimeraFilePath}" >> "${manifest}"
     done
 
     echo "Total ${sumSize} bytes in ${fileCount} files" >> "${manifest}"
     report "      archiving ${fileCount} files with a total of ${sumSize} bytes"
 
     # create directory for the archive and then pack all files by their pnfsid-link-name in an archive
-    tarDir="${archivesDir}/${osmTemplate}/${storageGroup}"
-    report "      creating directory ${tarDir}"
-    mkdir -p "${tarDir}"
-    echo "StoreName ${osmTemplate}" > "${tarDir}/.(tag)(OSMTemplate)"
-    echo "${storageGroup}" > "${tarDir}/.(tag)(sGroup)"
+    archivesGroupDir="${archivesDir}/${osmTemplate}/${storageGroup}"
+    report "      creating directory ${archivesGroupDir}"
+    mkdir -p "${archivesGroupDir}"
+    echo "StoreName ${osmTemplate}" > "${archivesGroupDir}/.(tag)(OSMTemplate)"
+    echo "${storageGroup}" > "${archivesGroupDir}/.(tag)(sGroup)"
 
-    tarFile=$(mktemp --dry-run --suffix=".tar" --tmpdir="${tarDir}" DARC-XXXXX)
+    # create archive
+    archiveFile=$(mktemp --dry-run --suffix=".tar" --tmpdir="${archivesGroupDir}" DARC-XXXXX)
     trap "cleanupLock; cleanupTmpDir; cleanupArchive; exit 130" SIGINT SIGTERM
 
-    report "      packing archive ${tarFile}"
+    report "      packing archive ${archiveFile}"
     cd "${tmpDir}"
-    tar chf "${tarFile}" *
-    # if creating the tar failed, we stop right here
-    tarError=$?
-    if [ ${tarError} -ne 0 ] 
+    tar chf "${archiveFile}" *
+
+    # if creating the archive failed, we stop right here
+    archivingExitCode=$?
+    if [ ${archivingExitCode} -ne 0 ]
     then 
         cleanupLock
         cleanupTmpDir
         cleanupArchive
-        problem ${tarError} "Error: Creation of archive ${tarFile} file failed. Exiting"
+        problem ${archivingExitCode} "Error: Creation of archive ${archiveFile} file failed. Exiting"
     fi
     trap "cleanupLock; cleanupTmpDir; exit 130" SIGINT SIGTERM
 
-    # if we succeeded we take the pnfsid of the just generated tar and create the replies
-    tarPnfsid=$(cat "${tarDir}/.(id)($(basename ${tarFile}))")
-    report "      success. Stored archive ${tarFile} with PnfsId ${tarPnfsid}."
+    # if we succeeded we take the pnfsid of the just generated archive and create the replies
+    archivePnfsid=$(cat "${archivesGroupDir}/.(id)($(basename ${archiveFile}))")
+    report "      success. Stored archive ${archiveFile} with PnfsId ${archivePnfsid}."
 
-    chimeraPath="${dcachePrefix}/${hsmBase}/requests/${osmTemplate}/${storageGroup}"
+    chimeraRequestsGroupDir="${chimeraDataPrefix}/${hsmBase}/requests/${osmTemplate}/${storageGroup}"
     report "      storing URIs in ${groupDir}"
     for pnfsid in ${flagFiles[@]}; do
-        uri="${uriTemplate}&bfid=${pnfsid}:${tarPnfsid}"
-        chimera-cli writelevel "${chimeraPath}/${pnfsid}" 5 "${uri}"
+        uri="${uriTemplate}&bfid=${pnfsid}:${archivePnfsid}"
+        chimera-cli writelevel "${chimeraRequestsGroupDir}/${pnfsid}" 5 "${uri}"
     done
 
     cleanupLock
