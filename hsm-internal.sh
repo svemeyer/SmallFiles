@@ -136,10 +136,10 @@ datasetPut() {
        iserror=`expr "${reply}" : "ERROR \([0-9]*\).*"`
        if [ $? -eq 0 ] ; then
           report "Found error ${iserror}"
-          rm -rf "${requestFlag}"
+          rm -f "${requestFlag}"
           return ${iserror}
        else 
-          rm "${requestFlag}"
+          rm -f "${requestFlag}"
           echo $reply
           return 0
        fi
