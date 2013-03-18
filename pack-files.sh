@@ -107,7 +107,7 @@ filterAnswered() {
     while read id
     do
         local answer=$(chimera-cli readlevel "${chimeraRequestsGroupDir}/${id}" 5)
-        [ -z "${answer}" ] && echo ${id}
+        [ $? -eq 0 ] && [ -z "${answer}" ] && echo ${id}
     done
 }
 # reads pnfsids and collects as many as needed to create the archive
@@ -182,6 +182,7 @@ report "  found $dirCount request groups."
 # iterate over all found OSMTemplate/sGroup directory combinations 
 for groupDir in ${flagDirs[@]}
 do
+    cd "${groupDir}"
     report "    processing flag files in ${groupDir}"
 
     lockDir="${groupDir}/.lock"
