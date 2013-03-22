@@ -106,7 +106,7 @@ filterDeleted() {
 }
 
 filterAnswered() {
-    local chimeraRequestsGroupDir="${chimeraDataPrefix}/${hsmBase}/requests/${osmTemplate}/${storageGroup}"
+    local chimeraRequestsGroupDir="${chimeraDataPrefix}/${hsmBase}/requests/${groupSubDir}"
     while read id
     do
         local answer=$(chimera-cli readlevel "${chimeraRequestsGroupDir}/${id}" 5)
@@ -187,7 +187,7 @@ archivesDir="${mountPoint}/${hsmBase}/archives"
 report "Looking for archivation requests in ${requestsDir}"
 
 IFS=$'\n'
-flagDirs=($(find "${requestsDir}" -mindepth 2 -maxdepth 2 -type d))
+flagDirs=($(find "${requestsDir}" -mindepth 3 -maxdepth 3 -type d))
 IFS=$' '
 dirCount=${#flagDirs[@]}
 report "  found $dirCount request groups."
@@ -210,11 +210,13 @@ do
     touch "${lockDir}/$$"
 
     # remember tags of user files for later
-    osmTemplate=$(expr "${groupDir}" : ".*/\([^/]*\)/[^/]*$")
-    storageGroup=$(expr "${groupDir}" : ".*/\([^/]*\)$")
+    osmTemplate=$(expr "${groupDir}" : ".*/\([^/]*\)/[^/]*/[^/]*$")
+    storageGroup=$(expr "${groupDir}" : ".*/\([^/]*\)/[^/]*$")
+    dirHash=$(expr "${groupDir}" : ".*/\([^/]*\)$")
     hsmInstance="dcache"
     uriTemplate="${hsmInstance}://${hsmInstance}/?store=${osmTemplate}&group=${storageGroup}"
-    report "      using $uriTemplate for files with OSMTemplate=$osmTemplate and sGroup=$storageGroup"
+    groupSubDir="${osmTemplate}/${storageGroup}/${dirHash}"
+    report "      using $uriTemplate for files with in group $groupSubDir"
 
     IFS=$'\n'
     flagFiles=($(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|filterAnswered|verifyFileExists|filterDeleted|collectFiles "${targetSize}"))
@@ -264,7 +266,7 @@ do
     report "      archiving ${fileCount} files with a total of ${sumSize} bytes"
 
     # create directory for the archive and then pack all files by their pnfsid-link-name in an archive
-    archivesGroupDir="${archivesDir}/${osmTemplate}/${storageGroup}"
+    archivesGroupDir="${archivesDir}/${groupSubDir}"
     report "      creating directory ${archivesGroupDir}"
     mkdir -p "${archivesGroupDir}"
     echo "StoreName ${osmTemplate}" > "${archivesGroupDir}/.(tag)(OSMTemplate)"
@@ -293,7 +295,7 @@ do
     archivePnfsid=$(cat "${archivesGroupDir}/.(id)($(basename ${archiveFile}))")
     report "      success. Stored archive ${archiveFile} with PnfsId ${archivePnfsid}."
 
-    chimeraRequestsGroupDir="${chimeraDataPrefix}/${hsmBase}/requests/${osmTemplate}/${storageGroup}"
+    chimeraRequestsGroupDir="${chimeraDataPrefix}/${hsmBase}/requests/${groupSubDir}"
     report "      storing URIs in ${groupDir}"
     for pnfsid in ${flagFiles[@]}; do
         uri="${uriTemplate}&bfid=${pnfsid}:${archivePnfsid}"

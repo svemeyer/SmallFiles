@@ -7,9 +7,10 @@
 #
 #    dCache configuration
 #
-#   hsm set osm -command=<fullPathToThisScript>
-#   hsm set osm -hsmBase=<fullPathToTheMigratingFileSystem>
-#   hsm set osm -pnfsMountpoint=<fullPathToPnfsMountpoint>
+#   hsm set dcache -command=<fullPathToThisScript>
+#   hsm set dcache -hsmBase=<fullPathToTheMigratingFileSystem>
+#   hsm set dcache -pnfsMountpoint=<fullPathToPnfsMountpoint>
+#   hsm set dcache -dataRoot=<rootDataDir> # e.g., /data
 #
 #########################################################
 #
@@ -116,20 +117,21 @@ getStorageInfoKey() {
 #########################################################
 #
 datasetPut() {
-   yhsmBase=${1}
-   ystore=${2}
-   ygroup=${3}
-   ybfid=${4}
+   ydataRoot=${1}
+   yhsmBase=${2}
+   ystore=${3}
+   ygroup=${4}
+   ybfid=${5}
 #
 #  Generate PATH
 #
-    requestPath="${yhsmBase}/requests/${ystore}/${ygroup}"
+    fileDirHash=$(dirname `cat "${yhsmBase}/.(pathof)(${ybfid})"` | md5sum | awk '{ print $1 }')
+    requestPath="${yhsmBase}/requests/${ystore}/${ygroup}/${fileDirHash}"
     requestFlag="${requestPath}/${ybfid}"
 #
     report "Using request flag : ${requestFlag}"
 #
-    reply=$(chimera-cli readlevel "/data/hsm/requests/${ystore}/${ygroup}/${ybfid}" 5)
-    #  reply=$(cat "${requestPath}/.(use)(5)(${ybfid})")
+    reply=$(chimera-cli readlevel "${ydataRoot}/hsm/requests/${ystore}/${ygroup}/${fileDirHash}/${ybfid}" 5)
     if [ ! -z "${reply}" ] ; then
 #
        report "Request answer found : ${reply}"
@@ -336,7 +338,7 @@ elif [ $command = "put" ] ; then
    #  now, finally copy the file to the HSM
    #  (we assume the bfid to be returned)
    #
-   result=`datasetPut "${hsmBase}" "${store}" "${group}" "${pnfsid}"` || exit $?
+   result=`datasetPut "${dataRoot} ${hsmBase}" "${store}" "${group}" "${pnfsid}"` || exit $?
    #
    # osm://osm/?store=sql&group=chimera&bfid=3434.0.994.1188400818542
    #
