@@ -49,20 +49,8 @@ errorReport() {
 #  expects  : pnfsMountpoint
 #
 resolvePnfsID() {
-
-   pnfsID=$1
-#
-   fullname=`cat "${pnfsMountpoint}/.(nameof)($pnfsID)"`
-   while :
-     do
-       pnfsID=`cat "${pnfsMountpoint}/.(parent)($pnfsID)" 2>/dev/null`
-       if [ $? -ne 0 ] ; then return 1 ; fi
-       if [ "$pnfsID" = "000000000000000000000000000000000000" ] ; then break ; fi
-       fullname=`cat "${pnfsMountpoint}/.(nameof)($pnfsID)"`"/"$fullname
-   done
-   echo "/"$fullname
-   return 0
-
+   chimera-cli pathof "${1}"
+   return $?
 }
 #
 #########################################################
@@ -125,7 +113,7 @@ datasetPut() {
 #
 #  Generate PATH
 #
-    fileDirHash=$(dirname `cat "${yhsmBase}/.(pathof)(${ybfid})"` | md5sum | awk '{ print $1 }')
+    fileDirHash=$(dirname `chimera-cli pathof "${ybfid}"` | md5sum | awk '{ print $1 }')
     requestPath="${yhsmBase}/requests/${ystore}/${ygroup}/${fileDirHash}"
     requestFlag="${requestPath}/${ybfid}"
 #
