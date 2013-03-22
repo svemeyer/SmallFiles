@@ -97,8 +97,11 @@ getFileSizeByPnfsId() {
 filterDeleted() {
     while read id
     do
-        cat "${groupDir}/.(nameof)(${id})" > /dev/null
-        [ $? -ne 0 ] || echo ${id}
+        local answer=$(cat "${groupDir}/.(nameof)(${id})")
+        local result=$?
+        # # DEBUG
+        # report "filterDeleted: cat .(nameof)($id) -> ${answer}, ${result}"
+        [ ${result} -ne 0 ] || echo ${id}
     done
 }
 
@@ -107,7 +110,17 @@ filterAnswered() {
     while read id
     do
         local answer=$(chimera-cli readlevel "${chimeraRequestsGroupDir}/${id}" 5)
-        [ $? -eq 0 ] && [ -z "${answer}" ] && echo ${id}
+        local result=$?
+        # # DEBUG
+        # report "filterAnswered: chimera-cli readlevel $id 5 -> ${answer}, ${result}"
+        [ ${result} -eq 0 ] && [ -z "${answer}" ] && echo ${id}
+    done
+}
+
+verifyFileExists() {
+    while read id
+    do
+        [ -f "${groupDir}/${id}" ] && echo ${id}
     done
 }
 # reads pnfsids and collects as many as needed to create the archive
@@ -183,7 +196,6 @@ report "  found $dirCount request groups."
 for groupDir in ${flagDirs[@]}
 do
     cd "${groupDir}"
-    report "    processing flag files in ${groupDir}"
 
     lockDir="${groupDir}/.lock"
     if ! mkdir "${lockDir}"
@@ -192,6 +204,7 @@ do
       continue
     fi
     trap "cleanupLock; exit 130" SIGINT SIGTERM
+    report "    processing flag files in ${groupDir}"
 
     # create pid file in lock directory
     touch "${lockDir}/$$"
@@ -204,16 +217,22 @@ do
     report "      using $uriTemplate for files with OSMTemplate=$osmTemplate and sGroup=$storageGroup"
 
     IFS=$'\n'
-    flagFiles=($(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|filterAnswered|filterDeleted|collectFiles "${targetSize}"))
+    flagFiles=($(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|filterAnswered|verifyFileExists|filterDeleted|collectFiles "${targetSize}"))
 
     # read sum of files which comes as the last element of $flagFiles (hack #1) and unset it afterwards
     fileCount=$((${#flagFiles[@]}-1))
     sumSize=${flagFiles[${fileCount}]}
-    unset flagFiles[${fileCount}]}
+    unset flagFiles[${fileCount}]
     IFS=$' '
 
+    # # DEBUG
+    # report "      processing the following files:"
+    # for flag in ${flagFiles[@]} ; do
+    #     report "$flag"
+    # done
+    
     # if the combined size is not enough, continue with next group dir
-    if [ ${sumSize} -lt ${targetSize} ]
+    if [ ${fileCount} -lt 0 ] || [ ${sumSize} -lt ${targetSize} ]
     then
         report "      combined size ${sumSize} < ${targetSize}. No archive created."
         cleanupLock
@@ -278,7 +297,8 @@ do
     report "      storing URIs in ${groupDir}"
     for pnfsid in ${flagFiles[@]}; do
         uri="${uriTemplate}&bfid=${pnfsid}:${archivePnfsid}"
-        chimera-cli writelevel "${chimeraRequestsGroupDir}/${pnfsid}" 5 "${uri}"
+        chimera-cli writelevel "${chimeraRequestsGroupDir}/${pnfsid}" 5 "${uri}" 2>>${LOG}
+        [ $? -eq 0 ] && continue || report "      chimera-cli: ERROR $?: URI [${uri}], could not be be written to level 5 of flag file."
     done
 
     cleanupLock
