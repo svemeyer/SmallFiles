@@ -16,6 +16,7 @@ do
     else
         cp "${3}" "${filename}"
     fi
+    printf "."
 done
 
 echo "done."
