@@ -314,6 +314,7 @@ elif [ $command = "put" ] ; then
 #   and the put
 #
    filesize=`stat -c%s "${filename}" 2>/dev/null`
+   filesize=`chimera-cli stat "${filename}" 2>/dev/null|awk ' print $5 }'`
    #
    #  check for existence of file
    #  NOTE : if the filesize is zero, we are expected to return 31, so that
@@ -326,7 +327,7 @@ elif [ $command = "put" ] ; then
    #  now, finally copy the file to the HSM
    #  (we assume the bfid to be returned)
    #
-   result=`datasetPut "${dataRoot} ${hsmBase}" "${store}" "${group}" "${pnfsid}"` || exit $?
+   result=`datasetPut "${dataRoot}" "${hsmBase}" "${store}" "${group}" "${pnfsid}"` || exit $?
    #
    # osm://osm/?store=sql&group=chimera&bfid=3434.0.994.1188400818542
    #
