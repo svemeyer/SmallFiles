@@ -224,6 +224,9 @@ report "Checking hsmBase directory"
 #
 [ ! -d "${hsmBase}" ]  && problem 4 "hsmBase=${hsmBase} : not a directory"
 #
+report "Checking dataRoot"
+#
+[ -z "${dataRoot}" ] && problem 3 "Variable 'dataRoot' not defined"
 #
 # make sure the storage info variables are available
 # (Will be fetched with getStorageInfoKey)
@@ -314,7 +317,6 @@ elif [ $command = "put" ] ; then
 #   and the put
 #
    filesize=`stat -c%s "${filename}" 2>/dev/null`
-   filesize=`chimera-cli stat "${filename}" 2>/dev/null|awk ' print $5 }'`
    #
    #  check for existence of file
    #  NOTE : if the filesize is zero, we are expected to return 31, so that
