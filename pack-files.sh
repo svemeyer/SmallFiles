@@ -136,7 +136,9 @@ collectFiles() {
         fi
         sumSize=$((${sumSize}+$(getFileSizeByPnfsId "${id}")))
         echo "${id}"
+        printf '+' >&2
     done
+    printf "\n" >&2
     # append total size. (hack #1)
     echo ${sumSize}
 }
@@ -204,10 +206,11 @@ do
       continue
     fi
     trap "cleanupLock; exit 130" SIGINT SIGTERM
-    report "    processing flag files in ${groupDir}"
 
     # create pid file in lock directory
     touch "${lockDir}/$$"
+
+    report "    processing flag files in ${groupDir}"
 
     # remember tags of user files for later
     osmTemplate=$(expr "${groupDir}" : ".*/\([^/]*\)/[^/]*/[^/]*$")
@@ -220,12 +223,12 @@ do
 
     IFS=$'\n'
     flagFiles=($(ls -U "${groupDir}"|grep -e "${pnfsidRegex}"|filterAnswered|verifyFileExists|filterDeleted|collectFiles "${targetSize}"))
+    IFS=$' '
 
     # read sum of files which comes as the last element of $flagFiles (hack #1) and unset it afterwards
     fileCount=$((${#flagFiles[@]}-1))
     sumSize=${flagFiles[${fileCount}]}
     unset flagFiles[${fileCount}]
-    IFS=$' '
 
     # # DEBUG
     # report "      processing the following files:"
@@ -300,8 +303,10 @@ do
     for pnfsid in ${flagFiles[@]}; do
         uri="${uriTemplate}&bfid=${pnfsid}:${archivePnfsid}"
         chimera-cli writelevel "${chimeraRequestsGroupDir}/${pnfsid}" 5 "${uri}" 2>>${LOG}
+        printf '*' >&2
         [ $? -eq 0 ] && continue || report "      chimera-cli: ERROR $?: URI [${uri}], could not be be written to level 5 of flag file."
     done
+    printf "\n" >&2
 
     cleanupLock
     cleanupTmpDir
