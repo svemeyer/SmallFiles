@@ -106,13 +106,11 @@ filterDeleted() {
 }
 
 filterAnswered() {
-    local chimeraRequestsGroupDir="${chimeraDataPrefix}/${hsmBase}/requests/${groupSubDir}"
     while read id
     do
-        local answer=$(chimera-cli readlevel "${chimeraRequestsGroupDir}/${id}" 5)
+        local answer=$(cat "${groupDir}/.(use)(5)(${id})")
         local result=$?
         # # DEBUG
-        # report "filterAnswered: chimera-cli readlevel $id 5 -> ${answer}, ${result}"
         [ ${result} -eq 0 ] && [ -z "${answer}" ] && echo ${id}
     done
 }
@@ -298,13 +296,11 @@ do
     archivePnfsid=$(cat "${archivesGroupDir}/.(id)($(basename ${archiveFile}))")
     report "      success. Stored archive ${archiveFile} with PnfsId ${archivePnfsid}."
 
-    chimeraRequestsGroupDir="${chimeraDataPrefix}/${hsmBase}/requests/${groupSubDir}"
     report "      storing URIs in ${groupDir}"
     for pnfsid in ${flagFiles[@]}; do
         uri="${uriTemplate}&bfid=${pnfsid}:${archivePnfsid}"
-        chimera-cli writelevel "${chimeraRequestsGroupDir}/${pnfsid}" 5 "${uri}" 2>>${LOG}
-        printf '*' >&2
-        [ $? -eq 0 ] && continue || report "      chimera-cli: ERROR $?: URI [${uri}], could not be be written to level 5 of flag file."
+        echo "${uri}" > "${groupDir}/.(use)(5)(${pnfsid})" 2>>${LOG}
+        [ $? -eq 0 ] && printf "*" >&2 && continue || report "      URI [${uri}], could not be be written to level 5 of flag file ${pnfsid}."
     done
     printf "\n" >&2
 
