@@ -19,6 +19,7 @@
 LOG=/tmp/hsmio.log
 DEVTTY=$LOG
 AWK=gawk
+LIBPDCAP="/usr/lib64/libpdcap.so.1"
 #
 #
 #########################################################
@@ -290,11 +291,6 @@ if [ $command = "get" ] ; then
    #
    report "Archive file is (canonical) : ${archiveFile}"
    #
-   archiveFile=`mapCanonicalToLocal "${archiveFile}"`
-   if [ $? -ne 0 ] ; then problem 33 "Mapping from canonical to local archive file failed" ; fi
-   #
-   report "Archive file is (local)     : ${archiveFile}"
-   #
    originalId=`expr "${getBfid}" : "\(.*\):.*" 2>/dev/null`
    report "Data File Pnfs ID : ${originalId}"
    #
@@ -303,7 +299,8 @@ if [ $command = "get" ] ; then
    report "Extracting file into $localDir"
    #
    cd "${localDir}"
-   tar xf "${archiveFile}" "${originalId}" 2>>$LOG
+   export LD_PRELOAD="${LIBPDCAP}"
+   tar x --force-local --file="${archiveFile}" "${originalId}" 2>>$LOG
    rc=$?
    cd -
    if [ $rc -ne 0 ] ; then problem 4 "Tar couldn't replay the file" ; fi
