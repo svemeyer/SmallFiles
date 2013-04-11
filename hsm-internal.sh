@@ -7,9 +7,8 @@
 #
 #    dCache configuration
 #
-#   hsm set dcache -command=<fullPathToThisScript>
-#   hsm set dcache -hsmBase=<fullPathToTheMigratingFileSystem>
-#   hsm set dcache -pnfsMountpoint=<fullPathToPnfsMountpoint>
+#   hsm set dcache -command=<fullPathToThisScript> # e.g., /usr/share/dcache/lib/hsm-internal.sh
+#   hsm set dcache -hsmBase=<SubdirectoryBelowDataRootToTheMigratingFileSystem> # e.g., hsm
 #   hsm set dcache -dataRoot=<rootDataDir> # e.g., /data
 #
 #########################################################
@@ -44,7 +43,7 @@ errorReport() {
 #
 #########################################################
 #
-#  Resolved pnfsID into canonical file name.
+#  Resolve pnfsID into canonical file name.
 #  Argument : pnfsID
 #  Returns  : filename
 #  expects  : pnfsMountpoint
@@ -55,40 +54,6 @@ resolvePnfsID() {
 }
 #
 #########################################################
-#
-#  Map the canonical file name into the local filename 
-#  Argument : canonical file path (on the server)
-#  Returns  : local filepath
-#  expects  : pnfsMountpoint
-#
-#
-mapCanonicalToLocal() {
-
-  canonicalPath=$1
-
-  r=`mount 2>/dev/null | 
-     grep "${pnfsMountpoint}" |
-     awk '{ split($1,a,":") ; print a[2] }'`
-
-  localPath=`expr "$1" : "$r\(.*\)" 2>/dev/null`
-
-  if [ $? -ne 0 ] ; then return $? ; fi
-
-  localPath=`echo "${localPath}" |
-             awk '{ if( substr($1,1,1) != "/" ){ 
-                      printf"/%s\n",$1 
-                    }else{
-                      print $1
-                    }
-
-             }'`
-
-  if [ $? -ne 0 ] ; then return 2 ; fi
-
-  echo ${pnfsMountpoint}${localPath}
-  return 0
-
-}
 #
 getStorageInfoKey() {
 
@@ -115,27 +80,28 @@ datasetPut() {
 #  Generate PATH
 #
     fileDirHash=$(dirname `chimera-cli pathof "${ybfid}"` | md5sum | awk '{ print $1 }')
-    requestPath="${yhsmBase}/requests/${ystore}/${ygroup}/${fileDirHash}"
+    requestsBase="${ydataRoot}/${yhsmBase}/requests"
+    requestPath="${requestsBase}/${ystore}/${ygroup}/${fileDirHash}"
     requestFlag="${requestPath}/${ybfid}"
 #
     report "Using request flag : ${requestFlag}"
 #
-    reply=$(chimera-cli readlevel "${ydataRoot}/hsm/requests/${ystore}/${ygroup}/${fileDirHash}/${ybfid}" 5)
+    reply=$(chimera-cli readlevel "${requestFlag}" 5)
     if [ ! -z "${reply}" ] ; then
 #
        report "Request answer found : ${reply}"
        iserror=`expr "${reply}" : "ERROR \([0-9]*\).*"`
        if [ $? -eq 0 ] ; then
           report "Found error ${iserror}"
-          rm -f "${requestFlag}"
+          chimera-cli rm "${requestFlag}"
           return ${iserror}
        else 
-          rm -f "${requestFlag}"
+          chimera-cli rm "${requestFlag}"
           echo $reply
           return 0
        fi
 #
-    elif [ -f "${requestFlag}" ] ; then
+    elif chimera-cli stat "${requestFlag}" > /dev/null ; then
 #
        report "Still waiting" 
        problem 2 "Not yet ready"
@@ -143,13 +109,15 @@ datasetPut() {
     else
 #
        report "Initializing request" 
-       mkdir -p "${requestPath}" 2>/dev/null
-       touch "${requestFlag}"
+       chimera-cli mkdir "${requestsBase}/${ystore}" 2>/dev/null
+       chimera-cli mkdir "${requestsBase}/${ystore}/${ygroup}" 2>/dev/null
+       chimera-cli mkdir "${requestsBase}/${ystore}/${ygroup}/${fileDirHash}" 2>/dev/null
+       chimera-cli touch "${requestFlag}"
        problem 3 "Request Initialized (async)"
 #
     fi
      
-    problem 102  "We should never end up here" 
+    problem 102  "We should never end up here"
 }
 #
 ###############################################################
@@ -212,18 +180,9 @@ filename="${3}"
 #
 # check for some basic variables
 #
-report "Checking pnfsMountpoint"
-#
-[ -z "${pnfsMountpoint}" ] && problem 3 "Variable 'pnfsMountpoint' not defined"
-[ ! -d "${pnfsMountpoint}" ]  && problem 4 "pnfsMountpoint=${pnfsMountpoint} : not a directory"
-#
 report "Checking hsmBase"
 #
 [ -z "${hsmBase}" ] && problem 3 "Variable 'hsmBase' not defined"
-#
-report "Checking hsmBase directory"
-#
-[ ! -d "${hsmBase}" ]  && problem 4 "hsmBase=${hsmBase} : not a directory"
 #
 report "Checking dataRoot"
 #
@@ -286,7 +245,7 @@ if [ $command = "get" ] ; then
    #
    # find archived path
    #
-   archiveFile=`resolvePnfsID "${archiveId}"`
+   archiveFile=$(resolvePnfsID "${archiveId}")
    if [ $? -ne 0 ] ; then problem 2 "Problem resolving $archiveId" ; fi
    #
    report "Archive file is (canonical) : ${archiveFile}"
@@ -294,11 +253,11 @@ if [ $command = "get" ] ; then
    originalId=`expr "${getBfid}" : "\(.*\):.*" 2>/dev/null`
    report "Data File Pnfs ID : ${originalId}"
    #
-   localDir=`dirname "${filename}"`
+   extractDir=`dirname "${filename}"`
    #
-   report "Extracting file into $localDir"
+   report "Extracting file into $extractDir"
    #
-   cd "${localDir}"
+   cd "${extractDir}"
    export LD_PRELOAD="${LIBPDCAP}"
    tar x --force-local --file="${archiveFile}" "${originalId}" 2>>$LOG
    rc=$?
@@ -313,7 +272,7 @@ elif [ $command = "put" ] ; then
 #
 #   and the put
 #
-   filesize=`stat -c%s "${filename}" 2>/dev/null`
+   filesize=`chimera-cli stat "${filename}" 2>/dev/null | awk '{ print $5 }'`
    #
    #  check for existence of file
    #  NOTE : if the filesize is zero, we are expected to return 31, so that
