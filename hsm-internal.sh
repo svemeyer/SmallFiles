@@ -258,8 +258,9 @@ if [ $command = "get" ] ; then
    report "Extracting file into $extractDir"
    #
    cd "${extractDir}"
+   report "Preloading ${LIBPDCAP}"
    export LD_PRELOAD="${LIBPDCAP}"
-   tar x --force-local --file="${archiveFile}" "${originalId}" 2>>$LOG
+   tar x --force-local --file="dcap://localhost:22125/${archiveFile}" "${originalId}" 2>>$LOG
    rc=$?
    cd -
    if [ $rc -ne 0 ] ; then problem 4 "Tar couldn't replay the file" ; fi
