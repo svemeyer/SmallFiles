@@ -272,7 +272,7 @@ elif [ $command = "put" ] ; then
 #
 #   and the put
 #
-   filesize=`chimera-cli stat "${filename}" 2>/dev/null | awk '{ print $5 }'`
+   filesize=`stat "${filename}" -c%s`
    #
    #  check for existence of file
    #  NOTE : if the filesize is zero, we are expected to return 31, so that
