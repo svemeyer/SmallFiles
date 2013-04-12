@@ -8,13 +8,13 @@
 #    dCache configuration
 #
 #   hsm set osm -command=<fullPathToThisScript>
-#   hsm set osm -client=<pathToEurogateClient>
+#   hsm set osm -client=<fullPathToEurogateClient>
 #
 #########################################################
 #
 #   prerequisits
 #
-LOG=/tmp/hsmio.log
+LOG=/tmp/hsmeg.log
 AWK=gawk
 #
 #
@@ -37,31 +37,6 @@ errorReport() {
    return 0
 }
 #
-#
-#########################################################
-#
-#  Resolved pnfsID into canonical file name.
-#  Argument : pnfsID
-#  Returns  : filename
-#  expects  : pnfsMountpoint
-#
-resolvePnfsID() {
-
-   pnfsID=$1
-#
-   fullname=`cat "${pnfsMountpoint}/.(nameof)($pnfsID)"`
-   while :
-     do
-       pnfsID=`cat "${pnfsMountpoint}/.(parent)($pnfsID)" 2>/dev/null`
-       if [ $? -ne 0 ] ; then return 1 ; fi
-       if [ "$pnfsID" = "000000000000000000000000000000000000" ] ; then break ; fi
-       fullname=`cat "${pnfsMountpoint}/.(nameof)($pnfsID)"`"/"$fullname
-   done
-   echo "/"$fullname
-   return 0
-
-}
-#
 getStorageInfoKey() {
 
    echo $si | 
@@ -75,6 +50,29 @@ getStorageInfoKey() {
 #
 #     end of init
 #
+#########################################################
+#
+datasetPut() {
+#
+   ystore=${1}
+   ygroup=${2}
+
+   ybfid=$("${client}" put "${filename}")
+   if [ $? -ne 0 ] ; then
+      report "Storing failed: ${filename} -> Eurogate HSM"
+      return 4
+   fi
+   #
+   # osm://osm/?store=sql&group=chimera&bfid=3434.0.994.1188400818542
+   #
+   result="osm://osm/?store=${ystore}&group=${ygroup}&bfid=${ybfid}"
+   #
+   echo ${result}
+   #
+   #
+   return 0
+#
+}
 #
 ###############################################################
 ###############################################################
@@ -126,26 +124,54 @@ fi
 #
 ##################################################################################
 #
-# assign the manditory arguments
+# assign the mandatory arguments
 #
 command=$1
 pnfsid=$2
 filename=$3
 #
+###############################################################
+#
+# check for some basic variables
+#
 # make sure the storage info variables are available
 # (Will be fetched with getStorageInfoKey)
 #
+report "Checking Eurogate Client"
+[ -z "${client}" ] && problem 1 "Path to Eurogate Client (-client=...) not available"
 report "Checking SI"
 #
 [ -z "${si}" ] && problem 1 "StorageInfo (-si=...) not available"
 #
+#########################################################
+#
+#   osm specific variables
+#
+store=`getStorageInfoKey store 2>/dev/null`
+group=`getStorageInfoKey group 2>/dev/null`
+bfid=`getStorageInfoKey bfid 2>/dev/null`
+#
 ###############################################################
 #
 if [ $command = "get" ] ; then
-    
-   "${client}" get "${pnfsid}" "${filename}"
+   #
+   #  splitting URI into pieces
+   #
+   report "Splitting URI into pieces"
+   #
+   getStore=`expr $uri : ".*store=\(.*\)&group.*"`
+   getGroup=`expr $uri : ".*group=\(.*\)&bfid.*"`
+   getBfid=`expr $uri : ".*bfid=\(.*\)"`
+   #
+   report "URI : ${uri}"
+   report "Store=${getStore}; Group=${getGroup}; Bfid=${getBfid}"
+   #
+   [ \( -z "${getStore}" \) -o \( -z "${getGroup}" \) -o \( -z "${getBfid}" \) ] && \
+      problem 22 "couldn't get sufficient info for 'copy' : store=>${getStore}< group=>${getGroup}< bfid=>${getBfid}<"
+   #
+   "${client}" get "${getBfid}" "${filename}"
    if [ $? -ne 0 ] ; then
-      report "Retrieving from Eurogate HSM failed : ${pnfsid} -> ${filename}"
+      report "Restore failed : ${getBfid} -> ${filename}"
       exit 4
    fi
    #
@@ -161,7 +187,7 @@ elif [ $command = "put" ] ; then
    #
    #
    #
-   filesize=`chimera-cli stat "${filename}" 2>/dev/null | awk '{ print $5 }'`
+   filesize=`stat -c%s "${filename}" 2>/dev/null`
    #
    #  check for existence of file
    #  NOTE : if the filesize is zero, we are expected to return 31, so that
@@ -173,7 +199,9 @@ elif [ $command = "put" ] ; then
    #  now, finally copy the file to the HSM
    #  (we assume the bfid to be returned)
    #
-   result=`"${client}" put "${filename}"` || exit $?
+   result=`datasetPut ${store} ${group}` || exit $?
+   #
+   # osm://osm/?store=sql&group=chimera&bfid=3434.0.994.1188400818542
    #
    report "Result : ${result}"
    #
