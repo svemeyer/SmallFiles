@@ -3,7 +3,7 @@
 testDir="tests"
 sName="test"
 testfile="/root/testfile"
-fcount=120
+fcount=60
 
 echo "Cleaning test directories"
 rm -rf "/pnfs/4/${testDir}"
@@ -11,7 +11,7 @@ rm -rf "/pnfs/4/hsm/requests/${sName}"
 rm -rf "/pnfs/4/hsm/archives/${sName}"
 
 echo "Cleaning crontab"
-sed -i 's%^\*  \*  \*  \*  \* root /usr/share/dcache/lib/pack-files.sh \"/data\" \"/pnfs/4\" \"hsm\" 400000000 2>&1$%%' /etc/crontab
+sed -i 's%^\*  \*  \*  \*  \* root /usr/share/dcache/lib/pack-files.sh \"/data\" \"/pnfs/4\" \"hsm\" 200000000 2>&1$%%' /etc/crontab
 
 echo "Creating test directories"
 
@@ -48,5 +48,5 @@ pushFiles.sh ${fcount} "/pnfs/4/${testDir}/user/exp3/sub1" "${testfile}"
 pushFiles.sh ${fcount} "/pnfs/4/${testDir}/user/exp3/sub2" "${testfile}"
 
 echo "Creating crontab entry"
-echo '*  *  *  *  * root /usr/share/dcache/lib/pack-files.sh "/data" "/pnfs/4" "hsm" 400000000 2>&1' >> /etc/crontab
+echo '*  *  *  *  * root /usr/share/dcache/lib/pack-files.sh "/data" "/pnfs/4" "hsm" 200000000 2>&1' >> /etc/crontab
 
