@@ -2,7 +2,7 @@
 
 if [ $# -lt 2 ]
 then
-    echo "Usage: pushFiles.sh <file count> <directory> [<template file>]"
+    echo "Usage: pushFiles.sh <file count> <directory> [<template file>] [<delay>]"
     exit 1
 fi
 
@@ -17,6 +17,9 @@ do
         cp "${3}" "${filename}"
     fi
     printf "."
+    if [ ! -z $4 ]; then
+        sleep $4
+    fi
 done
 
 echo "done."
