@@ -19,6 +19,7 @@ LOG=/tmp/hsmio.log
 DEVTTY=$LOG
 AWK=gawk
 LIBPDCAP="/usr/lib64/libpdcap.so.1"
+CHIMERA_PARAMS="org.postgresql.Driver jdbc:postgresql://localhost/chimera?prepareThreshold=3 PgSQL chimera - "
 #
 #
 #########################################################
@@ -49,7 +50,7 @@ errorReport() {
 #  expects  : pnfsMountpoint
 #
 resolvePnfsID() {
-   chimera-cli pathof "${1}"
+   cpathof ${CHIMERA_PARAMS} "${1}"
    return $?
 }
 #
@@ -79,29 +80,29 @@ datasetPut() {
 #
 #  Generate PATH
 #
-    fileDirHash=$(dirname `chimera-cli pathof "${ybfid}"` | md5sum | awk '{ print $1 }')
+    fileDirHash=$(dirname `cpathof ${CHIMERA_PARAMS} "${ybfid}"` | md5sum | $AWK '{ print $1 }')
     requestsBase="${ydataRoot}/${yhsmBase}/requests"
     requestPath="${requestsBase}/${ystore}/${ygroup}/${fileDirHash}"
     requestFlag="${requestPath}/${ybfid}"
 #
     report "Using request flag : ${requestFlag}"
 #
-    reply=$(chimera-cli readlevel "${requestFlag}" 5)
+    reply=$(creadlevel ${CHIMERA_PARAMS} "${requestFlag}" 5)
     if [ ! -z "${reply}" ] ; then
 #
        report "Request answer found : ${reply}"
        iserror=`expr "${reply}" : "ERROR \([0-9]*\).*"`
        if [ $? -eq 0 ] ; then
           report "Found error ${iserror}"
-          chimera-cli rm "${requestFlag}"
+          crm ${CHIMERA_PARAMS} "${requestFlag}"
           return ${iserror}
        else 
-          chimera-cli rm "${requestFlag}"
+          crm ${CHIMERA_PARAMS} "${requestFlag}"
           echo $reply
           return 0
        fi
 #
-    elif chimera-cli stat "${requestFlag}" > /dev/null ; then
+    elif cstat ${CHIMERA_PARAMS} "${requestFlag}" > /dev/null ; then
 #
        report "Still waiting" 
        problem 2 "Not yet ready"
@@ -109,10 +110,10 @@ datasetPut() {
     else
 #
        report "Initializing request" 
-       chimera-cli mkdir "${requestsBase}/${ystore}" 2>/dev/null
-       chimera-cli mkdir "${requestsBase}/${ystore}/${ygroup}" 2>/dev/null
-       chimera-cli mkdir "${requestsBase}/${ystore}/${ygroup}/${fileDirHash}" 2>/dev/null
-       chimera-cli touch "${requestFlag}"
+       cmkdir ${CHIMERA_PARAMS} "${requestsBase}/${ystore}" 2>/dev/null
+       cmkdir ${CHIMERA_PARAMS} "${requestsBase}/${ystore}/${ygroup}" 2>/dev/null
+       cmkdir ${CHIMERA_PARAMS} "${requestsBase}/${ystore}/${ygroup}/${fileDirHash}" 2>/dev/null
+       ctouch ${CHIMERA_PARAMS} "${requestFlag}"
        problem 3 "Request Initialized (async)"
 #
     fi
@@ -153,8 +154,8 @@ args=""
 while [ $# -gt 0 ] ; do
   if expr "$1" : "-.*" >/dev/null ; then
      a=`expr "$1" : "-\(.*\)" 2>/dev/null`
-     key=`echo "$a" | awk -F= '{print $1}' 2>/dev/null`
-     value=`echo "$a" | awk -F= '{for(i=2;i<NF;i++)x=x $i "=" ; x=x $NF ; print x }' 2>/dev/null`
+     key=`echo "$a" | $AWK -F= '{print $1}' 2>/dev/null`
+     value=`echo "$a" | $AWK -F= '{for(i=2;i<NF;i++)x=x $i "=" ; x=x $NF ; print x }' 2>/dev/null`
      if [ -z "$value" ] ; then a="${key}=" ; fi
      eval "${key}=\"${value}\""
      a="export ${key}"
@@ -165,7 +166,7 @@ while [ $# -gt 0 ] ; do
   shift 1
 done
 if [ ! -z "$args" ] ; then
-   set `echo "$args" | awk '{ for(i=1;i<=NF;i++)print $i }'`
+   set `echo "$args" | $AWK '{ for(i=1;i<=NF;i++)print $i }'`
 fi
 #
 ##################################################################################
@@ -273,7 +274,7 @@ elif [ $command = "put" ] ; then
 #
 #   and the put
 #
-   filesize=`stat "${filename}" -c%s`
+   filesize=$(stat "${filename}" -c%s)
    #
    #  check for existence of file
    #  NOTE : if the filesize is zero, we are expected to return 31, so that
@@ -286,7 +287,8 @@ elif [ $command = "put" ] ; then
    #  now, finally copy the file to the HSM
    #  (we assume the bfid to be returned)
    #
-   result=`datasetPut "${dataRoot}" "${hsmBase}" "${store}" "${group}" "${pnfsid}"` || exit $?
+   # result=`datasetPut "${dataRoot}" "${hsmBase}" "${store}" "${group}" "${pnfsid}"` || exit $?
+   result=`sfput ${CHIMERA_PARAMS} "${dataRoot}" "${hsmBase}" "${store}" "${group}" "${pnfsid}"` || exit $?
    #
    # osm://osm/?store=sql&group=chimera&bfid=3434.0.994.1188400818542
    #
