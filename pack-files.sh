@@ -283,7 +283,11 @@ do
 
     # if creating the archive failed, we stop right here
     archivingExitCode=$?
-    if [ ${archivingExitCode} -ne 0 ]
+
+    archivedFilesCount=$(tar tf "${archiveFile}"|grep -e "\'${pnfsidRegex}\'"|wc -l)
+    report "      checking archive: Expected ${fileCount}, actual ${archivedFilesCount} files"
+
+    if [ ${archivingExitCode} -ne 0 ] || [ ${archivedFilesCount} -ne ${fileCount} ]
     then 
         cleanupLock
         cleanupTmpDir
