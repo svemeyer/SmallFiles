@@ -55,8 +55,11 @@
 #   prerequisites
 #
 LOG=/tmp/pack-files.log
+AWK=gawk
 averageFileCount=20
 pnfsidRegex="^[ABCDEF0123456789]\{36\}$"
+CHIMERA_PARAMS="org.postgresql.Driver jdbc:postgresql://localhost/chimera?prepareThreshold=3 PgSQL chimera - "
+
 
 ######################################################
 #
@@ -78,19 +81,19 @@ errorReport() {
 }
 
 getFileSize() {
-    echo $(stat -c%s "${1}")
+    cstat ${CHIMERA_PARAMS} "${1}" | $AWK '{ print $5 }'
 }
 
 getChimeraUserFileFromFlag() {
-    cat "${mountPoint}/.(pathof)(${1})"
+    cpathof ${CHIMERA_PARAMS} "${1}"
 }
 
 getUserFileFromFlag() {
-    cat "${mountPoint}/.(pathof)(${1})" | sed "s%${chimeraDataPrefix}%${mountPoint}%"
+    getChimeraUserFileFromFlag "${1}" | sed "s%${chimeraDataPrefix}%${mountPoint}%"
 }
 
 getFileSizeByPnfsId() {
-    local fileName=$(getUserFileFromFlag "${1}")
+    local fileName=$(getChimeraUserFileFromFlag "${1}")
     echo $(getFileSize "${fileName}")
 }
 
@@ -126,6 +129,7 @@ verifyFileExists() {
 # sets the following two variables
 collectFiles() {
     local sumSize=0
+    IFS=' ' # needed because this function is called within a block that sets IFS='\n' which would prevent $CHIMERA_PARAMS to be expanded as needed.
     while read id
     do
         if  [ ${1} -ne 0 ]
@@ -164,7 +168,7 @@ cleanupArchive() {
 # check usage
 if [ $(whoami) != "root" ]
 then
-    report "pack-files.sh needs to run as root."
+    report "pack-files.sh must run as root."
     exit 5
 fi
 
@@ -235,7 +239,7 @@ do
     # done
     
     # if the combined size is not enough, continue with next group dir
-    if [ ${fileCount} -lt 0 ] || [ ${sumSize} -lt ${targetSize} ]
+    if [ ${fileCount} -lt 0 ] || (( ${sumSize} < ${targetSize} ))
     then
         report "      combined size ${sumSize} < ${targetSize}. No archive created."
         cleanupLock
@@ -284,10 +288,10 @@ do
     # if creating the archive failed, we stop right here
     archivingExitCode=$?
 
-    archivedFilesCount=$(tar tf "${archiveFile}"|grep -e "\'${pnfsidRegex}\'"|wc -l)
+    archivedFilesCount=$(tar tf "${archiveFile}"|grep -e "${pnfsidRegex}"|wc -l)
     report "      checking archive: Expected ${fileCount}, actual ${archivedFilesCount} files"
 
-    if [ ${archivingExitCode} -ne 0 ] || [ ${archivedFilesCount} -ne ${fileCount} ]
+    if [ ${archivingExitCode} -ne 0 ] || (( ${archivedFilesCount} != ${fileCount} ))
     then 
         cleanupLock
         cleanupTmpDir
