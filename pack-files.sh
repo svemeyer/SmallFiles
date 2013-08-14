@@ -55,11 +55,8 @@
 #   prerequisites
 #
 LOG=/tmp/pack-files.log
-AWK=gawk
 averageFileCount=20
 pnfsidRegex="^[ABCDEF0123456789]\{36\}$"
-CHIMERA_PARAMS="org.postgresql.Driver jdbc:postgresql://localhost/chimera?prepareThreshold=3 PgSQL chimera - "
-
 
 ######################################################
 #
@@ -81,19 +78,19 @@ errorReport() {
 }
 
 getFileSize() {
-    cstat ${CHIMERA_PARAMS} "${1}" | $AWK '{ print $5 }'
+    echo $(stat -c%s "${1}")
 }
 
 getChimeraUserFileFromFlag() {
-    cpathof ${CHIMERA_PARAMS} "${1}"
+    cat "${mountPoint}/.(pathof)(${1})"
 }
 
 getUserFileFromFlag() {
-    getChimeraUserFileFromFlag "${1}" | sed "s%${chimeraDataPrefix}%${mountPoint}%"
+    cat "${mountPoint}/.(pathof)(${1})" | sed "s%${chimeraDataPrefix}%${mountPoint}%"
 }
 
 getFileSizeByPnfsId() {
-    local fileName=$(getChimeraUserFileFromFlag "${1}")
+    local fileName=$(getUserFileFromFlag "${1}")
     echo $(getFileSize "${fileName}")
 }
 
@@ -129,7 +126,6 @@ verifyFileExists() {
 # sets the following two variables
 collectFiles() {
     local sumSize=0
-    IFS=' ' # needed because this function is called within a block that sets IFS='\n' which would prevent $CHIMERA_PARAMS to be expanded as needed.
     while read id
     do
         if  [ ${1} -ne 0 ]
