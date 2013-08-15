@@ -1,0 +1,138 @@
+\documentclass[a4paper,8pt]{scrartcl}
+
+\usepackage{fontspec}
+% \setromanfont{Linux Libertine Display}
+\usepackage{xunicode}
+\usepackage{polyglossia}
+\usepackage{german}
+\RequirePackage{graphicx}
+
+\title{Support for small file for dCache}
+\date{13/08/13}
+
+\begin{document}
+\titlepage
+
+\section{Introduction}
+This article describes a simple way to use \emph{dCache} to efficiently store
+and retrieve small files on tertiary storage systems. To avoid the overhead of
+writing every file of a series by itself, we developed a set of scripts that
+will add a layer of abstraction to transparently bundle the files and store them
+together in an archive. This only requires minimal configuration and can be used
+with any dCache version 2.6.3 and higher.
+
+\subsection{Requirements}
+The required configuration to use the scripts are a working \emph{dCache}
+version 2.6.3 or higher installation. The pools that store the small files have
+to be configured with \texttt{lfs=none} and they need to be able to access the
+\emph{Chimera} DB using \texttt{psql}. Their size should be big enough to store
+all the new files for at least one week. They need to have the \texttt{dcap}
+libraries installed. 
+
+The work station that produces the files needs to mount \emph{Chimera} via
+\emph{NFS4.1} and also needs access to the \emph{Chimera} DB.  
+
+\section{Implementation} 
+The implementation in its current form consists of two scripts, namely
+\texttt{hsm-internal.sh} and \texttt{pack-files.sh}. The first script is called
+for every file and creates a flag that is later used by the second script to
+bundle the files together. Only files residing in the same (sub-)directory will 
+be bundled together.
+
+\section{Installation}
+To install the Small Files capabilities do
+
+\subsection{In the namespace}
+\begin{enumerate}
+  \item create a directory to be used by the scripts (e.g. \texttt{hsm})
+  \item create two subdirectories to the \texttt{hsm}-directory called \texttt{archives} and \texttt{requests}
+  \item on \texttt{archives} set \texttt{AccessLatency} to \texttt{NEARLINE} and \texttt{RetentionPolicy} to \texttt{CUSTODIAL}
+  \item on \texttt{requests} set \texttt{AccessLatency} to \texttt{ONLINE} and \texttt{RetentionPolicy} to \texttt{REPLICA}
+\end{enumerate}
+
+\subsection{On the NFS4.1 door}
+\begin{enumerate}
+  \item add the file producing node to the \texttt{/etc/dcache/exports} with
+    \texttt{rw,no\_root\_squash} access rights
+\end{enumerate}
+
+\subsection{On the pool node}
+\begin{enumerate}
+  \item install dcap libraries (\texttt{yum install dcap} on the console)
+  \item install the scala-library 2.10 by copying scala-library.jar to \texttt{/usr/local/lib/}
+  \item install nailgun client and server by copying \texttt{ng} and \texttt{nailgun-server-0.9.2-SNAPSHOT.jar} to \texttt{/usr/local/lib/}
+  \item install the ScalaChimeraNailgun library by copying it to \texttt{/usr/local/lib/}
+  \item configure the symlinks to ng (e.g., \texttt{ln -s /usr/local/bin/ng /usr/local/bin/cpathof})
+  \item start the nailgun server (\texttt{/usr/local/bin/runNailgunServer.sh})
+  \item configure the aliases for the nailgun server (\texttt{e.g., ng ng-alias cpathof}, this is done by loadChimaNailgun.sh)
+  \item edit \texttt{hsm-internal.sh} script to contain the correct \texttt{CHIMERA\_PARAMS}
+  \item set lfs to none (\texttt{lfs=none} in layout file)
+  \item set max storage handlers to 2 or higher (\texttt{st set max active 2} in admin interface)
+  \item set max restore handlers to 2 or higher (\texttt{rh set max active 2} in admin interface)
+  \item configure the HSM \texttt{dcache} for your site on the pool in the admin interface
+    \subitem[\texttt{hsmBase}] \texttt{hsm set dcache -hsmBase=hsm}
+    \subitem[\texttt{command}] \texttt{hsm set dcache -command=/usr/share/dcache/lib/hsm-internal.sh}
+    \subitem[\texttt{dataRoot}] \texttt{hsm set dcache -dataRoot=/data}
+    % \subitem[chimeraArgs] \texttt{hsm set dcache chimeraArgs="org.postgresql.Driver jdbc:postgresql://dcache-lab000/chimera?prepareThreshold=3 PgSQL chimera - "
+\end{enumerate}
+
+\subsection{On the file producing node}
+\begin{enumerate}
+  \item mount the NFS namespace to a local directory (e.g. \texttt{/pnfs/4})
+  \item on the directories used to store the small files set the tags
+    \subitem[\texttt{hsmInstance}] to \texttt{dcache}
+    \subitem[\texttt{OSMTemplate}] to \texttt{StoreName <data>}, arbitrary but neccessary, e.g., \texttt{archived}
+    \subitem[\texttt{sGroup}] to \texttt{<sGroup>}, arbitrary but neccessary, e.g., \texttt{smallfiles}
+\end{enumerate}
+
+\subsection{On the packing node}
+\begin{enumerate}
+  \item mount the NFS namespace to a local directory (e.g. \texttt{/pnfs/4})
+  \item install the packing script (\texttt{pack-files.sh}) into your path
+  \item install a cron job that calls the packing script. E.g., 
+    \subitem \texttt{*  *  *  *  * root /usr/share/dcache/lib/pack-files.sh <dataRoot> <pnfsMountpoint> <hsmSubdir> <archiveSize> 2>\&1}
+    \subitem where <dataRoot> is the pnfs path prefix. E.g., \texttt{/data} or \texttt{/exports/data}
+    \subitem <pnfsMountpoint> is the local mountpoint of the namespace. E.g., \texttt{/pnfs/4}
+    \subitem <hsmSubdir> is the directory name containing the \texttt{archives} and \texttt{requests} directories (s.a.). E.g., \texttt{hsm}
+    \subitem <archiveSize> is the approximate size of the archives in bytes
+\end{enumerate}
+
+\section{Statistics}
+The following numbers were created using 3 machines:
+\begin{itemize}
+  \item \texttt{dcache-lab000} as \emph{dCache} head node with \emph{NFS4.1} door
+  \item \texttt{dcache-lab002} as pool node
+  \item \texttt{christian-vm01} to inject small files and to periodically run the \texttt{pack-files.sh}
+\end{itemize}
+
+\begin{tabular}{|r|r|r|r|}
+  \hline
+  file size & time 9k & time 90k & time 900k \\
+  \hline
+  1k & ??? & ??? & ??? \\
+  \hline
+  4k & ??? & ??? & ??? \\
+  \hline
+  10k & ??? & ??? & ??? \\
+  \hline
+  40k & ??? & ??? & ??? \\
+  \hline
+  1M & ??? & ??? & ??? \\
+  \hline
+  4M & ??? & ??? & ??? \\
+  \hline
+\end{tabular}
+
+\section{Outlook}
+
+\subsection{Installer}
+Create an installer to easily install nailgun.
+
+\subsection{Configurable options}
+\begin{itemize}
+  \item chimera parameters on hsm level instead of hardcoded in the script
+  \item optionally bundle subdirectories into one archive
+\end{itemize}
+
+
+\end{document}
