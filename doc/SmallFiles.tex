@@ -105,21 +105,21 @@ The following numbers were created using 3 machines:
   \item \texttt{christian-vm01} to inject small files and to periodically run the \texttt{pack-files.sh}
 \end{itemize}
 
-\begin{tabular}{|r|r|r|r|}
+\begin{tabular}{|r|r|r|r|r|}
   \hline
-  file size & time 9k & time 90k & time 900k \\
+  file size & write 9k files  & archive 20 & archive 100 & archive 1000 \\
   \hline
-  1k & ??? & ??? & ??? \\
+  1k        &  9min (16/sec)  &      70min & ??? i       &              \\
   \hline
-  4k & ??? & ??? & ??? \\
+  4k & ??? & ??? & ??? & & \\
   \hline
-  10k & ??? & ??? & ??? \\
+  10k & ??? & ??? & ??? & & \\
   \hline
-  40k & ??? & ??? & ??? \\
+  40k & ??? & ??? & ??? & & \\
   \hline
-  1M & ??? & ??? & ??? \\
+  1M & ??? & ??? & ??? & & \\
   \hline
-  4M & ??? & ??? & ??? \\
+  10M       & 39min (3.8/sec) &        ??? &         ??? &              \\
   \hline
 \end{tabular}
 
@@ -132,6 +132,8 @@ Create an installer to easily install nailgun.
 \begin{itemize}
   \item chimera parameters on hsm level instead of hardcoded in the script
   \item optionally bundle subdirectories into one archive
+  \item archive size per directory
+  \item 
 \end{itemize}
 
 
