@@ -105,11 +105,12 @@ The following numbers were created using 3 machines:
   \item \texttt{christian-vm01} to inject small files and to periodically run the \texttt{pack-files.sh}
 \end{itemize}
 
+Writing 9k files
 \begin{tabular}{|r|r|r|r|r|}
   \hline
-  file size & write 9k files  & archive 20 & archive 100 & archive 1000 \\
+  file size & write files  & archive 20 & archive 100 & archive 1000 \\
   \hline
-  1k        &  9min (16/sec)  &      70min & ??? i       &              \\
+  1k        &  9min (16/sec)  &      70min &         ??? &              \\
   \hline
   4k & ??? & ??? & ??? & & \\
   \hline
@@ -117,9 +118,32 @@ The following numbers were created using 3 machines:
   \hline
   40k & ??? & ??? & ??? & & \\
   \hline
-  1M & ??? & ??? & ??? & & \\
+  1M        & 29min (5.1/sec) & ???        &         ??? &        40min \\
   \hline
-  10M       & 39min (3.8/sec) &        ??? &         ??? &              \\
+  5M        & 29min (5.1/sec) & ???        &         ??? &        40min \\
+  \hline
+  10M       & 39min (3.8/sec) &        ??? &       57min &              \\
+  \hline
+\end{tabular}
+
+Writing 90k files
+\begin{tabular}{|r|r|r|r|r|}
+  \hline
+  file size & write files  & archive 20 & archive 100 & archive 1000 \\
+  \hline
+  1k        & & & & \\
+  \hline
+  4k        & & & & \\
+  \hline
+  10k       & & & & \\
+  \hline
+  40k       & & & & \\
+  \hline
+  1M        & & & & \\
+  \hline
+  5M        & & & & \\
+  \hline
+  10M       & & & & \\
   \hline
 \end{tabular}
 
