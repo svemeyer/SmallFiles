@@ -26,11 +26,11 @@ The required configuration to use the scripts are a working \emph{dCache}
 version 2.6.3 or higher installation. The pools that store the small files have
 to be configured with \texttt{lfs=none} and they need to be able to access the
 \emph{Chimera} DB using \texttt{psql}. Their size should be big enough to store
-all the new files for at least one week. They need to have the \texttt{dcap}
+all the new files for at least one day. They need to have the \texttt{dcap}
 libraries installed. 
 
 The work station that produces the files needs to mount \emph{Chimera} via
-\emph{NFS4.1} and also needs access to the \emph{Chimera} DB.  
+\emph{NFS4.1}.
 
 \section{Implementation} 
 The implementation in its current form consists of two scripts, namely
@@ -60,7 +60,7 @@ To install the Small Files capabilities do
 \begin{enumerate}
   \item install dcap libraries (\texttt{yum install dcap} on the console)
   \item install the scala-library 2.10 by copying scala-library.jar to \texttt{/usr/local/lib/}
-  \item install nailgun client and server by copying \texttt{ng} and \texttt{nailgun-server-0.9.2-SNAPSHOT.jar} to \texttt{/usr/local/lib/}
+  \item install nailgun client and server by copying \texttt{ng} and \texttt{nailgun-server-0.9.2-SNAPSHOT.jar} to \texttt{/usr/local/bin/}
   \item install the ScalaChimeraNailgun library by copying it to \texttt{/usr/local/lib/}
   \item configure the symlinks to ng (e.g., \texttt{ln -s /usr/local/bin/ng /usr/local/bin/cpathof})
   \item start the nailgun server (\texttt{/usr/local/bin/runNailgunServer.sh})
@@ -103,7 +103,8 @@ The following numbers were created using 3 machines:
   \item \texttt{dcache-lab000} as \emph{dCache} head node with \emph{NFS4.1} door
   \item \texttt{dcache-lab001} as pool node (only in multiple pools runs)
   \item \texttt{dcache-lab002} as pool node
-  \item \texttt{christian-vm01} to inject small files and to periodically run the \texttt{pack-files.sh}
+  \item \texttt{st set max active 2}
+  \item \texttt{christian-vm01} to inject small files and to periodically (1/min) run the \texttt{pack-files.sh}
 \end{itemize}
 
 \subsection{Writing 9k files in 1 pool}
@@ -128,7 +129,7 @@ The following numbers were created using 3 machines:
   \hline
   file size & write files  & archive 500 & archive 1000 & archive 2000 & archive 10000 \\
   \hline
-  5M        & 312min (4.7/sec) & ??? & ??? & 368min (4.1/sec) & ??? \\
+  5M        & 312min (4.7/sec), 340min (4.4/sec) & ??? & ??? & 368min (4.1/sec) & >8h \\
   \hline
   10M       & ??? & ??? & ??? & ??? & ??? \\
   \hline
@@ -167,7 +168,7 @@ Create an installer to easily install the scripts, nailgun and the chimera nails
   \item Optionally bundle subdirectories into one archive
   \item Archive size per directory
   \item Unpack all files from archive instead of only requested
-  \item Archive by file count or specified file size $\rightarrow$ improve performance
+  \item Archive by file count or specify file size to improve performance
   \item Specify min and max size of archive
 \end{itemize}
 
