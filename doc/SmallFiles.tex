@@ -101,50 +101,77 @@ To install the Small Files capabilities do
 The following numbers were created using 3 machines:
 \begin{itemize}
   \item \texttt{dcache-lab000} as \emph{dCache} head node with \emph{NFS4.1} door
+  \item \texttt{dcache-lab001} as pool node (only in multiple pools runs)
   \item \texttt{dcache-lab002} as pool node
   \item \texttt{christian-vm01} to inject small files and to periodically run the \texttt{pack-files.sh}
 \end{itemize}
 
-Writing 9k files
+\subsection{Writing 9k files in 1 pool}
+
 \begin{tabular}{|r|r|r|r|r|}
   \hline
   file size & write files  & archive 20 & archive 100 & archive 1000 \\
   \hline
-  1k        &  9min (16/sec)  &      70min &         ??? &              \\
+  1k        &  9min (16/sec)  & 70min (2.1/sec) & ??? & ??? \\
   \hline
-  1M        & & & & \\
+  1M        & ??? & ??? & ??? & ??? \\
   \hline
-  5M        & 29min (5.1/sec) & ???        &         ??? &        40min \\
+  5M        & 29min (5.1/sec) & ??? & ???             & 40min (3.7/sec) \\
   \hline
-  10M       & 39min (3.8/sec) &        ??? &       57min &              \\
+  10M       & 39min (3.8/sec) & ??? & 57min (2.6/sec) & ??? \\
   \hline
 \end{tabular}
 
-Writing 90k files
-\begin{tabular}{|r|r|r|r|r|}
+\subsection{Writing 90k files in 1 pool}
+
+\begin{tabular}{|r|r|r|r|r|r|}
   \hline
-  file size & write files  & archive 20 & archive 100 & archive 2000 \\
+  file size & write files  & archive 500 & archive 1000 & archive 2000 & archive 10000 \\
   \hline
-  5M        & 312min (4.7/sec) & & & 368min \\
+  5M        & 312min (4.7/sec) & ??? & ??? & 368min (4.1/sec) & ??? \\
   \hline
-  10M       & & & & \\
+  10M       & ??? & ??? & ??? & ??? & ??? \\
   \hline
 \end{tabular}
+
+\subsection{Writing 90k files in 2 pools}
+
+\begin{tabular}{|r|r|r|r|r|r|}
+  \hline
+  file size & write files  & archive 500 & archive 1000 & archive 2000 & archive 10000 \\
+  \hline
+  5M        & ??? & ??? & ??? & ??? & ??? \\
+  \hline
+  10M       & ??? & ??? & ??? & ??? & ??? \\
+  \hline
+\end{tabular}
+
 
 Retrieving a file from an archive (using dcap) takes about 3s.
+
+\section{Possible Errors}
+
+\subsection{No space left on device}
+If the normal filesystem on a pool runs out of space, the
+\texttt{hsm-internal.sh} script will fail and cause the files to not be
+archived.
 
 \section{Outlook}
 
 \subsection{Installer}
-Create an installer to easily install nailgun.
+Create an installer to easily install the scripts, nailgun and the chimera nails.
 
 \subsection{Configurable options}
 \begin{itemize}
   \item chimera parameters on hsm level instead of hardcoded in the script
   \item optionally bundle subdirectories into one archive
   \item archive size per directory
-  \item 
+  \item unpack all files from archive instead of only requested
 \end{itemize}
 
+\section{Remaining problems}
+
+\subsection{interrupting pack-files.sh while collecting files.}
+This may cause the machine to crash.
 
 \end{document}
