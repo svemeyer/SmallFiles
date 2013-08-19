@@ -239,7 +239,6 @@ do
     then
         report "      combined size ${sumSize} < ${targetSize}. No archive created."
         cleanupLock
-        cleanupTmpDir
         report "    leaving ${groupDir}"
         continue
     fi
