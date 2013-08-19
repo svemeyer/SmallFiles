@@ -1,12 +1,15 @@
 #!/bin/sh
 
-targetRoot="/pnfs/4"
+packFilesScript=`which pack-files.sh`
+targetRoot=`mount|grep "minorversion=1,vers=4"|awk '{ print $3 }'`
+remoteExport=`mount|grep "minorversion=1,vers=4"|awk '{ print $1 }'|sed 's/[^:].*://'`
 testDir="tests"
 sName="test"
-testfile="40k"
-fcount=2000
+testfile="5M"
+fcount=10000
 dirCount=3
 subDirCount=2
+archiveSize=$(( 5000000 * 10000 ))
 fdelay=""
 
 sh clearDirs.sh
@@ -29,7 +32,7 @@ for exp in $(seq 1 $dirCount); do
 done
 
 echo "Creating crontab entry"
-echo "*  *  *  *  * root /usr/local/bin/pack-files.sh \"/data\" \"${targetRoot}\" \"hsm\" 8000000 2>&1" >> /etc/crontab
+echo "*  *  *  *  * root ${packFilesScript} \"${remoteExport}\" \"${targetRoot}\" \"hsm\" ${archiveSize} 2>&1" >> /etc/crontab
 
 echo "Creating files in test directories"
 
