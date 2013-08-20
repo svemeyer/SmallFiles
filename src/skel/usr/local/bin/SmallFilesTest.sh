@@ -5,11 +5,12 @@ targetRoot=`mount|grep "minorversion=1,vers=4"|awk '{ print $3 }'`
 remoteExport=`mount|grep "minorversion=1,vers=4"|awk '{ print $1 }'|sed 's/[^:].*://'`
 testDir="tests"
 sName="test"
-testfile="5M"
-fcount=10000
+testfile="1M"
+filesize=1000000
+fcount=1000
 dirCount=3
 subDirCount=2
-archiveSize=$(( 5000000 * 10000 ))
+archiveSize=$(( $filesize * 1000 ))
 fdelay=""
 
 sh clearDirs.sh
