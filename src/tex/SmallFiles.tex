@@ -113,9 +113,9 @@ The following numbers were created using 3 machines:
   \hline
   file size & write files  & archive 20 & archive 100 & archive 1000 \\
   \hline
-  1k        &  9min (16/sec)  & 70min (2.1/sec) & ??? & ??? \\
+  1k        &  9min (16/sec)  & 70min (2.1/sec) & 29min (5/sec) & 27min (5.5/sec) \\
   \hline
-  1M        & ??? & ??? & ??? & ??? \\
+  1M        & 18min (8/sec)   &        -        & ??? & ??? \\
   \hline
   5M        & 29min (5.1/sec) & ??? & ???             & 40min (3.7/sec) \\
   \hline
@@ -129,7 +129,7 @@ The following numbers were created using 3 machines:
   \hline
   file size & write files  & archive 500 & archive 1000 & archive 2000 & archive 10000 \\
   \hline
-  5M        & 312min (4.7/sec), 340min (4.4/sec) & ??? & ??? & 368min (4.1/sec) & >8h \\
+  5M        & 312min (4.7/sec), 340min (4.4/sec), 325min (4.6/sec) & ??? & ??? & 368min (4.1/sec) & >8h \\
   \hline
   10M       & ??? & ??? & ??? & ??? & ??? \\
   \hline
@@ -170,6 +170,7 @@ Create an installer to easily install the scripts, nailgun and the chimera nails
   \item Unpack all files from archive instead of only requested
   \item Archive by file count or specify file size to improve performance
   \item Specify min and max size of archive
+  \item Recovery: Check if the pid of the lockfile still exists and if it doesn't clear the lock
 \end{itemize}
 
 \section{Remaining problems}
