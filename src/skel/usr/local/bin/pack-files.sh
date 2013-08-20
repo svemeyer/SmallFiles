@@ -132,7 +132,7 @@ collectFiles() {
         then
             [ ${sumSize} -ge ${1} ] && break
         fi
-        sumSize=$((${sumSize}+$(getFileSizeByPnfsId "${id}")))
+        sumSize=$(( ${sumSize}+$(getFileSizeByPnfsId "${id}") ))
         echo "${id}"
         printf '+' >&2
     done
