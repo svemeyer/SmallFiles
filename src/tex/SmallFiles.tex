@@ -107,7 +107,7 @@ The following numbers were created using 3 machines:
   \item \texttt{christian-vm01} to inject small files and to periodically (1/min) run the \texttt{pack-files.sh}
 \end{itemize}
 
-\subsection{Writing 9k files in 1 pool}
+\subsection{Writing 9k files in 1 pool evenly distributed into 9 directories}
 
 \begin{tabular}{|r|r|r|r|r|}
   \hline
@@ -115,15 +115,15 @@ The following numbers were created using 3 machines:
   \hline
   1k        &  9min (16/sec)  & 70min (2.1/sec) & 29min (5/sec) & 27min (5.5/sec) \\
   \hline
-  1M        & 18min (8/sec)   &        -        & ??? & ??? \\
+  1M        & 18min (8/sec)   &        -        & 34min (4.4/sec) & 32min (4.6/sec) \\
   \hline
-  5M        & 29min (5.1/sec) & ??? & ???             & 40min (3.7/sec) \\
+  5M        & 29min (5.1/sec) &        -        & 40min (3.7/sec) & 40min (3.7/sec) \\
   \hline
-  10M       & 39min (3.8/sec) & ??? & 57min (2.6/sec) & ??? \\
+  10M       & 39min (3.8/sec) &        -        & 57min (2.6/sec) & ??? \\
   \hline
 \end{tabular}
 
-\subsection{Writing 90k files in 1 pool}
+\subsection{Writing 90k files in 1 pool evenly distributed into 9 directories}
 
 \begin{tabular}{|r|r|r|r|r|r|}
   \hline
@@ -140,6 +140,21 @@ The following numbers were created using 3 machines:
 \begin{tabular}{|r|r|r|r|r|r|}
   \hline
   file size & write files  & archive 500 & archive 1000 & archive 2000 & archive 10000 \\
+  \hline
+  5M        & ??? & ??? & ??? & ??? & ??? \\
+  \hline
+  10M       & ??? & ??? & ??? & ??? & ??? \\
+  \hline
+\end{tabular}
+
+\subsection{Writing 90k files in 1 pool evenly distributed into 3 directories}
+\begin{tabular}{|r|r|r|r|r|r|}
+  \hline
+  file size & write files  & archive 500 & archive 1000 & archive 2000 & archive 10000 \\
+  \hline
+  1k        & ??? & ??? & ??? & ??? & ??? \\
+  \hline
+  1M        & ??? & ??? & ??? & ??? & ??? \\
   \hline
   5M        & ??? & ??? & ??? & ??? & ??? \\
   \hline
