@@ -66,8 +66,9 @@ To install the Small Files capabilities do
   \item start the nailgun server (\texttt{/usr/local/bin/runNailgunServer.sh})
   \item configure the aliases for the nailgun server (\texttt{e.g., ng ng-alias cpathof}, this is done by loadChimaNailgun.sh)
   \item edit \texttt{hsm-internal.sh} script to contain the correct \texttt{CHIMERA\_PARAMS}
+  \item edit \texttt{hsm-internal.sh} script to use a suitable log-file. Note: The script runs as the configured \emph{dCache}-User.
   \item set lfs to none (\texttt{lfs=none} in layout file)
-  \item set max storage handlers to 2 or higher (\texttt{st set max active 2} in admin interface)
+  \item set max storage handlers to 2 or higher (max 10) (\texttt{st set max active 2} in admin interface)
   \item set max restore handlers to 2 or higher (\texttt{rh set max active 2} in admin interface)
   \item configure the HSM \texttt{dcache} for your site on the pool in the admin interface
     \subitem[\texttt{hsmBase}] \texttt{hsm set dcache -hsmBase=hsm}
@@ -98,7 +99,7 @@ To install the Small Files capabilities do
 \end{enumerate}
 
 \section{Statistics}
-The following numbers were created using 3 machines:
+The statistics were created using the following machines:
 \begin{itemize}
   \item \texttt{dcache-lab000} as \emph{dCache} head node with \emph{NFS4.1} door
   \item \texttt{dcache-lab001} as pool node (only in multiple pools runs)
@@ -109,7 +110,7 @@ The following numbers were created using 3 machines:
 
 \subsection{Writing 9k files in 1 pool evenly distributed into 9 directories}
 
-\begin{tabular}{|r|r|r|r|r|}
+\begin{tabular}{|r||r||r|r|r|}
   \hline
   file size & write files  & archive 20 & archive 100 & archive 1000 \\
   \hline
@@ -125,11 +126,13 @@ The following numbers were created using 3 machines:
 
 \subsection{Writing 90k files in 1 pool evenly distributed into 9 directories}
 
-\begin{tabular}{|r|r|r|r|r|r|}
+\begin{tabular}{|r||r||r|r|r|r|}
   \hline
   file size & write files  & archive 500 & archive 1000 & archive 2000 & archive 10000 \\
   \hline
-  5M        & 312min (4.7/sec), 340min (4.4/sec), 325min (4.6/sec) & ??? & ??? & 368min (4.1/sec) & >8h \\
+  5M        & 312min (4.7/sec) & ??? & ??? & 368min (4.1/sec) & >8h \\
+  5M        & 340min (4.4/sec) & ??? & ??? & 368min (4.1/sec) & >8h \\
+  5M        & 325min (4.6/sec) & ??? & ??? & 368min (4.1/sec) & >8h \\
   \hline
   10M       & ??? & ??? & ??? & ??? & ??? \\
   \hline
@@ -137,7 +140,7 @@ The following numbers were created using 3 machines:
 
 \subsection{Writing 90k files in 2 pools}
 
-\begin{tabular}{|r|r|r|r|r|r|}
+\begin{tabular}{|r||r||r|r|r|r|}
   \hline
   file size & write files  & archive 500 & archive 1000 & archive 2000 & archive 10000 \\
   \hline
@@ -148,11 +151,11 @@ The following numbers were created using 3 machines:
 \end{tabular}
 
 \subsection{Writing 90k files in 1 pool evenly distributed into 3 directories}
-\begin{tabular}{|r|r|r|r|r|r|}
+\begin{tabular}{|r||r||r|r|r|r|}
   \hline
-  file size & write files  & archive 500 & archive 1000 & archive 2000 & archive 10000 \\
+  file size & write files  & archive 100 & archive 1000 & archive 2000 & archive 10000 \\
   \hline
-  1k        & ??? & ??? & ??? & ??? & ??? \\
+  1k        & 327min (4.6/min) & ca. 600min & ??? & ??? & ??? \\
   \hline
   1M        & ??? & ??? & ??? & ??? & ??? \\
   \hline
@@ -165,12 +168,26 @@ The following numbers were created using 3 machines:
 
 Retrieving a file from an archive (using dcap) takes about 3s.
 
-\section{Possible Errors}
+\section{Optimizing parameters}
+\begin{itemize}
+  \item The more subdirectories are used, the more parallel the archivation can
+    be.
+  \item The more pools are involved, the faster can the flag files be created
+    and removed - provided the DB is not the bottleneck.
+  \item The interval of running the packing script (\texttt{pack-files.sh})
+    should match the time it takes to create as many flags as files are
+    expected to go into one archive.
+  \item The size of the archives should be chosen so that the time for creating
+    an archive matches the run interval of the packing script.
+\end{itemize}
+
+
+\section{Problems and their effects}
 
 \subsection{No space left on device}
 If the normal filesystem on a pool runs out of space, the
-\texttt{hsm-internal.sh} script will fail and cause the files to not be
-archived.
+\texttt{hsm-internal.sh} script will fail because it cannot write its logs and
+cause the flagfiles not to be created or removed.
 
 \section{Outlook}
 
@@ -185,7 +202,17 @@ Create an installer to easily install the scripts, nailgun and the chimera nails
   \item Unpack all files from archive instead of only requested
   \item Archive by file count or specify file size to improve performance
   \item Specify min and max size of archive
-  \item Recovery: Check if the pid of the lockfile still exists and if it doesn't clear the lock
+  \item Recovery: Check if the pid of the lockfile still exists and if it
+    doesn't clear the lock
+  \item Verify archive integrity further by using checksums or \texttt{tar
+    -d[hf] arc.tar /tmp/links/*}
+    \subitem checksums, sums of checksum(?)
+    \subitem \texttt{tar cWhf arc.tar /tmp/links/*} - this takes much longer
+    (factor 3 on a desktop machine)
+    \subitem \texttt{tar -dhf arc.tar /tmp/links/*} - takes about the same time
+    as \texttt{W}
+  \item Have different scripts with different parameters for different
+    directories
 \end{itemize}
 
 \section{Remaining problems}
@@ -194,6 +221,5 @@ Create an installer to easily install the scripts, nailgun and the chimera nails
 This may cause the machine to crash.
 
 \subsection{file input stream pauses}
-Sometimes dCache refuses to accept more files for a couple of seconds}
-
+Sometimes dCache refuses to accept more files for a couple of seconds
 \end{document}
