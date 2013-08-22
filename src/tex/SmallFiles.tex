@@ -155,11 +155,7 @@ The statistics were created using the following machines:
   \hline
   file size & write files  & archive 100 & archive 1000 & archive 2000 & archive 10000 \\
   \hline
-<<<<<<< Updated upstream
   1k        & 327min (4.6/min) & ca. 600min & ??? & ??? & ??? \\
-=======
-  1k        & 340min(?) & ??? & ??? & ??? & ??? \\
->>>>>>> Stashed changes
   \hline
   1M        & ??? & ??? & ??? & ??? & ??? \\
   \hline
@@ -192,6 +188,13 @@ Retrieving a file from an archive (using dcap) takes about 3s.
 If the normal filesystem on a pool runs out of space, the
 \texttt{hsm-internal.sh} script will fail because it cannot write its logs and
 cause the flagfiles not to be created or removed.
+
+\subsection{Operations in the NFS4.1 mount hang}
+If the log of the nfs door shows: \texttt{FATAL: remaining connection slots are
+reserved for non-replication superuser connections}, it means that dCache has
+used up all free DB connection slots. 
+This will cause any file operation on the NFS mount to fail and thus make the
+packing stop working.
 
 \section{Outlook}
 
