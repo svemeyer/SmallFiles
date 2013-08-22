@@ -1,0 +1,43 @@
+msc {
+    hscale = 2;
+    
+    source  [ label="Small Files Source"],
+    nfs     [ label="dCache NFS4.1 door"],
+    poola   [ label="Pool A"],
+    hsm     [ label="hsm-internal.sh"],
+    chimera [ label="Chimera DB"],
+    cron    [ label="CRON"],
+    pack    [ label="pack-files.sh"];
+
+    source->nfs  [ label = "Mount namespace" ];
+
+    source->nfs  [ label = "write small file", ID="1" ];
+    nfs->poola   [ label = "store file" ];
+    source->nfs  [ label = "write small file", ID="2" ];
+    nfs->poola   [ label = "store file" ];
+
+    ---          [ label = "many more of these"];
+
+    source->nfs  [ label = "write small file", ID="n-1" ];
+    nfs->poola   [ label = "store file" ];
+    source->nfs  [ label = "write small file", ID="n" ];
+    nfs->poola   [ label = "store file" ];
+
+    ---          [ label = "flush interval expired"];
+
+    poola=>hsm   [ label = "put(file1)"];
+    hsm box hsm  [ label = "some\nthing"];
+    hsm=>chimera [ label = "exists('hsm/$sGroup/$osmInstance/md5sum(dir(file1))')"];
+    hsm<<chimera [ label = "no"];
+    hsm=>chimera [ label = "create('hsm/$sGroup/$osmInstance/md5sum(dir(file1))'"];
+
+    poola->hsm   [ label = "put file2"];
+    poola->hsm   [ label = "put file3"];
+    poola->hsm   [ label = "put file4"];
+
+    cron->pack   [ label = "pack files"];
+    pack->nfs    [ label = "find request dirs"];
+    pack<<nfs    [ label = "request dir", ID="1..k"];
+    pack->nfs    [ label = "ls dir", ID="1"];
+    pack<<nfs    [ label = "request flags"];
+}
