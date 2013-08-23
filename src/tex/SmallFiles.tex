@@ -181,6 +181,15 @@ The statistics were created using the following machines:
   \hline
 \end{tabular}
 
+\subsection{Writing 100k files in 1 pool evenly distributed into 2 directories}
+
+\begin{tabular}{|r||r||r|}
+  \hline
+  file size & write files  & archive 1000 \\
+  \hline
+  5M        & 282 (5.9/sec) & 410min (3.6/sec) \\
+  \hline
+\end{tabular}
 Retrieving a file from an archive (using dcap) takes about 3s.
 
 \section{Optimizing parameters}
