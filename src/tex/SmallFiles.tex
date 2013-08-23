@@ -32,13 +32,6 @@ libraries installed.
 The work station that produces the files needs to mount \emph{Chimera} via
 \emph{NFS4.1}.
 
-\section{Implementation} 
-The implementation in its current form consists of two scripts, namely
-\texttt{hsm-internal.sh} and \texttt{pack-files.sh}. The first script is called
-for every file and creates a flag that is later used by the second script to
-bundle the files together. Only files residing in the same (sub-)directory will 
-be bundled together.
-
 \section{Installation}
 To install the Small Files capabilities do
 
@@ -97,6 +90,19 @@ To install the Small Files capabilities do
     \subitem <hsmSubdir> is the directory name containing the \texttt{archives} and \texttt{requests} directories (s.a.). E.g., \texttt{hsm}
     \subitem <archiveSize> is the approximate size of the archives in bytes
 \end{enumerate}
+
+\section{Implementation} 
+The implementation in its current form consists of two scripts, namely
+\texttt{hsm-internal.sh} and \texttt{pack-files.sh}. The first script is called
+for every file and creates a flag that is later used by the second script to
+bundle the files together. Only files residing in the same (sub-)directory will 
+be bundled together.
+
+After configuration the \texttt{dCache} pools call \texttt{hsm-internal.sh} for 
+every file of \emph{OSM} type \texttt{dcache}. The \texttt{hsm-internal} script
+has two commands: \texttt{put} and \texttt{get}. As soon as a new file for OSM
+type \texttt{dcache} arrives at a pool, the script is called with the command 
+\texttt{put}. This checks If it does not exist yet, the script will create sub-directories under 
 
 \section{Statistics}
 The statistics were created using the following machines:
@@ -165,6 +171,15 @@ The statistics were created using the following machines:
   \hline
 \end{tabular}
 
+\subsection{Writing 90k files in 1 pool evenly distributed into 90 directories}
+
+\begin{tabular}{|r||r||r|}
+  \hline
+  file size & write files  & archive 1000 \\
+  \hline
+  5M        & 390min (3.8/sec) & 410min (3.6/sec) \\
+  \hline
+\end{tabular}
 
 Retrieving a file from an archive (using dcap) takes about 3s.
 
