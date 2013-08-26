@@ -220,9 +220,7 @@ do
     report "      using $uriTemplate for files with in group $groupSubDir"
 
     IFS=$'\n'
-    cd ${groupDir}
-    flagFiles=($(find . -name "0000*"|grep -o "${pnfsidRegex}"|filterAnswered|verifyFileExists|filterDeleted|collectFiles "${targetSize}"))
-    cd -
+    flagFiles=($(find "${groupDir}" -name "0000*" -printf "%f\n"|grep -e "${pnfsidRegex}"|filterAnswered|verifyFileExists|filterDeleted|collectFiles "${targetSize}"))
     IFS=$' '
 
     # read sum of files which comes as the last element of $flagFiles (hack #1) and unset it afterwards
