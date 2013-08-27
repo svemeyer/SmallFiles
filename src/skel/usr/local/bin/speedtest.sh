@@ -26,7 +26,7 @@ do
         fulldir="${dir}/${fdir}"
         mkdir "${fulldir}"
         echo "creating $fdir $sdir files int $fulldir." | tee -a "${OUTFILE}"
-        $TIME -a pushFiles.sh ${fdir} "${fulldir}" ${sdir}
+        $TIME -o ${OUTFILE} -a pushFiles.sh ${fdir} "${fulldir}" ${sdir}
     done
 done
 echo "finished." | tee -a "${OUTFILE}"
