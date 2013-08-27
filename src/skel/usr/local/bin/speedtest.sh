@@ -13,10 +13,13 @@ fi
 BASEDIR="$1"
 OUTFILE="$2"
 
-SIZEDIRS="1k 2k 4k 8k 40k 1M 2M 4M 8M"
+SIZEDIRS="4k 8k 40k 1M 2M 4M 8M"
 FILEDIRS="1000 2000 4000 10000 20000 100000"
 
-echo "starting tests" | tee -a "${OUTFILE}"
+echo '\begin{tabular}{|r|r||r|r|}' >> "${OUTFILE}"
+echo '  \hline' >> "${OUTFILE}"
+echo '  file size & file count & user & system & total \\' >> "${OUTFILE}"
+echo '  \hline' >> "${OUTFILE}"
 for sdir in ${SIZEDIRS};
 do
     dir="${BASEDIR}/${sdir}"
@@ -25,9 +28,10 @@ do
     do
         fulldir="${dir}/${fdir}"
         mkdir "${fulldir}"
-        echo "creating $fdir $sdir files int $fulldir." | tee -a "${OUTFILE}"
-        $TIME -o ${OUTFILE} -a pushFiles.sh ${fdir} "${fulldir}" ${sdir}
+        echo "creating $fdir $sdir files int $fulldir."
+        $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" pushFiles.sh ${fdir} "${fulldir}" ${sdir}
+        echo '  \hline' >> "${OUTFILE}"
     done
 done
-echo "finished." | tee -a "${OUTFILE}"
+echo '\end{tabular}' >> "${OUTFILE}"
 
