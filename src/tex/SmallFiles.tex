@@ -114,6 +114,156 @@ The statistics were created using the following machines:
   \item \texttt{christian-vm01} to inject small files and to periodically (1/min) run the \texttt{pack-files.sh}
 \end{itemize}
 
+\subsection{Writing files in 1 pool}
+
+\begin{tabular}{|r||r||r|}
+  \hline
+  file size & file count & time \\
+  \hline
+  1k & 1000 &  \\
+  \hline
+  1k & 2000 &  \\
+  \hline
+  1k & 4000 &\\
+  \hline
+  1k & 10000 &\\
+  \hline
+  1k & 20000 &\\
+  \hline
+  1k & 100000 &\\
+  \hline
+\end{tabular}
+
+\begin{tabular}{|r||r||r|}
+  \hline
+  file size & file count & time \\
+  2k & 1000 & \\
+  \hline
+  2k & 2000 &\\
+  \hline
+  2k & 4000 &\\
+  \hline
+  2k & 10000 &\\
+  \hline
+  2k & 20000 &\\
+  \hline
+  2k & 100000 &\\
+  \hline
+\end{tabular}
+
+\begin{tabular}{|r||r||r|}
+  \hline
+  4k & 1000 & \\
+  \hline
+  4k & 2000 &\\
+  \hline
+  4k & 4000 &\\
+  \hline
+  4k & 10000 &\\
+  \hline
+  4k & 20000 &\\
+  \hline
+  4k & 100000 &\\
+  \hline
+\end{tabular}
+
+\begin{tabular}{|r||r||r|}
+  \hline
+  8k & 1000 & \\
+  \hline
+  8k & 2000 &\\
+  \hline
+  8k & 4000 &\\
+  \hline
+  8k & 10000 &\\
+  \hline
+  8k & 20000 &\\
+  \hline
+  8k & 100000 &\\
+  \hline
+\end{tabular}
+
+\begin{tabular}{|r||r||r|}
+  \hline
+  40k & 1000 & \\
+  \hline
+  40k & 2000 &\\
+  \hline
+  40k & 4000 &\\
+  \hline
+  40k & 10000 &\\
+  \hline
+  40k & 20000 &\\
+  \hline
+  40k & 100000 &\\
+  \hline
+\end{tabular}
+
+\begin{tabular}{|r||r||r|}
+  \hline
+  1M & 1000 & \\
+  \hline
+  1M & 2000 &\\
+  \hline
+  1M & 4000 &\\
+  \hline
+  1M & 10000 &\\
+  \hline
+  1M & 20000 &\\
+  \hline
+  1M & 100000 &\\
+  \hline
+\end{tabular}
+
+\begin{tabular}{|r||r||r|}
+  \hline
+  2M & 1000 & \\
+  \hline
+  2M & 2000 &\\
+  \hline
+  2M & 4000 &\\
+  \hline
+  2M & 10000 &\\
+  \hline
+  2M & 20000 &\\
+  \hline
+  2M & 100000 &\\
+  \hline
+\end{tabular}
+
+\begin{tabular}{|r||r||r|}
+  \hline
+  4M & 1000 & \\
+  \hline
+  4M & 2000 &\\
+  \hline
+  4M & 4000 &\\
+  \hline
+  4M & 10000 &\\
+  \hline
+  4M & 20000 &\\
+  \hline
+  4M & 100000 &\\
+  \hline
+\end{tabular}
+
+\begin{tabular}{|r||r||r|}
+  \hline
+  8M & 1000 & \\
+  \hline
+  8M & 2000 &\\
+  \hline
+  8M & 4000 &\\
+  \hline
+  8M & 10000 &\\
+  \hline
+  8M & 20000 &\\
+  \hline
+  8M & 100000 &\\
+  \hline
+\end{tabular}
+
+
 \subsection{Writing 9k files in 1 pool evenly distributed into 9 directories}
 
 \begin{tabular}{|r||r||r|r|r|}
@@ -190,6 +340,20 @@ The statistics were created using the following machines:
   5M        & 282 (5.9/sec) & 410min (3.6/sec) \\
   \hline
 \end{tabular}
+
+\subsection{Archiving 5M files from 1 pool}
+
+\begin{tabular}{|r|r||r|}
+  \hline
+  file size & files  & time archiving + writing levels \\
+  \hline
+  5M        & 10000 & 30min + 2min \\
+  \hline
+  5M        & 40000 & 110min + 11min \\
+  \hline
+\end{tabular}
+This took 1h 40min. Writing the levels took another 20mins.
+
 Retrieving a file from an archive (using dcap) takes about 3s.
 
 \section{Optimizing parameters}
