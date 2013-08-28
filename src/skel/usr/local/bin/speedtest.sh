@@ -15,6 +15,7 @@ then
     echo "    ls:     measures performance of 'ls -1 -U' on the directories"
     echo "    find:   measures performance of 'find' on the directories"
     echo "    stat:   measures performance of 'stat' on the files per directory"
+    echo "    tar:    creates an archive from all files in the directory"
     exit 1
 fi
 
@@ -25,35 +26,11 @@ OUTFILE="$3"
 SIZEDIRS="1k 2k 4k 8k 40k 1M 2M 4M 8M"
 FILEDIRS="1000 2000 4000 10000 20000 100000"
 
-case $CMD in
-  "create" )
-    COMMAND='pushFiles.sh ${fdir} "${fulldir}" ${sdir}'
-    ;;
-  "write" )
-    COMMAND='for file in "${fulldir}"/*; do filename=$(basename "$file"); echo "speedtest" > "${fullpath}/.(use)(5)($filename)"; done'
-    ;;
-  "read" )
-    COMMAND='for file in "${fulldir}"/*; do filename=$(basename "$file"); cat "${fullpath}/.(use)(5)($filename)"; done'
-    ;;
-  "ls" )
-    COMMAND='ls -1 -U "${fulldir}"'
-    ;;
-  "find" )
-    COMMAND='find "${fulldir}" -name "*"'
-    ;;
-  "stat" )
-    COMMAND='for file in "${fulldir}"/*; do stat -c%s "{file}"; done'
-    ;;
-  "nop" )
-    COMMAND="/bin/true"
-    ;;
-  * )
-    echo "Unknown command $CMD."
-    exit 2
-    ;;
-esac
 
-echo '\begin{tabular}{|r|r||r|r|}' >> "${OUTFILE}"
+echo "Invalidating fs cache"
+echo 2 > /proc/sys/vm/drop_caches
+
+echo '\begin{tabular}{|r|r||r|r|r|}' >> "${OUTFILE}"
 echo '  \hline' >> "${OUTFILE}"
 echo '  file size & file count & user & system & total \\' >> "${OUTFILE}"
 echo '  \hline' >> "${OUTFILE}"
@@ -66,7 +43,39 @@ do
         fulldir="${dir}/${fdir}"
         mkdir -p "${fulldir}"
         echo "testing on $fdir $sdir files in $fulldir."
-        $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" $(eval $COMMAND)
+        case $CMD in
+          "create" )
+            $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" pushFiles.sh ${fdir} "${fulldir}" ${sdir}
+            ;;
+          "write" )
+            $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" sh -c 'for file in ${0}/* ; do filename=$(basename "$file") ; echo "speedtest" > "${0}/.(use)(5)($filename)" ; done' "$fulldir"
+            ;;
+          "read" )
+            $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" sh -c 'for file in ${0}/* ; do filename=$(basename "$file") ; cat "${0}/.(use)(5)($filename)" ; done' "$fulldir"
+            ;;
+          "ls" )
+            $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" ls -1 -U "${fulldir}"
+            ;;
+          "find" )
+            $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" find "${fulldir}"
+            ;;
+          "stat" )
+            $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" sh -c 'for file in ${0}/* ; do stat -c%s "${file}" ; done' "$fulldir"
+            ;;
+          "tar" )
+            $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" tar cf "${fulldir}/all.tar" "${fulldir}/sf*"
+            ;;
+          "zip" )
+            $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" zip "${fulldir}/all.zip" "${fulldir}/sf*"
+            ;;
+          "nop" )
+            $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" /bin/true
+            ;;
+          * )
+            echo "Unknown command $CMD."
+            exit 2
+            ;;
+        esac
         echo '  \hline' >> "${OUTFILE}"
     done
 done
