@@ -66,7 +66,7 @@ do
         fulldir="${dir}/${fdir}"
         mkdir -p "${fulldir}"
         echo "testing on $fdir $sdir files in $fulldir."
-        $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" $COMMAND
+        $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" $(eval $COMMAND)
         echo '  \hline' >> "${OUTFILE}"
     done
 done
