@@ -67,10 +67,10 @@ do
             $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" sh -c 'for file in ${0}/* ; do stat -c%s "${file}" ; done' "$fulldir"
             ;;
           "tar" )
-            $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" tar cf "${fulldir}/all.tar" "${fulldir}/sf*"
+            $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" tar cf "${dir}/${fdir}.tar" "${fulldir}"/sf*
             ;;
           "zip" )
-            $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" zip -0 "${fulldir}/all.zip" "${fulldir}/sf*"
+            $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" zip -0 "${dir}/${fdir}.zip" "${fulldir}"/sf*
             ;;
           "nop" )
             $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" /bin/true
