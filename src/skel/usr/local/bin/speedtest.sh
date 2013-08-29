@@ -12,6 +12,7 @@ then
     echo "    create: measures performance of creating new files"
     echo "    write:  measures performance of writing into file levels (dCache NFS4.1 only)"
     echo "    read:   measures performance of reading from file levels (dCache NFS4.1 only)"
+    echo "    pathof: measures performance of pathof requests (dCache NFS4.1 only)"
     echo "    ls:     measures performance of 'ls -1 -U' on the directories"
     echo "    find:   measures performance of 'find' on the directories"
     echo "    stat:   measures performance of 'stat' on the files per directory"
@@ -53,6 +54,9 @@ do
           "read" )
             $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" sh -c 'for file in ${0}/* ; do filename=$(basename "$file") ; cat "${0}/.(use)(5)($filename)" ; done' "$fulldir"
             ;;
+          "pathof" )
+            $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" sh -c 'for file in ${0}/* ; do filename=$(basename "$file") ; id=$(cat "${0}/.(id)($filename)") ; cat "${0}/.(pathof)($id)" ; done' "$fulldir"
+            ;;
           "ls" )
             $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" ls -1 -U "${fulldir}"
             ;;
@@ -66,7 +70,7 @@ do
             $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" tar cf "${fulldir}/all.tar" "${fulldir}/sf*"
             ;;
           "zip" )
-            $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" zip "${fulldir}/all.zip" "${fulldir}/sf*"
+            $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" zip -0 "${fulldir}/all.zip" "${fulldir}/sf*"
             ;;
           "nop" )
             $TIME --output="${OUTFILE}" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" /bin/true
