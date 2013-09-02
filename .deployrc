@@ -17,4 +17,10 @@ results:     "./src/ipy/read.csv"                              -> "root@christia
 results:     "./src/ipy/write.csv"                             -> "root@christian-vm01:/root/speedtests/speed_write.csv"
 results:     "./src/ipy/tar.csv"                               -> "root@christian-vm01:/root/speedtests/speed_tar.csv"
 results:     "./src/ipy/zip.csv"                               -> "root@christian-vm01:/root/speedtests/speed_zip.csv"
-
+# second batch of tests
+results:     "./src/ipy/create2.csv"                           -> "root@christian-vm01:/root/speedtests/create2.csv"
+results:     "./src/ipy/find2.csv"                             -> "root@christian-vm01:/root/speedtests/find2.csv"
+results:     "./src/ipy/ls2.csv"                               -> "root@christian-vm01:/root/speedtests/ls2.csv"
+results:     "./src/ipy/stat2.csv"                             -> "root@christian-vm01:/root/speedtests/stat2.csv"
+results:     "./src/ipy/read2.csv"                             -> "root@christian-vm01:/root/speedtests/read2.csv"
+results:     "./src/ipy/write2.csv"                            -> "root@christian-vm01:/root/speedtests/write2.csv"
