@@ -50,6 +50,10 @@
 #             This is the minimum size of archives to be created.
 #             E.g. "1073741824" (1gb)
 #
+#   $packRemainingInterval:
+#             This is the interval in minutes after which all remaining files are packed into an archive
+#             regardless of its size.
+#
 #######################################################
 #
 #   prerequisites
@@ -63,7 +67,7 @@ pnfsidRegex="^[ABCDEF0123456789]\{36\}$"
 #   functions
 # 
 usage() {
-    echo "Usage: pack-files.sh <chimeraDataPrefix> <mountPoint> <hsmBase> <minSize>" | tee -a $LOG >&2
+    echo "Usage: pack-files.sh <chimeraDataPrefix> <mountPoint> <hsmBase> <minSize> [<packRemainingInterval>]" | tee -a $LOG >&2
 }
 report() {
     echo "`date +"%D-%T"` ($$) $1" | tee -a $LOG >&2
@@ -179,6 +183,7 @@ chimeraDataPrefix="${1}"
 mountPoint="${2}"
 hsmBase="${3}"
 targetSize="${4}"
+packRemainingInterval="${5}"
 
 # construct absolute requests and archives dirs
 requestsDir="${mountPoint}/${hsmBase}/requests"
@@ -234,13 +239,26 @@ do
     #     report "$flag"
     # done
     
-    # if the combined size is not enough, continue with next group dir
+    # if the combined size is not enough, 
     if [ ${fileCount} -lt 0 ] || (( ${sumSize} < ${targetSize} ))
     then
-        report "      combined size ${sumSize} < ${targetSize}. No archive created."
-        cleanupLock
-        report "    leaving ${groupDir}"
-        continue
+        if [ ! -z ${packRemainingInterval} ]
+            recentFile=$(find . -type f -cmin -${packAllInterval}|head -n 1)
+            if [ -z ${recentFile} ]
+            then
+                report "      combined size ${sumSize} < ${targetSize} and last change more recent than ${packRemainingInterval} minutes. No archive created."
+                cleanupLock
+                report "    leaving ${groupDir}"
+                continue
+            else
+                report "      Last changed file in ${groupDir} older than ${packRemainingInterval} minutes. Packing remaining files."
+            fi
+        else # continue with next group dir
+            report "      combined size ${sumSize} < ${targetSize}. No archive created."
+            cleanupLock
+            report "    leaving ${groupDir}"
+            continue
+        fi
     fi
 
     # create temporary directory
