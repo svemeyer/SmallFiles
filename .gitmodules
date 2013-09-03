@@ -1,0 +1,3 @@
+[submodule "nailgun"]
+	path = nailgun
+	url = https://github.com/martylamb/nailgun.git
