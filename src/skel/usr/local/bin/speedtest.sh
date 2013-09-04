@@ -26,8 +26,8 @@ CMD="$1"
 BASEDIR="$2"
 OUTFILE="$3"
 
-SIZEDIRS="1k 2k 4k 8k 40k 1M 2M 4M 8M"
-FILEDIRS="1000 2000 4000 10000 20000 100000"
+SIZEDIRS="1k 40k 1M 8M"
+FILEDIRS="1000 10000 100000"
 
 
 echo "Invalidating fs cache"
@@ -69,10 +69,10 @@ do
             $TIME --output="${OUTFILE}.tex" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" sh -c 'for file in ${0}/* ; do stat -c%s "${file}" ; done' "$fulldir"
             ;;
           "tar" )
-            $TIME --output="${OUTFILE}.tex" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" tar cf "${dir}/${fdir}.tar" "${fulldir}"/sf*
+            $TIME --output="${OUTFILE}.tex" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" sh -c 'cd "${0}"; tar cf "${0}.tar" *' "$fulldir"
             ;;
           "zip" )
-            $TIME --output="${OUTFILE}.tex" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" zip -0 "${dir}/${fdir}.zip" "${fulldir}"/sf*
+            $TIME --output="${OUTFILE}.tex" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" sh -c 'cd "${0}"; zip -0 "${0}.zip" *' "$fulldir"
             ;;
           "nop" )
             $TIME --output="${OUTFILE}.tex" --append --format="  $sdir & $fdir & %U & %S & %e \\\\\\\\" /bin/true
@@ -88,6 +88,6 @@ done
 echo '\end{tabular}' >> "${OUTFILE}.tex"
 
 echo "Creating CSV file from ${OUTFILE}.tex..."
-cat "${OUTFILE}.tex" | sed 's/file size/file_size/' | sed 's/file count/file_count/' | sed 's/\\\\//' | sed '/^.*egin.*$/d' | sed '/^.*end.*$/d' | sed 's/ //g' | sed 's/\\hline.*$//' | sed 's/&/,/g' | sed '/^$/d' >> "${OUTFILE}.csv"
+cat "${OUTFILE}.tex" | sed 's/file size/file_size/' | sed 's/file count/file_count/' | sed 's/\\\\//' | sed '/^.*egin.*$/d' | sed '/^.*end.*$/d' | sed 's/ //g' | sed 's/\\hline.*$//' | sed 's/&/,/g' | sed '/^$/d' | sed 's/k/000/' | sed 's/M/000000/' >> "${OUTFILE}.csv"
 echo "done."
 
