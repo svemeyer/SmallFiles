@@ -24,5 +24,5 @@ flags:       "./src/skel/usr/share/dcache/lib/hsm-internal.sh" -> "root@dcache-l
 #results:     "./src/main/resources/csv/read2.csv"              -> "root@christian-vm01:/root/speedtests/read2.csv"
 #results:     "./src/main/resources/csv/write2.csv"             -> "root@christian-vm01:/root/speedtests/write2.csv"
 # archiving tests
-#results:     "./src/main/resources/csv/tar6.csv"               -> "root@christian-vm01:/root/speedtests/tar6.csv"
-results:     "./src/main/resources/csv/zip6.csv"               -> "root@christian-vm01:/root/speedtests/zip6.csv"
+results:     "./src/main/resources/csv/tar8.csv"               -> "root@christian-vm01:/root/speedtests/tar8.csv"
+results:     "./src/main/resources/csv/zip8.csv"               -> "root@christian-vm01:/root/speedtests/zip8.csv"
