@@ -1,28 +1,44 @@
-tests:       "./src/skel/usr/local/bin/SmallFilesTest.sh"      -> "root@christian-vm01:/root/SmallFilesTest.sh"
-speedtest:   "./src/skel/usr/local/bin/speedtest.sh"           -> "root@christian-vm01:/root/speedtest.sh"
-check:       "./src/skel/usr/local/bin/check-archives.sh"      -> "root@christian-vm01:/usr/local/bin/check-archives.sh"
-pack-files:  "./src/skel/usr/local/bin/pack-files.sh"          -> "root@christian-vm01:/usr/local/bin/pack-files.sh"
-hsm-internal:"./src/skel/usr/share/dcache/lib/hsm-internal.sh" -> "root@dcache-lab002:/usr/share/dcache/lib/hsm-internal.sh"
-smart:       "./src/skel/usr/local/bin/smartpackd.py"          -> "root@christian-vm01:/usr/local/bin/smartpackd.py"
+tests:       "./src/skel/usr/local/bin/SmallFilesTest.sh"                 -> "root@christian-vm01:/root/SmallFilesTest.sh"
+speedtest:   "./src/skel/usr/local/bin/speedtest.sh"                      -> "root@christian-vm01:/root/speedtest.sh"
+check:       "./src/skel/usr/local/bin/check-archives.sh"                 -> "root@christian-vm01:/usr/local/bin/check-archives.sh"
+pack-files:  "./src/skel/usr/local/bin/pack-files.sh"                     -> "root@christian-vm01:/usr/local/bin/pack-files.sh"
+hsm-internal:"./src/skel/usr/share/dcache/lib/hsm-internal.sh"            -> "root@dcache-lab002:/usr/share/dcache/lib/hsm-internal.sh"
+smart:       "./src/skel/usr/local/bin/smartpackd.py"                     -> "root@christian-vm01:/usr/local/bin/smartpackd.py"
+
+# All the files required for the scala chimera nailgun"
+ng:          "./src/skel/usr/local/bin/ng"                                -> "root@christian-vm01:/usr/local/bin/ng"
+ng:          "./src/skel/usr/local/bin/run-ng-server"                     -> "root@christian-vm01:/usr/local/bin/run-ng-server"
+ng:          "./src/skel/usr/local/bin/loadChimeraNailgun.sh"             -> "root@christian-vm01:/usr/local/bin/loadChimeraNailgun.sh"
+ng:          "./src/skel/usr/local/lib/scala-library-2.10.2.jar"          -> "root@christian-vm01:/usr/local/lib/scala-library-2.10.2.jar"
+ng:          "./src/skel/usr/local/lib/nailgun-server-0.9.2-SNAPSHOT.jar" -> "root@christian-vm01:/usr/local/lib/nailgun-server-0.9.2-SNAPSHOT.jar"
+ng:          "./src/skel/usr/local/lib/SmallFiles"                        -> "root@christian-vm01:/usr/local/lib/ScalaChimeraNailgun"
+
 # flags contains both flag dependent scripts
-flags:       "./src/skel/usr/local/bin/pack-files.sh"          -> "root@christian-vm01:/usr/local/bin/pack-files.sh"
-flags:       "./src/skel/usr/share/dcache/lib/hsm-internal.sh" -> "root@dcache-lab002:/usr/share/dcache/lib/hsm-internal.sh"
+flags:       "./src/skel/usr/local/bin/pack-files.sh"                     -> "root@christian-vm01:/usr/local/bin/pack-files.sh"
+flags:       "./src/skel/usr/share/dcache/lib/hsm-internal.sh"            -> "root@dcache-lab002:/usr/share/dcache/lib/hsm-internal.sh"
+
+#########
+# TESTS #
+#########
+
 # fs operations on nfs 4.1 speed measurement results from christian-vm01
-#results:     "./src/main/resources/csv/create.csv"             -> "root@christian-vm01:/root/speedtests/speed_create.csv"
-#results:     "./src/main/resources/csv/find.csv"               -> "root@christian-vm01:/root/speedtests/speed_find.csv"
-#results:     "./src/main/resources/csv/ls.csv"                 -> "root@christian-vm01:/root/speedtests/speed_ls.csv"
-#results:     "./src/main/resources/csv/stat.csv"               -> "root@christian-vm01:/root/speedtests/speed_stat.csv"
-#results:     "./src/main/resources/csv/read.csv"               -> "root@christian-vm01:/root/speedtests/speed_read.csv"
-#results:     "./src/main/resources/csv/write.csv"              -> "root@christian-vm01:/root/speedtests/speed_write.csv"
-#results:     "./src/main/resources/csv/tar.csv"                -> "root@christian-vm01:/root/speedtests/speed_tar.csv"
-#results:     "./src/main/resources/csv/zip.csv"                -> "root@christian-vm01:/root/speedtests/speed_zip.csv"
+#results:     "./src/main/resources/csv/create.csv"                       -> "root@christian-vm01:/root/speedtests/speed_create.csv"
+#results:     "./src/main/resources/csv/find.csv"                         -> "root@christian-vm01:/root/speedtests/speed_find.csv"
+#results:     "./src/main/resources/csv/ls.csv"                           -> "root@christian-vm01:/root/speedtests/speed_ls.csv"
+#results:     "./src/main/resources/csv/stat.csv"                         -> "root@christian-vm01:/root/speedtests/speed_stat.csv"
+#results:     "./src/main/resources/csv/read.csv"                         -> "root@christian-vm01:/root/speedtests/speed_read.csv"
+#results:     "./src/main/resources/csv/write.csv"                        -> "root@christian-vm01:/root/speedtests/speed_write.csv"
+#results:     "./src/main/resources/csv/tar.csv"                          -> "root@christian-vm01:/root/speedtests/speed_tar.csv"
+#results:     "./src/main/resources/csv/zip.csv"                          -> "root@christian-vm01:/root/speedtests/speed_zip.csv"
+
 # second batch of tests
-#results:     "./src/main/resources/csv/create2.csv"            -> "root@christian-vm01:/root/speedtests/create2.csv"
-#results:     "./src/main/resources/csv/find2.csv"              -> "root@christian-vm01:/root/speedtests/find2.csv"
-#results:     "./src/main/resources/csv/ls2.csv"                -> "root@christian-vm01:/root/speedtests/ls2.csv"
-#results:     "./src/main/resources/csv/stat2.csv"              -> "root@christian-vm01:/root/speedtests/stat2.csv"
-#results:     "./src/main/resources/csv/read2.csv"              -> "root@christian-vm01:/root/speedtests/read2.csv"
-#results:     "./src/main/resources/csv/write2.csv"             -> "root@christian-vm01:/root/speedtests/write2.csv"
+#results:     "./src/main/resources/csv/create2.csv"                      -> "root@christian-vm01:/root/speedtests/create2.csv"
+#results:     "./src/main/resources/csv/find2.csv"                        -> "root@christian-vm01:/root/speedtests/find2.csv"
+#results:     "./src/main/resources/csv/ls2.csv"                          -> "root@christian-vm01:/root/speedtests/ls2.csv"
+#results:     "./src/main/resources/csv/stat2.csv"                        -> "root@christian-vm01:/root/speedtests/stat2.csv"
+#results:     "./src/main/resources/csv/read2.csv"                        -> "root@christian-vm01:/root/speedtests/read2.csv"
+#results:     "./src/main/resources/csv/write2.csv"                       -> "root@christian-vm01:/root/speedtests/write2.csv"
+
 # archiving tests
-results:     "./src/main/resources/csv/tar8.csv"               -> "root@christian-vm01:/root/speedtests/tar8.csv"
-results:     "./src/main/resources/csv/zip8.csv"               -> "root@christian-vm01:/root/speedtests/zip8.csv"
+results:     "./src/main/resources/csv/tar8.csv"                          -> "root@christian-vm01:/root/speedtests/tar8.csv"
+results:     "./src/main/resources/csv/zip8.csv"                          -> "root@christian-vm01:/root/speedtests/zip8.csv"
