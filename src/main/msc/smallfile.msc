@@ -26,14 +26,14 @@ msc {
     ---          [ label = "flush interval expired"];
 
     poola=>hsm   [ label = "put(file1)"];
-    hsm box hsm  [ label = "some\nthing"];
-    hsm=>chimera [ label = "exists('hsm/$sGroup/$osmInstance/md5sum(dir(file1))')"];
-    hsm<<chimera [ label = "no"];
-    hsm=>chimera [ label = "create('hsm/$sGroup/$osmInstance/md5sum(dir(file1))'"];
 
-    poola->hsm   [ label = "put file2"];
-    poola->hsm   [ label = "put file3"];
-    poola->hsm   [ label = "put file4"];
+    ---          [ label = "for each small file m:"];
+
+    hsm=>chimera [ label = "exists('hsm/$sGroup/$osmInstance/md5sum(dir(file_m))')"];
+    hsm<<chimera [ label = "no"];
+    hsm=>chimera [ label = "create('hsm/$sGroup/$osmInstance/md5sum(dir(file_m))'"];
+
+    ---;
 
     cron->pack   [ label = "pack files"];
     pack->nfs    [ label = "find request dirs"];
