@@ -19,7 +19,7 @@ LOG=/tmp/hsmio.log
 DEVTTY=$LOG
 AWK=gawk
 LIBPDCAP="/usr/lib64/libpdcap.so.1"
-CHIMERA_PARAMS="org.postgresql.Driver jdbc:postgresql://localhost/chimera?prepareThreshold=3 PgSQL chimera - "
+CHIMERA_PARAMS="org.postgresql.Driver jdbc:postgresql://dcache-lab000/chimera?prepareThreshold=3 PgSQL chimera - "
 #
 #
 #########################################################
@@ -287,8 +287,8 @@ elif [ $command = "put" ] ; then
    #  now, finally copy the file to the HSM
    #  (we assume the bfid to be returned)
    #
-   # result=`datasetPut "${dataRoot}" "${hsmBase}" "${store}" "${group}" "${pnfsid}"` || exit $?
-   result=`sfput ${CHIMERA_PARAMS} "${dataRoot}" "${hsmBase}" "${store}" "${group}" "${pnfsid}"` || exit $?
+   result=`datasetPut "${dataRoot}" "${hsmBase}" "${store}" "${group}" "${pnfsid}"` || exit $?
+   # result=`sfput ${CHIMERA_PARAMS} "${dataRoot}" "${hsmBase}" "${store}" "${group}" "${pnfsid}"` || exit $?
    #
    # osm://osm/?store=sql&group=chimera&bfid=3434.0.994.1188400818542
    #
