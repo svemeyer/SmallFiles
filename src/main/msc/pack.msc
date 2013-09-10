@@ -1,0 +1,60 @@
+msc {
+    hscale = 2;
+    
+    cron    [ label="CRON"],
+    pack    [ label="pack-files.sh"],
+    nfs     [ label="dCache NFS4.1 door"],
+    chimera [ label="Chimera DB"];
+
+    cron->pack   [ label = "pack-files.sh <chimera root> <nfs mount point> <hsm dir> <archive size> <pack remaining interval>"];
+
+    pack->nfs    [ label = "find request dirs"];
+    nfs->chimera;
+    nfs<<chimera;
+    pack<<nfs    [ label = "request dirs"];
+
+    ---          [ label = " for each dir_m in requests dirs: "];
+
+    pack->nfs    [ label = "find flags"];
+    nfs->chimera;
+    nfs<<chimera;
+    pack<<nfs    [ label = "request flags"];
+    
+    ---          [ label = " for each flag_f "];
+
+    pack->nfs    [ label = "cat .(use)(5)(flag_f)"];
+    nfs->chimera;
+    nfs<<chimera;
+    pack<<nfs    [ label = "Error: File not found"];
+    pack->nfs    [ label = "cat .(pathof)(flag_f)"];
+    nfs->chimera;
+    nfs<<chimera;
+    pack<<nfs    [ label = "chimera path to file_n"];
+    pack->nfs    [ label = "stat file_n"];
+    nfs->chimera;
+    nfs<<chimera;
+    pack<<nfs    [ label = "sizeof(file_n)"];
+    
+    pack box pack [ label = " Collect files until <archive size> is reached. 
+                              If there are not enough files and the files are 
+                              younger than <pack remaining interval> skip to 
+                              next groupDir"];
+    
+    pack->pack   [ label = "create temporary directory tmpdir"];
+    
+    ---          [ label = " for each collected file_n "];
+
+    pack->pack   [ label = "ln -s file_n tmpdir/id(file_n)"];
+
+    ---;
+
+    pack box pack [ label = "tarfile=/mntpoint/hsm/archives/<osmTemplate>/<sGroup>/md5sum(dir(file_n))"];
+
+    pack->pack   [ label = "tar chf tarfile tmpdir/*"];
+    
+    ---          [ label = " for each collected file_n "];
+
+    pack->nfs    [ label = "echo 'uri' > .(use)(5)(id(file_n))"];
+
+    ---          [ label = " continue with dir_m+1 "];
+}

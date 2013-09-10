@@ -1,0 +1,18 @@
+msc {
+    hscale = 2;
+    
+    poola   [ label="Pool A"],
+    hsm     [ label="hsm-internal.sh"],
+    chimera [ label="Chimera DB"];
+
+    ---          [ label = " flush retry interval expired "];
+
+    poola=>hsm   [ label = "hsm-internal.sh put file_n"];
+
+    hsm box hsm  [ label = "groupDir_m='hsm/requests/<sGroup>/<osmInstance>/md5sum(dir(file_n))')"];
+
+    hsm=>chimera [ label = "creadlevel groupDir_m/id(file_n) 5"];
+    hsm<<chimera [ label = "'dcache://dcache/?store=<osmTemplate>&group=<sGroup>&bfid=id(file_n):id(archive_m)'"];
+    hsm=>chimera [ label = "crm groupDir_m/id(file_n)"];
+    poola<<hsm   [ label = "File successfully stored to tape (0)"];
+}
