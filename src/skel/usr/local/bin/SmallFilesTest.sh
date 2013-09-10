@@ -12,6 +12,7 @@ fileSize=1000
 filesPerDir=30000
 filesPerArchive=100
 archiveSize=$(( $fileSize * $filesPerArchive ))
+packRemainingInterval=60
 fdelay=""
 
 sh clearDirs.sh
@@ -34,7 +35,7 @@ for exp in $(seq 1 $dirCount); do
 done
 
 echo "Creating crontab entry"
-echo "*  *  *  *  * root ${packFilesScript} \"${nfs41Export}\" \"${nfs41MountPoint}\" \"hsm\" ${archiveSize} 2>&1" >> /etc/crontab
+echo "*  *  *  *  * root ${packFilesScript} \"${nfs41Export}\" \"${nfs41MountPoint}\" \"hsm\" ${archiveSize} ${packRemainingInterval} 2>&1" >> /etc/crontab
 
 echo "Creating files in test directories"
 

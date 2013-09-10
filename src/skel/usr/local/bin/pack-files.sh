@@ -1,5 +1,6 @@
 #!/bin/bash
 #
+set -x
 # $Id: pack-files.sh 2013-02-11 karsten
 #
 # This script should be run manually or as a cron job. It is part of a set of 
@@ -172,7 +173,7 @@ then
     exit 5
 fi
 
-if [ $# -ne 4 ]
+if [ $# -ne 5 ]
 then 
     usage
     exit 4
@@ -243,7 +244,8 @@ do
     if [ ${fileCount} -lt 0 ] || (( ${sumSize} < ${targetSize} ))
     then
         if [ ! -z ${packRemainingInterval} ]
-            recentFile=$(find . -type f -cmin -${packAllInterval}|head -n 1)
+        then
+            recentFile=$(find ${groupDir} -type f -cmin +${packRemainingInterval}|head -n 1)
             if [ -z ${recentFile} ]
             then
                 report "      combined size ${sumSize} < ${targetSize} and last change more recent than ${packRemainingInterval} minutes. No archive created."
