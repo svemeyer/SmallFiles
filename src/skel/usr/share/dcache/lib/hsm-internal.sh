@@ -19,7 +19,9 @@ LOG=/tmp/hsmio.log
 DEVTTY=$LOG
 AWK=gawk
 LIBPDCAP="/usr/lib64/libpdcap.so.1"
+DCAP_DOOR="dcache-lab000:22125"
 CHIMERA_PARAMS="org.postgresql.Driver jdbc:postgresql://dcache-lab000/chimera?prepareThreshold=3 PgSQL chimera - "
+
 #
 #
 #########################################################
@@ -261,7 +263,7 @@ if [ $command = "get" ] ; then
    cd "${extractDir}"
    report "Preloading ${LIBPDCAP}"
    export LD_PRELOAD="${LIBPDCAP}"
-   tar x --force-local --file="dcap://localhost:22125/${archiveFile}" "${originalId}" 2>>$LOG
+   tar x --force-local --file="dcap://${DCAP_DOOR}/${archiveFile}" "${originalId}" 2>>$LOG
    rc=$?
    cd -
    if [ $rc -ne 0 ] ; then problem 4 "Tar couldn't replay the file" ; fi
