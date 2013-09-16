@@ -56,3 +56,6 @@ flags:       "./src/skel/usr/share/dcache/lib/hsm-internal.sh"              -> "
 # archiving tests
 results:     "./src/main/resources/csv/tar8.csv"                            -> "root@christian-vm01:/root/speedtests/tar8.csv"
 results:     "./src/main/resources/csv/zip8.csv"                            -> "root@christian-vm01:/root/speedtests/zip8.csv"
+
+# pathof tests
+results:     "./src/main/resources/csv/pathof.csv"                          -> "root@christian-vm01:/root/speedtests/pathof.csv"
