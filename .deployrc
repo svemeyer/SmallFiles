@@ -3,9 +3,13 @@ speedtest:   "./src/skel/usr/local/bin/speedtest.sh"                        -> "
 check:       "./src/skel/usr/local/bin/check-archives.sh"                   -> "root@christian-vm01:/usr/local/bin/check-archives.sh"
 pack-files:  "./src/skel/usr/local/bin/pack-files.sh"                       -> "root@christian-vm01:/usr/local/bin/pack-files.sh"
 smart:       "./src/skel/usr/local/bin/smartpackd.py"                       -> "root@christian-vm01:/usr/local/bin/smartpackd.py"
+eurogate:    "./src/skel/usr/share/dcache/lib/hsm-eurogate.sh"              -> "root@christian-vm01:/usr/share/dcache/lib/hsm-eurogate.sh"
 
 p1hsm:       "./src/skel/usr/share/dcache/lib/hsm-internal.sh"              -> "root@dcache-lab001:/usr/share/dcache/lib/hsm-internal.sh"
+p1hsm:       "./src/skel/usr/share/dcache/lib/hsm-eurogate.sh"              -> "root@dcache-lab002:/usr/share/dcache/lib/hsm-eurogate.sh"
 p2hsm:       "./src/skel/usr/share/dcache/lib/hsm-internal.sh"              -> "root@dcache-lab002:/usr/share/dcache/lib/hsm-internal.sh"
+h2hsm:       "./src/skel/usr/share/dcache/lib/hsm-eurogate.sh"              -> "root@dcache-lab002:/usr/share/dcache/lib/hsm-eurogate.sh"
+
 # All the files required for the scala chimera nailgun"
 ng-bin:        "./src/skel/usr/local/bin/ng-sl6"                            -> "root@christian-vm01:/root/nailgun/ng"
 p1ng:          "./src/skel/usr/local/bin/ng-sl6"                            -> "root@dcache-lab001:/usr/local/bin/ng"
