@@ -1,0 +1,3 @@
+EG_HOSTNAME=dcache-hsm
+EG_PORT=28000
+#EG_REPLY=localhost
