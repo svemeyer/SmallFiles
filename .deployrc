@@ -7,7 +7,7 @@ eurogate:    "./src/skel/usr/share/dcache/lib/hsm-eurogate.sh"              -> "
 eurogate-bin:"./src/skel/opt/eurogate"                                      -> "root@christian-vm01:/opt/eurogate"
 
 p1hsm:       "./src/skel/usr/share/dcache/lib/hsm-internal.sh"              -> "root@dcache-lab001:/usr/share/dcache/lib/hsm-internal.sh"
-p1hsm:       "./src/skel/usr/share/dcache/lib/hsm-eurogate.sh"              -> "root@dcache-lab002:/usr/share/dcache/lib/hsm-eurogate.sh"
+p1hsm:       "./src/skel/usr/share/dcache/lib/hsm-eurogate.sh"              -> "root@dcache-lab001:/usr/share/dcache/lib/hsm-eurogate.sh"
 p2hsm:       "./src/skel/usr/share/dcache/lib/hsm-internal.sh"              -> "root@dcache-lab002:/usr/share/dcache/lib/hsm-internal.sh"
 p2hsm:       "./src/skel/usr/share/dcache/lib/hsm-eurogate.sh"              -> "root@dcache-lab002:/usr/share/dcache/lib/hsm-eurogate.sh"
 
@@ -58,8 +58,8 @@ flags:       "./src/skel/usr/share/dcache/lib/hsm-internal.sh"              -> "
 #results:     "./src/main/resources/csv/write2.csv"                         -> "root@christian-vm01:/root/speedtests/write2.csv"
 
 # archiving tests
-results:     "./src/main/resources/csv/tar8.csv"                            -> "root@christian-vm01:/root/speedtests/tar8.csv"
-results:     "./src/main/resources/csv/zip8.csv"                            -> "root@christian-vm01:/root/speedtests/zip8.csv"
+#results:     "./src/main/resources/csv/tar8.csv"                            -> "root@christian-vm01:/root/speedtests/tar8.csv"
+#results:     "./src/main/resources/csv/zip8.csv"                            -> "root@christian-vm01:/root/speedtests/zip8.csv"
 
 # pathof tests
 results:     "./src/main/resources/csv/pathof.csv"                          -> "root@christian-vm01:/root/speedtests/pathof.csv"
