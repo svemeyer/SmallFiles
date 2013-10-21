@@ -1,14 +1,14 @@
 tests:       "./src/skel/usr/local/bin/SmallFilesTest.sh"                   -> "root@christian-vm01:/root/SmallFilesTest.sh"
 speedtest:   "./src/skel/usr/local/bin/speedtest.sh"                        -> "root@christian-vm01:/root/speedtest.sh"
 check:       "./src/skel/usr/local/bin/check-archives.sh"                   -> "root@christian-vm01:/usr/local/bin/check-archives.sh"
-pack-files:  "./src/skel/usr/local/bin/pack-files.sh"                       -> "root@christian-vm01:/usr/local/bin/pack-files.sh"
+pack-files:  "./src/skel/usr/local/bin/pack-files-by-dir.sh"                -> "root@christian-vm01:/usr/local/bin/pack-files.sh"
 smart:       "./src/skel/usr/local/bin/smartpackd.py"                       -> "root@christian-vm01:/usr/local/bin/smartpackd.py"
 eurogate:    "./src/skel/usr/share/dcache/lib/hsm-eurogate.sh"              -> "root@christian-vm01:/usr/share/dcache/lib/hsm-eurogate.sh"
 eurogate-bin:"./src/skel/opt/eurogate"                                      -> "root@christian-vm01:/opt/eurogate"
 
-p1hsm:       "./src/skel/usr/share/dcache/lib/hsm-internal.sh"              -> "root@dcache-lab001:/usr/share/dcache/lib/hsm-internal.sh"
+p1hsm:       "./src/skel/usr/share/dcache/lib/hsm-internal-by-dir.sh"       -> "root@dcache-lab001:/usr/share/dcache/lib/hsm-internal.sh"
 p1hsm:       "./src/skel/usr/share/dcache/lib/hsm-eurogate.sh"              -> "root@dcache-lab001:/usr/share/dcache/lib/hsm-eurogate.sh"
-p2hsm:       "./src/skel/usr/share/dcache/lib/hsm-internal.sh"              -> "root@dcache-lab002:/usr/share/dcache/lib/hsm-internal.sh"
+p2hsm:       "./src/skel/usr/share/dcache/lib/hsm-internal-by-dir.sh"       -> "root@dcache-lab002:/usr/share/dcache/lib/hsm-internal.sh"
 p2hsm:       "./src/skel/usr/share/dcache/lib/hsm-eurogate.sh"              -> "root@dcache-lab002:/usr/share/dcache/lib/hsm-eurogate.sh"
 
 p1eg:        "./src/skel/opt/eurogate"                                      -> "root@dcache-lab001:/opt/eurogate"
@@ -21,19 +21,19 @@ p1ng:          "./src/skel/usr/local/bin/run-ng-server"                     -> "
 p1ng:          "./src/skel/usr/local/bin/loadChimeraNailgun.sh"             -> "root@dcache-lab001:/usr/local/bin/loadChimeraNailgun.sh"
 p1ng:          "./src/skel/usr/local/lib/scala-library-2.10.2.jar"          -> "root@dcache-lab001:/usr/local/lib/scala-library-2.10.2.jar"
 p1ng:          "./src/skel/usr/local/lib/nailgun-server-0.9.2-SNAPSHOT.jar" -> "root@dcache-lab001:/usr/local/lib/nailgun-server-0.9.2-SNAPSHOT.jar"
-p1ng:          "./src/skel/usr/local/lib/SmallFiles/"                      -> "root@dcache-lab001:/usr/local/lib/ScalaChimeraNailgun"
+p1ng:          "./src/skel/usr/local/lib/SmallFiles/"                       -> "root@dcache-lab001:/usr/local/lib/ScalaChimeraNailgun"
 p1ng:          "./src/skel/usr/local/bin/createNGlinks.sh"                  -> "root@dcache-lab001:/usr/local/bin/createNGlinks.sh"
 p2ng:          "./src/skel/usr/local/bin/ng-sl6"                            -> "root@dcache-lab002:/usr/local/bin/ng"
 p2ng:          "./src/skel/usr/local/bin/run-ng-server"                     -> "root@dcache-lab002:/usr/local/bin/run-ng-server"
 p2ng:          "./src/skel/usr/local/bin/loadChimeraNailgun.sh"             -> "root@dcache-lab002:/usr/local/bin/loadChimeraNailgun.sh"
 p2ng:          "./src/skel/usr/local/lib/scala-library-2.10.2.jar"          -> "root@dcache-lab002:/usr/local/lib/scala-library-2.10.2.jar"
 p2ng:          "./src/skel/usr/local/lib/nailgun-server-0.9.2-SNAPSHOT.jar" -> "root@dcache-lab002:/usr/local/lib/nailgun-server-0.9.2-SNAPSHOT.jar"
-p2ng:          "./src/skel/usr/local/lib/SmallFiles/"                      -> "root@dcache-lab002:/usr/local/lib/ScalaChimeraNailgun"
+p2ng:          "./src/skel/usr/local/lib/SmallFiles/"                       -> "root@dcache-lab002:/usr/local/lib/ScalaChimeraNailgun"
 p2ng:          "./src/skel/usr/local/bin/createNGlinks.sh"                  -> "root@dcache-lab002:/usr/local/bin/createNGlinks.sh"
 
 # flags contains both flag dependent scripts
-flags:       "./src/skel/usr/local/bin/pack-files.sh"                       -> "root@christian-vm01:/usr/local/bin/pack-files.sh"
-flags:       "./src/skel/usr/share/dcache/lib/hsm-internal.sh"              -> "root@dcache-lab002:/usr/share/dcache/lib/hsm-internal.sh"
+flags:       "./src/skel/usr/local/bin/pack-files-by-dir.sh"                -> "root@christian-vm01:/usr/local/bin/pack-files.sh"
+flags:       "./src/skel/usr/share/dcache/lib/hsm-internal-by-dir.sh"       -> "root@dcache-lab002:/usr/share/dcache/lib/hsm-internal.sh"
 
 #########
 # TESTS #
