@@ -1,3 +1,6 @@
 [submodule "nailgun"]
 	path = nailgun
 	url = https://github.com/martylamb/nailgun.git
+[submodule "dcache"]
+	path = dcache
+	url = https://github.com/dCache/dcache.git
