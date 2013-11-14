@@ -1,6 +1,6 @@
-name := "SmallFiles"
+name := "dCache-SmallFiles"
 
-version := "0.9"
+version := "2.6"
 
 scalaVersion := "2.10.2"
 
