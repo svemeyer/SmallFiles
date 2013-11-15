@@ -68,8 +68,9 @@ results:     "./src/main/resources/csv/pathof.csv"                          -> "
 # DEPLOY ON CEPH #
 ##################
 ceph-ipy:    "./src/main/ipy/sf-patch_for_pool_node.ipynb"                  -> "root@ceph-osd1:/root/IPy-Notebook/sf-patch_for_pool_node.ipynb"
-ceph-ipy:    "./src/main/ipy/sf-patch_for_pool_node.ipynb"                  -> "root@ceph-osd2:/root/IPy-Notebook/sf-patch_for_pool_node.ipynb"
+#ceph-ipy:    "./src/main/ipy/sf-patch_for_pool_node.ipynb"                  -> "root@ceph-osd2:/root/IPy-Notebook/sf-patch_for_pool_node.ipynb"
 ceph-ipy:    "./src/main/ipy/install_pool_node.ipynb"                       -> "root@ceph-osd1:/root/IPy-Notebook/install_pool_node.ipynb"
 ceph-ipy:    "./src/main/ipy/install_pool_node.ipynb"                       -> "root@ceph-osd2:/root/IPy-Notebook/install_pool_node.ipynb"
-ceph-ipy:    "./src/main/ipy/install_head_node.ipynb"                       -> "root@ceph-mon1:/root/IPy-Notebook/install_head_node.ipynb"
-ceph-ipy:    "./src/main/ipy/sf-patch_for_head_node.ipynb"                  -> "root@ceph-mon1:/root/IPy-Notebook/sf-patch_for_head_node.ipynb"
+#ceph-ipy:    "./src/main/ipy/install_head_node.ipynb"                       -> "root@ceph-mon1:/root/IPy-Notebook/install_head_node.ipynb"
+#ceph-ipy:    "./src/main/ipy/sf-patch_for_head_node.ipynb"                  -> "root@ceph-mon1:/root/IPy-Notebook/sf-patch_for_head_node.ipynb"
+ceph-ipy:    "./src/main/ipy/sr-patch_on_packer.ipynb"                      -> "root@ceph-mds1:/root/IPy-Notebook/sf-patch_on_packer.ipynb" 
