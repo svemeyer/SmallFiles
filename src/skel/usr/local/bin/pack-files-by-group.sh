@@ -217,12 +217,11 @@ do
     report "    processing flag files in ${groupDir}"
 
     # remember tags of user files for later
-    osmTemplate=$(expr "${groupDir}" : ".*/\([^/]*\)/[^/]*/[^/]*$")
-    storageGroup=$(expr "${groupDir}" : ".*/\([^/]*\)/[^/]*$")
-    dirHash=$(expr "${groupDir}" : ".*/\([^/]*\)$")
+    osmTemplate=$(expr "${groupDir}" : ".*/\([^/]*\)/[^/]*$")
+    storageGroup=$(expr "${groupDir}" : ".*/\([^/]*\)$")
     hsmInstance="dcache"
     uriTemplate="${hsmInstance}://${hsmInstance}/?store=${osmTemplate}&group=${storageGroup}"
-    groupSubDir="${osmTemplate}/${storageGroup}/${dirHash}"
+    groupSubDir="${osmTemplate}/${storageGroup}"
     report "      using $uriTemplate for files with in group $groupSubDir"
 
     IFS=$'\n'
