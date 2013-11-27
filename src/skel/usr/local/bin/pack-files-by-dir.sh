@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-set -x
+#set -x
 # $Id: pack-files.sh 2013-02-11 karsten
 #
 # This script should be run manually or as a cron job. It is part of a set of 
@@ -68,99 +68,99 @@ pnfsidRegex="^[ABCDEF0123456789]\{36\}$"
 #   functions
 # 
 usage() {
-    echo "Usage: pack-files.sh <chimeraDataPrefix> <mountPoint> <hsmBase> <minSize> [<packRemainingInterval>]" | tee -a $LOG >&2
+   echo "Usage: pack-files.sh <chimeraDataPrefix> <mountPoint> <hsmBase> <minSize> [<packRemainingInterval>]" | tee -a $LOG >&2
 }
 report() {
-    echo "`date +"%D-%T"` ($$) $1" | tee -a $LOG >&2
+   echo "`date +"%D-%T"` ($$) $1" | tee -a $LOG >&2
 }
 problem() {
-    echo "($$) $2 ($1)" | tee -a $LOG >&2
-    exit $1
+   echo "($$) $2 ($1)" | tee -a $LOG >&2
+   exit $1
 }
 errorReport() {
-    echo "($$) $1" | tee -a ${LOG} >&2
-    return 0
+   echo "($$) $1" | tee -a ${LOG} >&2
+   return 0
 }
 
 getFileSize() {
-    echo $(stat -c%s "${1}")
+   echo $(stat -c%s "${1}")
 }
 
 getChimeraUserFileFromFlag() {
-    cat "${mountPoint}/.(pathof)(${1})"
+   cat "${mountPoint}/.(pathof)(${1})"
 }
 
 getUserFileFromFlag() {
-    cat "${mountPoint}/.(pathof)(${1})" | sed "s%${chimeraDataPrefix}%${mountPoint}%"
+   cat "${mountPoint}/.(pathof)(${1})" | sed "s%${chimeraDataPrefix}%${mountPoint}%"
 }
 
 getFileSizeByPnfsId() {
-    local fileName=$(getUserFileFromFlag "${1}")
-    echo $(getFileSize "${fileName}")
+   local fileName=$(getUserFileFromFlag "${1}")
+   echo $(getFileSize "${fileName}")
 }
 
 filterDeleted() {
-    while read id
-    do
-        local answer=$(cat "${groupDir}/.(nameof)(${id})")
-        local result=$?
-        # # DEBUG
-        # report "filterDeleted: cat .(nameof)($id) -> ${answer}, ${result}"
-        [ ${result} -ne 0 ] || echo ${id}
-    done
+   while read id
+   do
+      local answer=$(cat "${groupDir}/.(nameof)(${id})")
+      local result=$?
+      # # DEBUG
+      # report "filterDeleted: cat .(nameof)($id) -> ${answer}, ${result}"
+      [ ${result} -ne 0 ] || echo ${id}
+   done
 }
 
 filterAnswered() {
-    while read id
-    do
-        local answer=$(cat "${groupDir}/.(use)(5)(${id})")
-        local result=$?
-        # # DEBUG
-        [ ${result} -eq 0 ] && [ -z "${answer}" ] && echo ${id}
-    done
+   while read id
+   do
+      local answer=$(cat "${groupDir}/.(use)(5)(${id})")
+      local result=$?
+      # # DEBUG
+      [ ${result} -eq 0 ] && [ -z "${answer}" ] && echo ${id}
+   done
 }
 
 verifyFileExists() {
-    while read id
-    do
-        [ -f "${groupDir}/${id}" ] && echo ${id}
-    done
+   while read id
+   do
+      [ -f "${groupDir}/${id}" ] && echo ${id}
+   done
 }
 # reads pnfsids and collects as many as needed to create the archive
 # $1 - number of bytes to collect
 # sets the following two variables
 collectFiles() {
-    local sumSize=0
-    while read id
-    do
-        if  [ ${1} -ne 0 ]
-        then
-            [ ${sumSize} -ge ${1} ] && break
-        fi
-        sumSize=$(( ${sumSize}+$(getFileSizeByPnfsId "${id}") ))
-        echo "${id}"
-        printf '+' >&2
-    done
-    printf "\n" >&2
-    # append total size. (hack #1)
-    echo ${sumSize}
+   local sumSize=0
+   while read id
+   do
+      if  [ ${1} -ne 0 ]
+      then
+         [ ${sumSize} -ge ${1} ] && break
+      fi
+      sumSize=$(( ${sumSize}+$(getFileSizeByPnfsId "${id}") ))
+      echo "${id}"
+      printf '+' >&2
+   done
+   printf "\n" >&2
+   # append total size. (hack #1)
+   echo ${sumSize}
 }
 ######################################################
 #
 #   traps
 #
 cleanupLock() {
-    report "    removing lock ${lockDir}"
-    rm -f "${lockDir}/$$"
-    rmdir "${lockDir}"
+   report "    removing lock ${lockDir}"
+   rm -f "${lockDir}/$$"
+   rmdir "${lockDir}"
 }
 cleanupTmpDir() {
-    report "    cleaning up tmp directory ${tmpDir}"
-    rm -rf "${tmpDir}"
+   report "    cleaning up tmp directory ${tmpDir}"
+   rm -rf "${tmpDir}"
 }
 cleanupArchive() {
-    report "    deleting archive ${archiveFile}"
-    rm -f "${archiveFile}"
+   report "    deleting archive ${archiveFile}"
+   rm -f "${archiveFile}"
 }
 ######################################################
 #
@@ -169,14 +169,14 @@ cleanupArchive() {
 # check usage
 if [ $(whoami) != "root" ]
 then
-    report "pack-files.sh must run as root."
-    exit 5
+   report "pack-files.sh must run as root."
+   exit 5
 fi
 
 if [ $# -ne 5 ]
 then 
-    usage
-    exit 4
+   usage
+   exit 4
 fi
 
 # assign parameters
@@ -201,134 +201,134 @@ report "  found $dirCount request groups."
 # iterate over all found OSMTemplate/sGroup directory combinations 
 for groupDir in ${flagDirs[@]}
 do
-    cd "${groupDir}"
+   cd "${groupDir}"
 
-    lockDir="${groupDir}/.lock"
-    if ! mkdir "${lockDir}"
-    then
+   lockDir="${groupDir}/.lock"
+   if ! mkdir "${lockDir}"
+   then
       report "    leaving locked directory ${groupDir}"
       continue
-    fi
-    trap "cleanupLock; exit 130" SIGINT SIGTERM
+   fi
+   trap "cleanupLock; exit 130" SIGINT SIGTERM
 
-    # create pid file in lock directory
-    touch "${lockDir}/$$"
+   # create pid file in lock directory
+   touch "${lockDir}/$$"
 
-    report "    processing flag files in ${groupDir}"
+   report "    processing flag files in ${groupDir}"
 
-    # remember tags of user files for later
-    osmTemplate=$(expr "${groupDir}" : ".*/\([^/]*\)/[^/]*/[^/]*$")
-    storageGroup=$(expr "${groupDir}" : ".*/\([^/]*\)/[^/]*$")
-    dirHash=$(expr "${groupDir}" : ".*/\([^/]*\)$")
-    hsmInstance="dcache"
-    uriTemplate="${hsmInstance}://${hsmInstance}/?store=${osmTemplate}&group=${storageGroup}"
-    groupSubDir="${osmTemplate}/${storageGroup}/${dirHash}"
-    report "      using $uriTemplate for files with in group $groupSubDir"
+   # remember tags of user files for later
+   osmTemplate=$(expr "${groupDir}" : ".*/\([^/]*\)/[^/]*/[^/]*$")
+   storageGroup=$(expr "${groupDir}" : ".*/\([^/]*\)/[^/]*$")
+   dirHash=$(expr "${groupDir}" : ".*/\([^/]*\)$")
+   hsmInstance="dcache"
+   uriTemplate="${hsmInstance}://${hsmInstance}/?store=${osmTemplate}&group=${storageGroup}"
+   groupSubDir="${osmTemplate}/${storageGroup}/${dirHash}"
+   report "      using $uriTemplate for files with in group $groupSubDir"
 
-    IFS=$'\n'
-    flagFiles=($(find "${groupDir}" -name "0000*" -printf "%f\n"|grep -e "${pnfsidRegex}"|filterAnswered|verifyFileExists|filterDeleted|collectFiles "${targetSize}"))
-    IFS=$' '
+   IFS=$'\n'
+   flagFiles=($(find "${groupDir}" -name "0000*" -printf "%f\n"|grep -e "${pnfsidRegex}"|filterAnswered|verifyFileExists|filterDeleted|collectFiles "${targetSize}"))
+   IFS=$' '
 
-    # read sum of files which comes as the last element of $flagFiles (hack #1) and unset it afterwards
-    fileCount=$((${#flagFiles[@]}-1))
-    sumSize=${flagFiles[${fileCount}]}
-    unset flagFiles[${fileCount}]
+   # read sum of files which comes as the last element of $flagFiles (hack #1) and unset it afterwards
+   fileCount=$((${#flagFiles[@]}-1))
+   sumSize=${flagFiles[${fileCount}]}
+   unset flagFiles[${fileCount}]
 
-    # # DEBUG
-    # report "      processing the following files:"
-    # for flag in ${flagFiles[@]} ; do
-    #     report "$flag"
-    # done
-    
-    # if the combined size is not enough, 
-    if [ ${fileCount} -lt 0 ] || (( ${sumSize} < ${targetSize} ))
-    then
-        if [ ! -z ${packRemainingInterval} ]
-        then
-            recentFile=$(find ${groupDir} -type f -cmin +${packRemainingInterval}|head -n 1)
-            if [ -z ${recentFile} ]
-            then
-                report "      combined size ${sumSize} < ${targetSize} and last change more recent than ${packRemainingInterval} minutes. No archive created."
-                cleanupLock
-                report "    leaving ${groupDir}"
-                continue
-            else
-                report "      Last changed file in ${groupDir} older than ${packRemainingInterval} minutes. Packing remaining files."
-            fi
-        else # continue with next group dir
-            report "      combined size ${sumSize} < ${targetSize}. No archive created."
+   # # DEBUG
+   # report "      processing the following files:"
+   # for flag in ${flagFiles[@]} ; do
+   #     report "$flag"
+   # done
+
+   # if the combined size is not enough, 
+   if [ ${fileCount} -lt 0 ] || (( ${sumSize} < ${targetSize} ))
+   then
+      if [ ! -z ${packRemainingInterval} ]
+      then
+         recentFile=$(find ${groupDir} -type f -cmin +${packRemainingInterval}|head -n 1)
+         if [ -z ${recentFile} ]
+         then
+            report "      combined size ${sumSize} < ${targetSize} and last change more recent than ${packRemainingInterval} minutes. No archive created."
             cleanupLock
             report "    leaving ${groupDir}"
             continue
-        fi
-    fi
+         else
+            report "      Last changed file in ${groupDir} older than ${packRemainingInterval} minutes. Packing remaining files."
+         fi
+      else # continue with next group dir
+         report "      combined size ${sumSize} < ${targetSize}. No archive created."
+         cleanupLock
+         report "    leaving ${groupDir}"
+         continue
+      fi
+   fi
 
-    # create temporary directory
-    tmpDir=$(mktemp --directory)
-    trap "cleanupLock; cleanupTmpDir; exit 130" SIGINT SIGTERM
-    report "      created temporary directory ${tmpDir}"
+   # create temporary directory
+   tmpDir=$(mktemp --directory)
+   trap "cleanupLock; cleanupTmpDir; exit 130" SIGINT SIGTERM
+   report "      created temporary directory ${tmpDir}"
 
-    # initialise manifest file
-    mkdir "${tmpDir}/META-INF"
-    manifest="${tmpDir}/META-INF/MANIFEST.MF"
-    echo "Date: $(date)" > "${manifest}"
+   # initialise manifest file
+   mkdir "${tmpDir}/META-INF"
+   manifest="${tmpDir}/META-INF/MANIFEST.MF"
+   echo "Date: $(date)" > "${manifest}"
 
-    for pnfsid in ${flagFiles[@]}; do
-        filePath=$(getUserFileFromFlag "${pnfsid}")
-        fileName=$(basename "${filePath}")
-        ln -s "${filePath}" "${tmpDir}/${pnfsid}"
+   for pnfsid in ${flagFiles[@]}; do
+      filePath=$(getUserFileFromFlag "${pnfsid}")
+      fileName=$(basename "${filePath}")
+      ln -s "${filePath}" "${tmpDir}/${pnfsid}"
 
-        chimeraFilePath=$(getChimeraUserFileFromFlag "${pnfsid}")
-        echo "${pnfsid}:${chimeraFilePath}" >> "${manifest}"
-    done
+      chimeraFilePath=$(getChimeraUserFileFromFlag "${pnfsid}")
+      echo "${pnfsid}:${chimeraFilePath}" >> "${manifest}"
+   done
 
-    echo "Total ${sumSize} bytes in ${fileCount} files" >> "${manifest}"
-    report "      archiving ${fileCount} files with a total of ${sumSize} bytes"
+   echo "Total ${sumSize} bytes in ${fileCount} files" >> "${manifest}"
+   report "      archiving ${fileCount} files with a total of ${sumSize} bytes"
 
-    # create directory for the archive and then pack all files by their pnfsid-link-name in an archive
-    archivesGroupDir="${archivesDir}/${groupSubDir}"
-    report "      creating directory ${archivesGroupDir}"
-    mkdir -p "${archivesGroupDir}"
-    echo "StoreName ${osmTemplate}" > "${archivesGroupDir}/.(tag)(OSMTemplate)"
-    echo "${storageGroup}" > "${archivesGroupDir}/.(tag)(sGroup)"
+   # create directory for the archive and then pack all files by their pnfsid-link-name in an archive
+   archivesGroupDir="${archivesDir}/${groupSubDir}"
+   report "      creating directory ${archivesGroupDir}"
+   mkdir -p "${archivesGroupDir}"
+   echo "StoreName ${osmTemplate}" > "${archivesGroupDir}/.(tag)(OSMTemplate)"
+   echo "${storageGroup}" > "${archivesGroupDir}/.(tag)(sGroup)"
 
-    # create archive
-    archiveFile=$(mktemp --dry-run --suffix=".tar" --tmpdir="${archivesGroupDir}" DARC-XXXXX)
-    trap "cleanupLock; cleanupTmpDir; cleanupArchive; exit 130" SIGINT SIGTERM
+   # create archive
+   archiveFile=$(mktemp --dry-run --suffix=".tar" --tmpdir="${archivesGroupDir}" DARC-XXXXX)
+   trap "cleanupLock; cleanupTmpDir; cleanupArchive; exit 130" SIGINT SIGTERM
 
-    report "      packing archive ${archiveFile}"
-    cd "${tmpDir}"
-    tar chf "${archiveFile}" *
+   report "      packing archive ${archiveFile}"
+   cd "${tmpDir}"
+   tar chf "${archiveFile}" *
 
-    # if creating the archive failed, we stop right here
-    archivingExitCode=$?
+   # if creating the archive failed, we stop right here
+   archivingExitCode=$?
 
-    archivedFilesCount=$(tar tf "${archiveFile}"|grep -e "${pnfsidRegex}"|wc -l)
-    report "      checking archive: Expected ${fileCount}, actual ${archivedFilesCount} files"
+   archivedFilesCount=$(tar tf "${archiveFile}"|grep -e "${pnfsidRegex}"|wc -l)
+   report "      checking archive: Expected ${fileCount}, actual ${archivedFilesCount} files"
 
-    if [ ${archivingExitCode} -ne 0 ] || (( ${archivedFilesCount} != ${fileCount} ))
-    then 
-        cleanupLock
-        cleanupTmpDir
-        cleanupArchive
-        problem ${archivingExitCode} "Error: Creation of archive ${archiveFile} file failed. Exiting"
-    fi
-    trap "cleanupLock; cleanupTmpDir; exit 130" SIGINT SIGTERM
+   if [ ${archivingExitCode} -ne 0 ] || (( ${archivedFilesCount} != ${fileCount} ))
+   then 
+      cleanupLock
+      cleanupTmpDir
+      cleanupArchive
+      problem ${archivingExitCode} "Error: Creation of archive ${archiveFile} file failed. Exiting"
+   fi
+   trap "cleanupLock; cleanupTmpDir; exit 130" SIGINT SIGTERM
 
-    # if we succeeded we take the pnfsid of the just generated archive and create the replies
-    archivePnfsid=$(cat "${archivesGroupDir}/.(id)($(basename ${archiveFile}))")
-    report "      success. Stored archive ${archiveFile} with PnfsId ${archivePnfsid}."
+   # if we succeeded we take the pnfsid of the just generated archive and create the replies
+   archivePnfsid=$(cat "${archivesGroupDir}/.(id)($(basename ${archiveFile}))")
+   report "      success. Stored archive ${archiveFile} with PnfsId ${archivePnfsid}."
 
-    report "      storing URIs in ${groupDir}"
-    for pnfsid in ${flagFiles[@]}; do
-        uri="${uriTemplate}&bfid=${pnfsid}:${archivePnfsid}"
-        echo "${uri}" > "${groupDir}/.(use)(5)(${pnfsid})" 2>>${LOG}
-        [ $? -eq 0 ] && printf "*" >&2 && continue || report "      URI [${uri}], could not be be written to level 5 of flag file ${pnfsid}."
-    done
-    printf "\n" >&2
+   report "      storing URIs in ${groupDir}"
+   for pnfsid in ${flagFiles[@]}; do
+      uri="${uriTemplate}&bfid=${pnfsid}:${archivePnfsid}"
+      echo "${uri}" > "${groupDir}/.(use)(5)(${pnfsid})" 2>>${LOG}
+      [ $? -eq 0 ] && printf "*" >&2 && continue || report "      URI [${uri}], could not be be written to level 5 of flag file ${pnfsid}."
+   done
+   printf "\n" >&2
 
-    cleanupLock
-    cleanupTmpDir
-    report "    leaving ${groupDir}"
+   cleanupLock
+   cleanupTmpDir
+   report "    leaving ${groupDir}"
 done
 report "finished."
