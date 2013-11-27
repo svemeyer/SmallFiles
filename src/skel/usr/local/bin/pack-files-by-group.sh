@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-set -x
+# set -x
 # $Id: pack-files.sh 2013-02-11 karsten
 #
 # This script should be run manually or as a cron job. It is part of a set of 
@@ -106,7 +106,7 @@ filterDeleted() {
         local result=$?
         # # DEBUG
         # report "filterDeleted: cat .(nameof)($id) -> ${answer}, ${result}"
-        [ ${result} -ne 0 ] || echo ${id}
+        [ ${result} -eq 0 ] && echo ${id}
     done
 }
 
