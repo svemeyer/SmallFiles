@@ -62,10 +62,10 @@ getStorageInfoKey() {
 
    echo $si | 
    $AWK -v key=$1 -F';' '{
-             for(i=1;i<=NF;i++){
-                split($i,a,"=") ;
-                if(a[1]==key)print a[2]
-             }
+   for(i=1;i<=NF;i++){
+      split($i,a,"=") ;
+      if(a[1]==key)print a[2]
+      }
    }'
 }
 #
@@ -79,46 +79,46 @@ datasetPut() {
    ystore=${3}
    ygroup=${4}
    ybfid=${5}
-#
-#  Generate PATH
-#
-    requestsBase="${ydataRoot}/${yhsmBase}/requests"
-    requestPath="${requestsBase}/${ystore}/${ygroup}"
-    requestFlag="${requestPath}/${ybfid}"
-#
-    report "Using request flag : ${requestFlag}"
-#
-    reply=$(creadlevel ${CHIMERA_PARAMS} "${requestFlag}" 5)
-    if [ ! -z "${reply}" ] ; then
-#
-       report "Request answer found : ${reply}"
-       iserror=`expr "${reply}" : "ERROR \([0-9]*\).*"`
-       if [ $? -eq 0 ] ; then
-          report "Found error ${iserror}"
-          crm ${CHIMERA_PARAMS} "${requestFlag}"
-          return ${iserror}
-       else 
-          crm ${CHIMERA_PARAMS} "${requestFlag}"
-          echo $reply
-          return 0
-       fi
-#
-    elif cstat ${CHIMERA_PARAMS} "${requestFlag}" > /dev/null ; then
-#
-       report "Still waiting" 
-       problem 2 "Not yet ready"
-#
-    else
-#
-       report "Initializing request" 
-       cmkdir ${CHIMERA_PARAMS} "${requestsBase}/${ystore}" 2>/dev/null
-       cmkdir ${CHIMERA_PARAMS} "${requestsBase}/${ystore}/${ygroup}" 2>/dev/null
-       ctouch ${CHIMERA_PARAMS} "${requestFlag}"
-       problem 3 "Request Initialized (async)"
-#
-    fi
-     
-    problem 102  "We should never end up here"
+   #
+   #  Generate PATH
+   #
+   requestsBase="${ydataRoot}/${yhsmBase}/requests"
+   requestPath="${requestsBase}/${ystore}/${ygroup}"
+   requestFlag="${requestPath}/${ybfid}"
+   #
+   report "Using request flag : ${requestFlag}"
+   #
+   reply=$(creadlevel ${CHIMERA_PARAMS} "${requestFlag}" 5)
+   if [ ! -z "${reply}" ] ; then
+      #
+      report "Request answer found : ${reply}"
+      iserror=`expr "${reply}" : "ERROR \([0-9]*\).*"`
+      if [ $? -eq 0 ] ; then
+         report "Found error ${iserror}"
+         crm ${CHIMERA_PARAMS} "${requestFlag}"
+         return ${iserror}
+      else 
+         crm ${CHIMERA_PARAMS} "${requestFlag}"
+         echo $reply
+         return 0
+      fi
+      #
+   elif cstat ${CHIMERA_PARAMS} "${requestFlag}" > /dev/null ; then
+      #
+      report "Still waiting" 
+      problem 2 "Not yet ready"
+      #
+   else
+      #
+      report "Initializing request" 
+      cmkdir ${CHIMERA_PARAMS} "${requestsBase}/${ystore}" 2>/dev/null
+      cmkdir ${CHIMERA_PARAMS} "${requestsBase}/${ystore}/${ygroup}" 2>/dev/null
+      ctouch ${CHIMERA_PARAMS} "${requestFlag}"
+      problem 3 "Request Initialized (async)"
+      #
+   fi
+
+   problem 102  "We should never end up here"
 }
 #
 ###############################################################
@@ -152,18 +152,18 @@ fi
 report "Splitting arguments"
 args=""
 while [ $# -gt 0 ] ; do
-  if expr "$1" : "-.*" >/dev/null ; then
-     a=`expr "$1" : "-\(.*\)" 2>/dev/null`
-     key=`echo "$a" | $AWK -F= '{print $1}' 2>/dev/null`
-     value=`echo "$a" | $AWK -F= '{for(i=2;i<NF;i++)x=x $i "=" ; x=x $NF ; print x }' 2>/dev/null`
-     if [ -z "$value" ] ; then a="${key}=" ; fi
-     eval "${key}=\"${value}\""
-     a="export ${key}"
-     eval "$a"
-  else
-     args="${args} $1"
-  fi
-  shift 1
+   if expr "$1" : "-.*" >/dev/null ; then
+      a=`expr "$1" : "-\(.*\)" 2>/dev/null`
+      key=`echo "$a" | $AWK -F= '{print $1}' 2>/dev/null`
+      value=`echo "$a" | $AWK -F= '{for(i=2;i<NF;i++)x=x $i "=" ; x=x $NF ; print x }' 2>/dev/null`
+      if [ -z "$value" ] ; then a="${key}=" ; fi
+      eval "${key}=\"${value}\""
+      a="export ${key}"
+      eval "$a"
+   else
+      args="${args} $1"
+   fi
+   shift 1
 done
 if [ ! -z "$args" ] ; then
    set `echo "$args" | $AWK '{ for(i=1;i<=NF;i++)print $i }'`
@@ -213,10 +213,10 @@ report "Simulating mount time"
 if [ -z "${waitTime}" ] ; then waitTime=0 ; fi
 #
 if [ $waitTime != 0 ]
-  then
-     report "Waiting ${waitTime} seconds"
-     sleep ${waitTime}
-     report "Returning from waiting ${waitTime} seconds"
+then
+   report "Waiting ${waitTime} seconds"
+   sleep ${waitTime}
+   report "Returning from waiting ${waitTime} seconds"
 fi
 #
 ###############################################################
@@ -233,7 +233,7 @@ if [ $command = "get" ] ; then
    #
    report "URI : ${uri}"
    report "Store=${getStore}; Group=${getGroup}; Bfid=${getBfid}"
-#
+   #
    [ \( -z "${getStore}" \) -o \( -z "${getGroup}" \) -o \( -z "${getBfid}" \) ] && \
       problem 22 "couldn't get sufficient info for 'copy' : store=>${getStore}< group=>${getGroup}< bfid=>${getBfid}<" 
    #
@@ -271,9 +271,9 @@ if [ $command = "get" ] ; then
    exit 0 
    #
 elif [ $command = "put" ] ; then
-#
-#   and the put
-#
+   #
+   #   and the put
+   #
    filesize=$(stat "${filename}" -c%s)
    #
    #  check for existence of file
