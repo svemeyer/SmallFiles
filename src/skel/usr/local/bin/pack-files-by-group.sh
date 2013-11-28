@@ -87,11 +87,14 @@ getFileSize() {
 }
 
 getChimeraUserFileFromFlag() {
-   cat "${mountPoint}/.(pathof)(${1})"
+   cat "${groupDir}/.(use)(4)(${1})"
+   # cat "${mountPoint}/.(pathof)(${1})"
 }
 
 getUserFileFromFlag() {
-   cat "${mountPoint}/.(pathof)(${1})" | sed "s%${chimeraDataPrefix}%${mountPoint}%"
+   chimeraPath=$(getChimeraUserFileFromFlag ${1})
+   echo ${chimeraPath} | sed "s%${chimeraDataPrefix}%${mountPoint}%"
+   # cat "${mountPoint}/.(pathof)(${1})" | sed "s%${chimeraDataPrefix}%${mountPoint}%"
 }
 
 getFileSizeByPnfsId() {
