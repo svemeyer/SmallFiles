@@ -116,6 +116,8 @@ datasetPut() {
       cmkdir ${CHIMERA_PARAMS} "${requestsBase}/${ystore}/${ygroup}" 2>/dev/null
       cmkdir ${CHIMERA_PARAMS} "${requestsBase}/${ystore}/${ygroup}/${fileDirHash}" 2>/dev/null
       ctouch ${CHIMERA_PARAMS} "${requestFlag}"
+      filepath=$(cpathof ${CHIMERA_PARAMS} "${requestFlag}")
+      cwritelevel ${CHIMERA_PARAMS} "${requestFlag}" 4 "${filepath}"
       problem 3 "Request Initialized (async)"
       #
    fi
