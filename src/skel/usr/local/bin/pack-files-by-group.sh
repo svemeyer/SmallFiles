@@ -277,7 +277,7 @@ do
       fileName=$(basename "${filePath}")
       ln -s "${filePath}" "${tmpDir}/${pnfsid}"
 
-      chimeraFilePath=$(getChimeraUserFileFromFlag "${pnfsid}")
+      chimeraFilePath=$(echo "$filePath"|sed "s%$mountPoint%$chimeraDataPrefix%")
       echo "${pnfsid}:${chimeraFilePath}" >> "${manifest}"
    done
 
