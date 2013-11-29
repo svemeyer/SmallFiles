@@ -177,6 +177,23 @@ class CTouch(provider : FileSystemProvider, args : Array[String]) extends Chimer
   }
 }
 
+class CLn(provider : FileSystemProvider, args : Array[String]) extends ChimeraCommand(provider, args) with Arguments with ExceptionHandling
+{
+  def run() {
+    checkUsage(args, 2, "<pnfsid> <chimera path>")
+    val pnfsid = args(0)
+    val target = args(1)
+    handleExceptions {
+      () => {
+        val link = new File(target)
+        val srcinode = new FsInode(provider, pnfsid)
+        val targetbase = provider.path2inode(link.getParent)
+        provider.createHLink(targetbase, srcinode, link.getName)
+      }
+    }
+  }
+}
+
 class CWriteLevel(provider : FileSystemProvider, args : Array[String]) extends ChimeraCommand(provider, args) with Arguments with ExceptionHandling {
   def run() {
     checkUsage(args, 2, 3, "<chimera path> <level> [<data>]")
