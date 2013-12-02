@@ -113,10 +113,10 @@ datasetPut() {
       report "Initializing request" 
       cmkdir ${CHIMERA_PARAMS} "${requestsBase}/${ystore}" 2>/dev/null
       cmkdir ${CHIMERA_PARAMS} "${requestsBase}/${ystore}/${ygroup}" 2>/dev/null
-      ctouch ${CHIMERA_PARAMS} "${requestFlag}"
       flagid=$(basename "${requestFlag}")
       path=$(cpathof ${CHIMERA_PARAMS} ${flagid})
-      cwritelevel ${CHIMERA_PARAMS} "${requestFlag}" 4 "${path}"
+      cwritelevel ${CHIMERA_PARAMS} "${path}" 4 "${path}"
+      cln ${CHIMERA_PARAMS} ${flagid} "${requestFlag}"
       problem 3 "Request Initialized (async)"
       #
    fi

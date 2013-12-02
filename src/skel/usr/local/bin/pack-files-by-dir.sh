@@ -109,7 +109,7 @@ filterDeleted() {
       local result=$?
       # # DEBUG
       # report "filterDeleted: cat .(nameof)($id) -> ${answer}, ${result}"
-      [ ${result} -ne 0 ] || echo ${id}
+      [ ${result} -eq 0 ] && echo ${id}
    done
 }
 
@@ -140,7 +140,7 @@ collectFiles() {
       then
          [ ${sumSize} -ge ${1} ] && break
       fi
-      sumSize=$(( ${sumSize}+$(getFileSizeByPnfsId "${id}") ))
+      sumSize=$(( ${sumSize}+$(getFileSize "${id}") ))
       echo "${id}"
       printf '+' >&2
    done
@@ -229,7 +229,7 @@ do
    report "      using $uriTemplate for files with in group $groupSubDir"
 
    IFS=$'\n'
-   flagFiles=($(find "${groupDir}" -name "0000*" -printf "%f\n"|grep -e "${pnfsidRegex}"|filterAnswered|verifyFileExists|filterDeleted|collectFiles "${targetSize}"))
+   flagFiles=($(find "${groupDir}" -name "0000*" -printf "%f\n"|grep -e "${pnfsidRegex}"|filterAnswered|collectFiles "${targetSize}"))
    IFS=$' '
 
    # read sum of files which comes as the last element of $flagFiles (hack #1) and unset it afterwards
@@ -276,13 +276,14 @@ do
    manifest="${tmpDir}/META-INF/MANIFEST.MF"
    echo "Date: $(date)" > "${manifest}"
 
-   for pnfsid in ${flagFiles[@]}; do
-      filePath=$(getUserFileFromFlag "${pnfsid}")
-      fileName=$(basename "${filePath}")
-      ln -s "${filePath}" "${tmpDir}/${pnfsid}"
+   # initialise files.lst file
+   fileslst="${tmpDir}/files.lst"
+   echo "${tmpDir}/META-INF" > "${fileslst}"
 
-      chimeraFilePath=$(echo "$filePath"|sed "s%$mountPoint%$chimeraDataPrefix%")
-      echo "${pnfsid}:${chimeraFilePath}" >> "${manifest}"
+   for pnfsid in ${flagFiles[@]}; do
+      filePath=$(cat ".(use)(4)(${pnfsid})")
+      echo "${pnfsid}:${filePath}" >> "${manifest}"
+      echo "${groupDir}/${pnfsid}" >> "${fileslst}"
    done
 
    echo "Total ${sumSize} bytes in ${fileCount} files" >> "${manifest}"
@@ -300,8 +301,7 @@ do
    trap "cleanupLock; cleanupTmpDir; cleanupArchive; exit 130" SIGINT SIGTERM
 
    report "      packing archive ${archiveFile}"
-   cd "${tmpDir}"
-   tar chf "${archiveFile}" *
+   tar --create --file "${archiveFile}" --files-from "${fileslst}" --transform "s%.*META-INF\(.*\)%META-INF\1%"
 
    # if creating the archive failed, we stop right here
    archivingExitCode=$?
