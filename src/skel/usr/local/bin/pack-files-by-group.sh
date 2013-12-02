@@ -282,7 +282,7 @@ do
    for pnfsid in ${flagFiles[@]}; do
       filePath=$(cat ".(use)(4)(${pnfsid})")
       echo "${pnfsid}:${filePath}" >> "${manifest}"
-      echo "${groupDir}/${pnfsid}" >> "${fileslst}"
+      echo "${pnfsid}" >> "${fileslst}"
    done
 
    echo "Total ${sumSize} bytes in ${fileCount} files" >> "${manifest}"
@@ -305,10 +305,10 @@ do
    # if creating the archive failed, we stop right here
    archivingExitCode=$?
 
-   archivedFilesCount=$(tar tf "${archiveFile}"|grep -e "${pnfsidRegex}"|wc -l)
-   report "      checking archive: Expected ${fileCount}, actual ${archivedFilesCount} files"
+   # archivedFilesCount=$(tar tf "${archiveFile}"|grep -e "${pnfsidRegex}"|wc -l)
+   # report "      checking archive: Expected ${fileCount}, actual ${archivedFilesCount} files"
 
-   if [ ${archivingExitCode} -ne 0 ] || (( ${archivedFilesCount} != ${fileCount} ))
+   if [ ${archivingExitCode} -ne 0 ] # || (( ${archivedFilesCount} != ${fileCount} ))
    then 
       cleanupLock
       cleanupTmpDir
