@@ -105,11 +105,12 @@ getFileSizeByPnfsId() {
 filterDeleted() {
    while read id
    do
-      local answer=$(cat "${groupDir}/.(nameof)(${id})")
-      local result=$?
-      # # DEBUG
-      # report "filterDeleted: cat .(nameof)($id) -> ${answer}, ${result}"
-      [ ${result} -ne 0 ] || echo ${id}
+      [ -f $(getUserFileFromFlag ${id}) ] && echo ${id} || rm ${id}
+#      local answer=$(cat "${groupDir}/.(nameof)(${id})")
+#      local result=$?
+#      # # DEBUG
+#      # report "filterDeleted: cat .(nameof)($id) -> ${answer}, ${result}"
+#      [ ${result} -ne 0 ] || echo ${id}
    done
 }
 

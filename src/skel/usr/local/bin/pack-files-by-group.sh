@@ -105,11 +105,12 @@ getFileSizeByPnfsId() {
 filterDeleted() {
    while read id
    do
-      local answer=$(cat "${groupDir}/.(nameof)(${id})")
-      local result=$?
-      # # DEBUG
-      # report "filterDeleted: cat .(nameof)($id) -> ${answer}, ${result}"
-      [ ${result} -eq 0 ] && echo ${id}
+      [ -f $(getUserFileFromFlag ${id}) ] && echo ${id} || rm ${id}
+#      local answer=$(cat "${groupDir}/.(nameof)(${id})")
+#      local result=$?
+#      # # DEBUG
+#      # report "filterDeleted: cat .(nameof)($id) -> ${answer}, ${result}"
+#      [ ${result} -eq 0 ] && echo ${id}
    done
 }
 
@@ -305,10 +306,10 @@ do
    # if creating the archive failed, we stop right here
    archivingExitCode=$?
 
-   archivedFilesCount=$(tar tf "${archiveFile}"|grep -e "${pnfsidRegex}"|wc -l)
-   report "      checking archive: Expected ${fileCount}, actual ${archivedFilesCount} files"
+   # archivedFilesCount=$(tar tf "${archiveFile}"|grep -e "${pnfsidRegex}"|wc -l)
+   # report "      checking archive: Expected ${fileCount}, actual ${archivedFilesCount} files"
 
-   if [ ${archivingExitCode} -ne 0 ] || (( ${archivedFilesCount} != ${fileCount} ))
+   if [ ${archivingExitCode} -ne 0 ] # || (( ${archivedFilesCount} != ${fileCount} ))
    then 
       cleanupLock
       cleanupTmpDir
