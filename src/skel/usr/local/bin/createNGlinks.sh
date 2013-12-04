@@ -1,6 +1,6 @@
 #!/bin/sh
 
-COMMANDS="cchecksum cchmod cdummy cls cmkdir cparent creadlevel crm csetfacl ctouch cwritelevel cchgrp cchown cgetfacl clstag cnameof cpathof creadtag crmtag cstat cwritedata cwritetag sfput"
+COMMANDS="cchecksum cchmod cdummy cls cmkdir cln cparent creadlevel crm csetfacl ctouch cwritelevel cchgrp cchown cgetfacl clstag cnameof cpathof creadtag crmtag cstat cwritedata cwritetag sfput"
 
 usage() {
   echo "Usage: createNGlinks.sh <bin path> [<ng path>]"

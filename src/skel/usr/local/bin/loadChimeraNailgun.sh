@@ -3,6 +3,7 @@ ng ng-alias "cchgrp"      org.dcache.chimera.cli.Cli
 ng ng-alias "cchmod"      org.dcache.chimera.cli.Cli 
 ng ng-alias "cchown"      org.dcache.chimera.cli.Cli 
 ng ng-alias "cgetfacl"    org.dcache.chimera.cli.Cli 
+ng ng-alias "cln"         org.dcache.chimera.cli.Cli
 ng ng-alias "cls"         org.dcache.chimera.cli.Cli 
 ng ng-alias "clstag"      org.dcache.chimera.cli.Cli 
 ng ng-alias "cmkdir"      org.dcache.chimera.cli.Cli 

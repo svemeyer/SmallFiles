@@ -87,11 +87,14 @@ getFileSize() {
 }
 
 getChimeraUserFileFromFlag() {
-   cat "${mountPoint}/.(pathof)(${1})"
+   cat "${groupDir}/.(use)(4)(${1})"
+   # cat "${mountPoint}/.(pathof)(${1})"
 }
 
 getUserFileFromFlag() {
-   cat "${mountPoint}/.(pathof)(${1})" | sed "s%${chimeraDataPrefix}%${mountPoint}%"
+   chimeraPath=$(getChimeraUserFileFromFlag ${1})
+   echo ${chimeraPath} | sed "s%${chimeraDataPrefix}%${mountPoint}%"
+   # cat "${mountPoint}/.(pathof)(${1})" | sed "s%${chimeraDataPrefix}%${mountPoint}%"
 }
 
 getFileSizeByPnfsId() {
@@ -102,11 +105,12 @@ getFileSizeByPnfsId() {
 filterDeleted() {
    while read id
    do
-      local answer=$(cat "${groupDir}/.(nameof)(${id})")
-      local result=$?
-      # # DEBUG
-      # report "filterDeleted: cat .(nameof)($id) -> ${answer}, ${result}"
-      [ ${result} -ne 0 ] || echo ${id}
+      [ -f $(getUserFileFromFlag ${id}) ] && echo ${id} || rm ${id}
+#      local answer=$(cat "${groupDir}/.(nameof)(${id})")
+#      local result=$?
+#      # # DEBUG
+#      # report "filterDeleted: cat .(nameof)($id) -> ${answer}, ${result}"
+#      [ ${result} -ne 0 ] || echo ${id}
    done
 }
 
@@ -278,7 +282,7 @@ do
       fileName=$(basename "${filePath}")
       ln -s "${filePath}" "${tmpDir}/${pnfsid}"
 
-      chimeraFilePath=$(getChimeraUserFileFromFlag "${pnfsid}")
+      chimeraFilePath=$(echo "$filePath"|sed "s%$mountPoint%$chimeraDataPrefix%")
       echo "${pnfsid}:${chimeraFilePath}" >> "${manifest}"
    done
 

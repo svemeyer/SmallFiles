@@ -14,6 +14,7 @@ object Cli {
       case "cchmod"     => new NotImplemented(provider, cmdargs)
       case "cchown"     => new NotImplemented(provider, cmdargs)
       case "cgetfacl"   => new NotImplemented(provider, cmdargs)
+      case "cln"        => new CLn(provider, cmdargs)
       case "cls"        => new NotImplemented(provider, cmdargs)
       case "clstag"     => new NotImplemented(provider, cmdargs)
       case "cmkdir"     => new CMkdir(provider, cmdargs)

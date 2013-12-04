@@ -19,8 +19,8 @@ LOG=/tmp/hsmio.log
 DEVTTY=$LOG
 AWK=gawk
 LIBPDCAP="/usr/lib64/libpdcap.so.1"
-DCAP_DOOR="dcache-lab000:22125"
-CHIMERA_PARAMS="org.postgresql.Driver jdbc:postgresql://dcache-lab000/chimera?prepareThreshold=3 PgSQL chimera - "
+DCAP_DOOR="ceph-mon1:22125"
+CHIMERA_PARAMS="org.postgresql.Driver jdbc:postgresql://ceph-mon1/chimera?prepareThreshold=3 PgSQL chimera - "
 
 #
 #
@@ -116,6 +116,9 @@ datasetPut() {
       cmkdir ${CHIMERA_PARAMS} "${requestsBase}/${ystore}/${ygroup}" 2>/dev/null
       cmkdir ${CHIMERA_PARAMS} "${requestsBase}/${ystore}/${ygroup}/${fileDirHash}" 2>/dev/null
       ctouch ${CHIMERA_PARAMS} "${requestFlag}"
+      flagid=$(basename "${requestFlag}")
+      path=$(cpathof ${CHIMERA_PARAMS} ${flagid})
+      cwritelevel ${CHIMERA_PARAMS} "${requestFlag}" 4 "${path}"
       problem 3 "Request Initialized (async)"
       #
    fi
