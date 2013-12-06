@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# set -x
+#set -x
 # $Id: pack-files.sh 2013-02-11 karsten
 #
 # This script should be run manually or as a cron job. It is part of a set of 
@@ -88,13 +88,11 @@ getFileSize() {
 
 getChimeraUserFileFromFlag() {
    cat "${groupDir}/.(use)(4)(${1})"
-   # cat "${mountPoint}/.(pathof)(${1})"
 }
 
 getUserFileFromFlag() {
    chimeraPath=$(getChimeraUserFileFromFlag ${1})
    echo ${chimeraPath} | sed "s%${chimeraDataPrefix}%${mountPoint}%"
-   # cat "${mountPoint}/.(pathof)(${1})" | sed "s%${chimeraDataPrefix}%${mountPoint}%"
 }
 
 getFileSizeByPnfsId() {
@@ -106,28 +104,20 @@ filterDeleted() {
    while read id
    do
       [ -f $(getUserFileFromFlag ${id}) ] && echo ${id} || rm ${id}
-#      local answer=$(cat "${groupDir}/.(nameof)(${id})")
-#      local result=$?
-#      # # DEBUG
-#      # report "filterDeleted: cat .(nameof)($id) -> ${answer}, ${result}"
-#      [ ${result} -eq 0 ] && echo ${id}
    done
 }
 
 filterAnswered() {
    while read id
    do
-      local answer=$(cat "${groupDir}/.(use)(5)(${id})")
-      local result=$?
-      # # DEBUG
-      [ ${result} -eq 0 ] && [ -z "${answer}" ] && echo ${id}
+      [ -f "${groupDir}/.(use)(5)(${id})" ] || echo ${id}
    done
 }
 
-verifyFileExists() {
+verifyFlagExists() {
    while read id
    do
-      [ -f "${groupDir}/${id}" ] && echo ${id}
+      [ -f "${groupDir}/${id}" ] && [ -f "${groupDir}/.(use)(4)(${id})" ] && echo ${id}
    done
 }
 # reads pnfsids and collects as many as needed to create the archive
@@ -229,8 +219,17 @@ do
    report "      using $uriTemplate for files with in group $groupSubDir"
 
    IFS=$'\n'
-   flagFiles=($(find "${groupDir}" -name "0000*" -printf "%f\n"|grep -e "${pnfsidRegex}"|filterAnswered|verifyFileExists|filterDeleted|collectFiles "${targetSize}"))
+   flagFiles=($(find "${groupDir}" -name "0000*" -printf "%f\n"|grep -e "${pnfsidRegex}"|verifyFlagExists|filterDeleted|filterAnswered|collectFiles "${targetSize}"))
+   collectResult=$?
    IFS=$' '
+
+   if [ ${collectResult} -ne 0 ]
+   then
+      report "     detected file deletion during collection. No archive created."
+      cleanupLock
+      report "   leaving ${groupDir}"
+      continue
+   fi
 
    # read sum of files which comes as the last element of $flagFiles (hack #1) and unset it afterwards
    fileCount=$((${#flagFiles[@]}-1))
@@ -292,8 +291,8 @@ do
    archivesGroupDir="${archivesDir}/${groupSubDir}"
    report "      creating directory ${archivesGroupDir}"
    mkdir -p "${archivesGroupDir}"
-   echo "StoreName ${osmTemplate}" > "${archivesGroupDir}/.(tag)(OSMTemplate)"
-   echo "${storageGroup}" > "${archivesGroupDir}/.(tag)(sGroup)"
+   [ -f "${archivesGroupDir}/.(tag)(OSMTemplate)" ] || echo "StoreName ${osmTemplate}" > "${archivesGroupDir}/.(tag)(OSMTemplate)"
+   [ -f "${archivesGroupDir}/.(tag)(sGroup)" ] || echo "${storageGroup}" > "${archivesGroupDir}/.(tag)(sGroup)"
 
    # create archive
    archiveFile=$(mktemp --dry-run --suffix=".tar" --tmpdir="${archivesGroupDir}" DARC-XXXXX)
