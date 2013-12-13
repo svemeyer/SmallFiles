@@ -231,9 +231,9 @@ do
 
    if [ ${collectResult} -ne 0 ]
    then
-      report "     detected file deletion during collection. No archive created."
+      report "      detected file deletion during collection. No archive created."
       cleanupLock
-      report "   leaving ${groupDir}"
+      report "    leaving ${groupDir}"
       continue
    fi
 
