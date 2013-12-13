@@ -87,12 +87,12 @@ datasetPut() {
    requestPath="${requestsBase}/${ystore}/${ygroup}/${fileDirHash}"
    requestFlag="${requestPath}/${ybfid}"
    #
-   report "Using request flag : ${requestFlag}"
+   # report "Using request flag : ${requestFlag}"
    #
    reply=$(creadlevel ${CHIMERA_PARAMS} "${requestFlag}" 5)
    if [ ! -z "${reply}" ] ; then
       #
-      report "Request answer found : ${reply}"
+      # report "Request answer found : ${reply}"
       iserror=`expr "${reply}" : "ERROR \([0-9]*\).*"`
       if [ $? -eq 0 ] ; then
          report "Found error ${iserror}"
@@ -106,12 +106,12 @@ datasetPut() {
       #
    elif cstat ${CHIMERA_PARAMS} "${requestFlag}" > /dev/null ; then
       #
-      report "Still waiting" 
+      # report "Still waiting" 
       problem 2 "Not yet ready"
       #
    else
       #
-      report "Initializing request" 
+      # report "Initializing request" 
       cmkdir ${CHIMERA_PARAMS} "${requestsBase}/${ystore}" 2>/dev/null
       cmkdir ${CHIMERA_PARAMS} "${requestsBase}/${ystore}/${ygroup}" 2>/dev/null
       cmkdir ${CHIMERA_PARAMS} "${requestsBase}/${ystore}/${ygroup}/${fileDirHash}" 2>/dev/null
@@ -137,7 +137,7 @@ datasetPut() {
 #
 #  say hallo to people
 #
-report "$*"
+# report "$*"
 #
 ###############################################################
 #
@@ -154,7 +154,7 @@ fi
 # split the arguments into the options -<key>=<value> and the 
 # positional arguments.
 #
-report "Splitting arguments"
+# report "Splitting arguments"
 args=""
 while [ $# -gt 0 ] ; do
    if expr "$1" : "-.*" >/dev/null ; then
@@ -186,18 +186,18 @@ filename="${3}"
 #
 # check for some basic variables
 #
-report "Checking hsmBase"
+# report "Checking hsmBase"
 #
 [ -z "${hsmBase}" ] && problem 3 "Variable 'hsmBase' not defined"
 #
-report "Checking dataRoot"
+# report "Checking dataRoot"
 #
 [ -z "${dataRoot}" ] && problem 3 "Variable 'dataRoot' not defined"
 #
 # make sure the storage info variables are available
 # (Will be fetched with getStorageInfoKey)
 #
-report "Checking SI"
+# report "Checking SI"
 #
 [ -z "${si}" ] && problem 1 "StorageInfo (-si=...) not available" 
 #
@@ -213,15 +213,15 @@ bfid=`getStorageInfoKey bfid 2>/dev/null`
 #
 #      simulate mount time
 #
-report "Simulating mount time"
+# report "Simulating mount time"
 #
 if [ -z "${waitTime}" ] ; then waitTime=0 ; fi
 #
 if [ $waitTime != 0 ]
 then
-   report "Waiting ${waitTime} seconds"
+   # report "Waiting ${waitTime} seconds"
    sleep ${waitTime}
-   report "Returning from waiting ${waitTime} seconds"
+   # report "Returning from waiting ${waitTime} seconds"
 fi
 #
 ###############################################################
@@ -230,7 +230,7 @@ if [ $command = "get" ] ; then
    #
    #  splitting URI into pieces
    #
-   report "Splitting URI into pieces"
+   # report "Splitting URI into pieces"
    #
    getStore=`expr "${uri}" : ".*/?store=\(.*\)&group.*"`
    getGroup=`expr "${uri}" : ".*group=\(.*\)&bfid.*"`
