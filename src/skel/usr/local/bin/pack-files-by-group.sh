@@ -114,12 +114,6 @@ filterAnswered() {
    done
 }
 
-verifyFlagExists() {
-   while read id
-   do
-      [ -f "${groupDir}/${id}" ] && [ -f "${groupDir}/.(use)(4)(${id})" ] && echo ${id}
-   done
-}
 # reads pnfsids and collects as many as needed to create the archive
 # $1 - number of bytes to collect
 # sets the following two variables
@@ -131,7 +125,19 @@ collectFiles() {
       then
          [ ${sumSize} -ge ${1} ] && break
       fi
-      sumSize=$(( ${sumSize}+$(getFileSizeByPnfsId "${id}") ))
+      # check if user file was deleted, if so, delete flag and skip to next
+      userFile=$(getUserFileFromFlag ${id})
+      [ -z ${userFile} ] && continue
+      if [ ! -f ${userFile} ]
+      then
+         rm ${id}
+         printf '-' >&2
+         continue
+      fi
+      fileSize=$(getFileSize "${userFile}")
+      [ $? -ne 0 ] && continue
+      [ -z ${fileSize} ] && continue
+      sumSize=$(( ${sumSize}+${fileSize} ))
       echo "${id}"
       printf '+' >&2
    done
@@ -198,12 +204,12 @@ do
    cd "${groupDir}"
 
    lockDir="${groupDir}/.lock"
+   trap "cleanupLock; exit 130" SIGINT SIGTERM
    if ! mkdir "${lockDir}"
    then
       report "    leaving locked directory ${groupDir}"
       continue
    fi
-   trap "cleanupLock; exit 130" SIGINT SIGTERM
 
    # create pid file in lock directory
    touch "${lockDir}/$$"
@@ -219,7 +225,7 @@ do
    report "      using $uriTemplate for files with in group $groupSubDir"
 
    IFS=$'\n'
-   flagFiles=($(find "${groupDir}" -name "0000*" -printf "%f\n"|grep -e "${pnfsidRegex}"|verifyFlagExists|filterDeleted|filterAnswered|collectFiles "${targetSize}"))
+   flagFiles=($(find "${groupDir}" -name "0000*" -printf "%f\n"|grep -e "${pnfsidRegex}"|filterAnswered|collectFiles "${targetSize}"))
    collectResult=$?
    IFS=$' '
 
@@ -242,13 +248,22 @@ do
    #     report "$flag"
    # done
 
-   # if the combined size is not enough, 
-   if [ ${fileCount} -lt 0 ] || (( ${sumSize} < ${targetSize} ))
+   # if there were no valid files at all
+   if [ ${fileCount} -le 0 ]
+   then
+      report "      no unanswered flags in ${groupDir}. No archive created."
+      cleanupLock
+      report "    leaving ${groupDir}"
+      continue
+   fi
+
+   # if the combined size is not enough
+   if (( ${sumSize} < ${targetSize} ))
    then
       if [ ! -z ${packRemainingInterval} ]
       then
-         recentFile=$(find ${groupDir} -type f -cmin +${packRemainingInterval}|head -n 1)
-         if [ -z ${recentFile} ]
+         recentFile=$(find ${groupDir} -type f -cmin +${packRemainingInterval}|filterAnswered|head -n 1)
+         if [ ! -f ${recentFile} ]
          then
             report "      combined size ${sumSize} < ${targetSize} and last change more recent than ${packRemainingInterval} minutes. No archive created."
             cleanupLock
