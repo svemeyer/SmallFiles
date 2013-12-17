@@ -262,10 +262,11 @@ do
    then
       if [ ! -z ${packRemainingInterval} ]
       then
-         recentFile=$(find ${groupDir} -type f -cmin +${packRemainingInterval}|filterAnswered|head -n 1)
-         if [ ! -f ${recentFile} ]
+         recentFile=$(find ${groupDir} -type f -cmin -${packRemainingInterval}|grep -e "${pnfsidRegex}"|filterAnswered|head -n 1)
+         echo $recentFile
+         if [ ! -z ${recentFile} ] && [ -f ${recentFile} ]
          then
-            report "      combined size ${sumSize} < ${targetSize} and last change more recent than ${packRemainingInterval} minutes. No archive created."
+            report "      combined size ${sumSize} < ${targetSize},but last change more recent than ${packRemainingInterval} minutes. No archive created."
             cleanupLock
             report "    leaving ${groupDir}"
             continue
