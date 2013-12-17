@@ -267,7 +267,7 @@ do
          echo $recentFile
          if [ ! -z ${recentFile} ] && [ -f ${recentFile} ]
          then
-            report "      combined size ${sumSize} < ${targetSize} and last change more recent than ${packRemainingInterval} minutes. No archive created."
+            report "      combined size ${sumSize} < ${targetSize},but last change more recent than ${packRemainingInterval} minutes. No archive created."
             cleanupLock
             report "    leaving ${groupDir}"
             continue
