@@ -262,7 +262,7 @@ do
    then
       if [ ! -z ${packRemainingInterval} ]
       then
-         recentFile=$(find ${groupDir} -type f -cmin -${packRemainingInterval}|grep -e "${pnfsidRegex}"|filterAnswered|head -n 1)
+         recentFile=$(find ${groupDir} -name "0000*" -type f -cmin -${packRemainingInterval}|filterAnswered|head -n 1)
          echo $recentFile
          if [ ! -z ${recentFile} ] && [ -f ${recentFile} ]
          then
