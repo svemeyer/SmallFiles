@@ -263,8 +263,9 @@ do
    then
       if [ ! -z ${packRemainingInterval} ]
       then
-         recentFile=$(find ${groupDir} -type f -cmin +${packRemainingInterval}|filterAnswered|head -n 1)
-         if [ ! -f ${recentFile} ]
+         recentFile=$(find ${groupDir} -name "0000*" -type f -cmin -${packRemainingInterval}|filterAnswered|head -n 1)
+         echo $recentFile
+         if [ ! -z ${recentFile} ] && [ -f ${recentFile} ]
          then
             report "      combined size ${sumSize} < ${targetSize} and last change more recent than ${packRemainingInterval} minutes. No archive created."
             cleanupLock
