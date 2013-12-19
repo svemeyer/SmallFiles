@@ -312,12 +312,12 @@ do
    [ -f "${archivesGroupDir}/.(tag)(sGroup)" ] || echo "${storageGroup}" > "${archivesGroupDir}/.(tag)(sGroup)"
 
    # create archive
-   archiveFile=$(mktemp --dry-run --suffix=".tar" --tmpdir="${archivesGroupDir}" DARC-XXXXX)
+   archiveFile=$(mktemp --dry-run --suffix=".zip" --tmpdir="${archivesGroupDir}" DARC-XXXXX)
    trap "cleanupLock; cleanupTmpDir; cleanupArchive; exit 130" SIGINT SIGTERM
 
    report "      packing archive ${archiveFile}"
    cd "${tmpDir}"
-   tar chf "${archiveFile}" *
+   zip -0 "${archiveFile}" *
 
    # if creating the archive failed, we stop right here
    archivingExitCode=$?
