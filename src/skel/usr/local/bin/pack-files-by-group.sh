@@ -316,7 +316,7 @@ do
 
    report "      packing archive ${archiveFile}"
    cd "${tmpDir}"
-   zip -0 "${archiveFile}" *
+   zip -r -0 "${archiveFile}" *
 
    # if creating the archive failed, we stop right here
    archivingExitCode=$?
