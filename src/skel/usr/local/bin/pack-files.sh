@@ -173,18 +173,21 @@ then
    exit 5
 fi
 
-if [ $# -ne 5 ]
+if [ $# -ne 6 ]
 then 
    usage
    exit 4
 fi
 
 # assign parameters
-chimeraDataPrefix="${1}"
-mountPoint="${2}"
-hsmBase="${3}"
-targetSize="${4}"
-packRemainingInterval="${5}"
+packingMode="${1}"
+chimeraDataPrefix="${2}"
+mountPoint="${3}"
+hsmBase="${4}"
+targetSize="${5}"
+packRemainingInterval="${6}"
+
+source "${packingMode}"
 
 # construct absolute requests and archives dirs
 requestsDir="${mountPoint}/${hsmBase}/requests"
@@ -193,7 +196,7 @@ archivesDir="${mountPoint}/${hsmBase}/archives"
 report "Looking for archivation requests in ${requestsDir}"
 
 IFS=$'\n'
-flagDirs=($(find "${requestsDir}" -mindepth 2 -maxdepth 2 -type d))
+flagDirs=$(getFlagDirs "${requestsDir}")
 IFS=$' '
 dirCount=${#flagDirs[@]}
 report "  found $dirCount request groups."
@@ -217,11 +220,11 @@ do
    report "    processing flag files in ${groupDir}"
 
    # remember tags of user files for later
-   osmTemplate=$(expr "${groupDir}" : ".*/\([^/]*\)/[^/]*$")
-   storageGroup=$(expr "${groupDir}" : ".*/\([^/]*\)$")
+   osmTemplate=$(getOsmTemplate "${groupDir}")
+   storageGroup=$(getStorageGroup "${groupDir}")
    hsmInstance="dcache"
    uriTemplate="${hsmInstance}://${hsmInstance}/?store=${osmTemplate}&group=${storageGroup}"
-   groupSubDir="${osmTemplate}/${storageGroup}"
+   groupSubDir=$(getGroupSubDir ${groupDir}")
    report "      using $uriTemplate for files with in group $groupSubDir"
 
    IFS=$'\n'
