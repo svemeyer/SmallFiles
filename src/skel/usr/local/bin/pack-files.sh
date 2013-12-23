@@ -224,7 +224,7 @@ do
    storageGroup=$(getStorageGroup "${groupDir}")
    hsmInstance="dcache"
    uriTemplate="${hsmInstance}://${hsmInstance}/?store=${osmTemplate}&group=${storageGroup}"
-   groupSubDir=$(getGroupSubDir ${groupDir}")
+   groupSubDir=$(getGroupSubDir "${groupDir}")
    report "      using $uriTemplate for files with in group $groupSubDir"
 
    IFS=$'\n'
