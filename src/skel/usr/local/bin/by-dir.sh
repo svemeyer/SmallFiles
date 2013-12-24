@@ -25,5 +25,5 @@ getGroupSubDir() {
    local osmTemplate=$(getOsmTemplate "$groupDir")
    local storageGroup=$(getStorageGroup "$groupDir")
    local dirHash=$(getDirHash "$groupDir")
-   groupSubDir="${osmTemplate}/${storageGroup}/${dirHash}"
+   echo "${osmTemplate}/${storageGroup}/${dirHash}"
 }
