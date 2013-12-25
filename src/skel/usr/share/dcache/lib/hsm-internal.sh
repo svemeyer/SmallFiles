@@ -8,6 +8,7 @@
 #    dCache configuration
 #
 #   hsm set dcache -command=<fullPathToThisScript> # e.g., /usr/share/dcache/lib/hsm-internal.sh
+#   hsm set dcache -packMode=<fullPathToPackModeIncludeScript> # e.g., /usr/share/dcache/lib/hsm-by-group.sh
 #   hsm set dcache -hsmBase=<SubdirectoryBelowDataRootToTheMigratingFileSystem> # e.g., hsm
 #   hsm set dcache -dataRoot=<rootDataDir> # e.g., /data
 #
@@ -80,10 +81,13 @@ datasetPut() {
    ygroup=${4}
    ybfid=${5}
    #
+   #  Include PackMode script
+   #
+   source "${packMode}"
+   #
    #  Generate PATH
    #
-   requestsBase="${ydataRoot}/${yhsmBase}/requests"
-   requestPath="${requestsBase}/${ystore}/${ygroup}"
+   requestPath=$(getRequestPath "$CHIMERA_PARAMS" "$ydataRoot" "$yhsmBase" "$ystore" "$ygroup" "$ybfid")
    requestFlag="${requestPath}/${ybfid}"
    #
    # report "Using request flag : ${requestFlag}"
@@ -111,8 +115,7 @@ datasetPut() {
    else
       #
       # report "Initializing request" 
-      cmkdir ${CHIMERA_PARAMS} "${requestsBase}/${ystore}" 2>/dev/null
-      cmkdir ${CHIMERA_PARAMS} "${requestsBase}/${ystore}/${ygroup}" 2>/dev/null
+      mkRequestDir "$CHIMERA_PARAMS" "$ydataRoot" "$yhsmBase" "$ystore" "$ygroup" "$ybfid"
       ctouch ${CHIMERA_PARAMS} "${requestFlag}"
       flagid=$(basename "${requestFlag}")
       path=$(cpathof ${CHIMERA_PARAMS} ${flagid})
@@ -184,6 +187,9 @@ filename="${3}"
 #
 # check for some basic variables
 #
+# report "Checking packMode"
+#
+[ -z "${packMode}" ] && problem 3 "Variable 'packMode' not defined"
 # report "Checking hsmBase"
 #
 [ -z "${hsmBase}" ] && problem 3 "Variable 'hsmBase' not defined"
