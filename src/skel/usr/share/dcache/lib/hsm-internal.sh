@@ -8,9 +8,7 @@
 #    dCache configuration
 #
 #   hsm set dcache -command=<fullPathToThisScript> # e.g., /usr/share/dcache/lib/hsm-internal.sh
-#   hsm set dcache -packMode=<fullPathToPackModeIncludeScript> # e.g., /usr/share/dcache/lib/hsm-by-group.sh
-#   hsm set dcache -hsmBase=<SubdirectoryBelowDataRootToTheMigratingFileSystem> # e.g., hsm
-#   hsm set dcache -dataRoot=<rootDataDir> # e.g., /data
+#   hsm set dcache -mongoUrl=<urlOfMongoDb> # e.g., server.example.org/database
 #
 #########################################################
 #
@@ -21,7 +19,6 @@ DEVTTY=$LOG
 AWK=gawk
 LIBPDCAP="/usr/lib64/libpdcap.so.1"
 DCAP_DOOR="ceph-mon1:22125"
-CHIMERA_PARAMS="org.postgresql.Driver jdbc:postgresql://ceph-mon1/chimera?prepareThreshold=3 PgSQL chimera - "
 
 #
 #
@@ -50,10 +47,9 @@ errorReport() {
 #  Resolve pnfsID into canonical file name.
 #  Argument : pnfsID
 #  Returns  : filename
-#  expects  : pnfsMountpoint
 #
 resolvePnfsID() {
-   cpathof ${CHIMERA_PARAMS} "${1}"
+   mongo ${mongoUrl} --eval "print(db.files.findOne( { pnfsid: "${1}"} ).canonicalPath)"
    return $?
 }
 #
@@ -75,56 +71,19 @@ getStorageInfoKey() {
 #########################################################
 #
 datasetPut() {
-   ydataRoot=${1}
-   yhsmBase=${2}
-   ystore=${3}
-   ygroup=${4}
-   ybfid=${5}
-   #
-   #  Include PackMode script
-   #
-   source "${packMode}"
-   #
-   #  Generate PATH
-   #
-   requestPath=$(getRequestPath "$CHIMERA_PARAMS" "$ydataRoot" "$yhsmBase" "$ystore" "$ygroup" "$ybfid")
-   requestFlag="${requestPath}/${ybfid}"
-   #
-   # report "Using request flag : ${requestFlag}"
-   #
-   reply=$(creadlevel ${CHIMERA_PARAMS} "${requestFlag}" 5)
-   if [ ! -z "${reply}" ] ; then
-      #
-      # report "Request answer found : ${reply}"
-      iserror=`expr "${reply}" : "ERROR \([0-9]*\).*"`
-      if [ $? -eq 0 ] ; then
-         report "Found error ${iserror}"
-         crm ${CHIMERA_PARAMS} "${requestFlag}"
-         return ${iserror}
-      else 
-         crm ${CHIMERA_PARAMS} "${requestFlag}"
-         echo $reply
-         return 0
-      fi
-      #
-   elif cstat ${CHIMERA_PARAMS} "${requestFlag}" > /dev/null ; then
-      #
-      # report "Still waiting" 
-      problem 2 "Not yet ready"
-      #
-   else
-      #
-      # report "Initializing request" 
-      mkRequestDir "$CHIMERA_PARAMS" "$ydataRoot" "$yhsmBase" "$ystore" "$ygroup" "$ybfid"
-      ctouch ${CHIMERA_PARAMS} "${requestFlag}"
-      flagid=$(basename "${requestFlag}")
-      path=$(cpathof ${CHIMERA_PARAMS} ${flagid})
-      cwritelevel ${CHIMERA_PARAMS} "${requestFlag}" 4 "${path}"
-      problem 3 "Request Initialized (async)"
-      #
-   fi
+   ystore=${1}
+   ygroup=${2}
+   ybfid=${3}
 
-   problem 102  "We should never end up here"
+   params="pnfsid=\'${ybfid}\'; store=\'${ystore}\'; group=\'${ygroup}\';"
+   reply="$(mongo ${mongoUrl} --eval \"${params}\" /usr/share/dcache/lib/datasetPut.js|tail -n 1)"
+   result=$?
+
+   [ ${result} -ne 0 ] && problem 102 "Error running mongo script"
+
+   [ -z ${reply} ] && problem 2 "Not yet ready"
+
+   echo "${reply}"
 }
 #
 ###############################################################
@@ -187,16 +146,8 @@ filename="${3}"
 #
 # check for some basic variables
 #
-# report "Checking packMode"
-#
-[ -z "${packMode}" ] && problem 3 "Variable 'packMode' not defined"
-# report "Checking hsmBase"
-#
-[ -z "${hsmBase}" ] && problem 3 "Variable 'hsmBase' not defined"
-#
-# report "Checking dataRoot"
-#
-[ -z "${dataRoot}" ] && problem 3 "Variable 'dataRoot' not defined"
+# report "Checking mongoUrl"
+[ -z "${mongoUrl}" ] && problem 3 "Variable 'mongoUrl' not defined"
 #
 # make sure the storage info variables are available
 # (Will be fetched with getStorageInfoKey)
@@ -296,8 +247,7 @@ elif [ $command = "put" ] ; then
    #  now, finally copy the file to the HSM
    #  (we assume the bfid to be returned)
    #
-   result=`datasetPut "${dataRoot}" "${hsmBase}" "${store}" "${group}" "${pnfsid}"` || exit $?
-   # result=`sfput ${CHIMERA_PARAMS} "${dataRoot}" "${hsmBase}" "${store}" "${group}" "${pnfsid}"` || exit $?
+   result=`datasetPut "${store}" "${group}" "${pnfsid}"` || exit $?
    #
    # osm://osm/?store=sql&group=chimera&bfid=3434.0.994.1188400818542
    #
