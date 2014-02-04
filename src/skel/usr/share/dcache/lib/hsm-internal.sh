@@ -75,8 +75,8 @@ datasetPut() {
    ygroup=${2}
    ybfid=${3}
 
-   params="pnfsid=\'${ybfid}\'; store=\'${ystore}\'; group=\'${ygroup}\';"
-   reply="$(mongo ${mongoUrl} --eval \"${params}\" /usr/share/dcache/lib/datasetPut.js|tail -n 1)"
+   params="\"bfid='${ybfid}'; ystore='${ystore}'; ygroup='${ygroup}';\""
+   reply=$(mongo --quiet ${mongoUrl} --eval "${params}" /usr/share/dcache/lib/datasetPut.js|tail -n +2)
    result=$?
 
    [ ${result} -ne 0 ] && problem 102 "Error running mongo script"
