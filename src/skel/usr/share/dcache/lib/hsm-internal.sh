@@ -75,7 +75,7 @@ datasetPut() {
    ygroup=${2}
    ybfid=${3}
 
-   params="\"bfid='${ybfid}'; ystore='${ystore}'; ygroup='${ygroup}';\""
+   params="\"id='${ybfid}'; ystore='${ystore}'; ygroup='${ygroup}';\""
    reply=$(mongo --quiet ${mongoUrl} --eval "${params}" /usr/share/dcache/lib/datasetPut.js|tail -n +2)
    result=$?
 

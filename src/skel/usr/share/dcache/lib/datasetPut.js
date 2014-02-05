@@ -1,10 +1,10 @@
-entry = db.files.findOne( { pnfsid: bfid } )
+entry = db.files.findOne( { pnfsid: id } )
 
 if ( entry ) {
   if ( entry.archiveUrl ) {
     print(entry.archiveUrl)
   }
 } else {
-  db.files.insert( { pnfsid: bfid, store: ystore, group: ygroup, archiveUrl: null } )
+  db.files.insert( { pnfsid: id, store: ystore, group: ygroup } )
 }
 
