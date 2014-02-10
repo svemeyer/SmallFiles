@@ -204,13 +204,6 @@ if [ $command = "get" ] ; then
       problem 1 "This is not an archive : ${getBfid}"
    fi
    #
-   # find archived path
-   #
-   archiveFile=$(resolvePnfsID "${archiveId}")
-   if [ $? -ne 0 ] ; then problem 2 "Problem resolving $archiveId" ; fi
-   #
-   report "Archive file is (canonical) : ${archiveFile}"
-   #
    originalId=`expr "${getBfid}" : "\(.*\):.*" 2>/dev/null`
    report "Data File Pnfs ID : ${originalId}"
    #
@@ -221,7 +214,7 @@ if [ $command = "get" ] ; then
    cd "${extractDir}"
    report "Preloading ${LIBPDCAP}"
    export LD_PRELOAD="${LIBPDCAP}"
-   unzip "dcap://${DCAP_DOOR}/${archiveFile}" "${originalId}" 2>>$LOG
+   unzip "pnfs://${DCAP_DOOR}/${archiveId}" "${originalId}" 2>>$LOG
    rc=$?
    cd -
    if [ $rc -ne 0 ] ; then problem 4 "Tar couldn't replay the file" ; fi
