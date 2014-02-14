@@ -51,7 +51,7 @@ class GroupPackager:
 
     def run(self):
         now = int(datetime.now().strftime("%s"))
-        with self.db.files.find( { 'archivePath': { '$exists': False }, 'path': self.pathExpression }, snapshot=True, exhaust=True) as files: #  , 'ctime': { '$lt': now-self.minAge*60 } } ) as files:
+        with self.db.files.find( { 'archivePath': { '$exists': False }, 'path': self.pathExpression }, snapshot=True ) as files: #  , 'ctime': { '$lt': now-self.minAge*60 } } ) as files:
             print "found %d files" % (files.count())
             container = None
             for f in files:
@@ -59,7 +59,11 @@ class GroupPackager:
                     container = Container(os.path.join(self.archivePath))
                     print os.path.join(self.archivePath, container.arcfile.filename)
 
-                container.add(f['pnfsid'], f['path'], os.path.join(f['parent'], f['filename']), f['size'])
+                try:
+                    container.add(f['pnfsid'], f['path'], os.path.join(f['parent'], f['filename']), f['size'])
+                except OSError as e:
+                    self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
+
                 if container.size >= self.archiveSize:
                     container.close()
 
@@ -118,7 +122,7 @@ def main(configfile = '/etc/dcache/container.conf'):
 
     #    while True:
         print "getting new files"
-        with db.files.find( { 'path': None }, snaphot=True, exhaust=True) as newFilesCursor:
+        with db.files.find( { 'path': None }, snaphot=True ) as newFilesCursor:
             print "found %d new files" % (newFilesCursor.count())
             for record in newFilesCursor:
                 try:
@@ -152,7 +156,7 @@ def main(configfile = '/etc/dcache/container.conf'):
         for arcPath in db.files.distinct( 'archivePath' ):
             archives[arcPath] = dotfile(arcPath, 'id')
 
-        with db.files.find( { 'archivePath': { '$exists': True }, 'archiveUrl': { '$exists': False } }, snapshot=True, exhaust=True ) as archivedFilesCursor:
+        with db.files.find( { 'archivePath': { '$exists': True }, 'archiveUrl': { '$exists': False } }, snapshot=True ) as archivedFilesCursor:
             for record in archivedFilesCursor:
                 record['archiveUrl'] = "dcache://dcache/?store=%s&group=%s&bfid=%s:%s" % (record['store'],record['group'],record['pnfsid'],archives[record['archivePath']])
 
