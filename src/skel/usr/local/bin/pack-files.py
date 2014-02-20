@@ -3,6 +3,7 @@
 import os
 import sys
 from datetime import datetime, timedelta
+import hashlib
 import signal
 import re
 import ConfigParser as parser
@@ -21,6 +22,7 @@ class Container:
         tmpfile = NamedTemporaryFile(suffix = '.darc', dir=targetdir, delete=False)
         self.arcfile = ZipFile(tmpfile.name, mode = 'w', allowZip64 = True)
         self.size = 0
+        self.count = 0
 
     def close(self):
         self.arcfile.close()
@@ -29,9 +31,17 @@ class Container:
         self.arcfile.write(localpath, arcname=pnfsid)
         self.arcfile.comment += "%s:%15d %s" % (pnfsid, size, filepath)
         self.size += size
+        self.count += 1
 
     def getFilelist(self):
         return self.arcfile.filelist
+
+    def verifyFilelist(self):
+        return (self.arcfile.filelist.count() == self.count)
+
+    def verifyChecksum(self, chksum):
+        print("WARN: Checksum verification not implemented, yet")
+        return True
 
 
 class GroupPackager:
@@ -51,7 +61,8 @@ class GroupPackager:
 
     def run(self):
         now = int(datetime.now().strftime("%s"))
-        with self.db.files.find( { 'archivePath': { '$exists': False }, 'path': self.pathExpression }, snapshot=True ) as files: #  , 'ctime': { '$lt': now-self.minAge*60 } } ) as files:
+        ctime_threshold = (now - minAge*60)
+        with self.db.files.find( { 'archivePath': { '$exists': False }, 'path': self.pathExpression, 'ctime': { '$lt': ctime_threshold } }, snapshot=True ).sort( { ctime: 1 } ) as files:
             print "found %d files" % (files.count())
             container = None
             for f in files:
@@ -72,8 +83,24 @@ class GroupPackager:
                             { '$set' :
                                 { 'archivePath': container.arcfile.filename } } )
 
+                    # container verification
+                    verified = False
+                    if self.verify == 'filelist':
+                        verified = container.verifyFilelist()
+                    elif self.verify == 'chksum':
+                        verified = container.verifyChecksum(0)
+                    elif self.verify == 'off':
+                        verified = True
+                    else:
+                        print("WARN: Unknown verification method %s, no check performed!" % self.verify)
+                        verified = True
+
+                    if not verified:
+                        os.remove(container.arcfile.filename)
+
                     container = None
 
+            # if we have a partly filled container after processing all files, close and delete it.
             if container:
                 container.arcfile.close()
                 os.remove(container.arcfile.filename)
