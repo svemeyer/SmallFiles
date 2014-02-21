@@ -60,6 +60,21 @@ class GroupPackager:
     def __del__(self):
         pass
 
+    def verifyContainer(self, container):
+        verified = False
+        if self.verify == 'filelist':
+            verified = container.verifyFilelist()
+        elif self.verify == 'chksum':
+            verified = container.verifyChecksum(0)
+        elif self.verify == 'off':
+            verified = True
+        else:
+            print("WARN: Unknown verification method %s. Assuming failure!" % self.verify)
+            verified = False
+
+        return verified
+
+
     def run(self):
         now = int(datetime.now().strftime("%s"))
         ctime_threshold = (now - self.minAge*60)
@@ -80,19 +95,7 @@ class GroupPackager:
                 if container.size >= self.archiveSize:
                     container.close()
 
-                    # container verification
-                    verified = False
-                    if self.verify == 'filelist':
-                        verified = container.verifyFilelist()
-                    elif self.verify == 'chksum':
-                        verified = container.verifyChecksum(0)
-                    elif self.verify == 'off':
-                        verified = True
-                    else:
-                        print("WARN: Unknown verification method %s, no check performed!" % self.verify)
-                        verified = True
-
-                    if verified:
+                    if self.verifyContainer(container):
                         for archived in container.getFilelist():
                             self.db.files.update( { 'pnfsid': archived.filename },
                                 { '$set' :
@@ -129,7 +132,7 @@ def main(configfile = '/etc/dcache/container.conf'):
         dataRoot = configuration.get('DEFAULT', 'dataRoot')
         mongoUri = configuration.get('DEFAULT', 'mongoUri')
         mongoDb  = configuration.get('DEFAULT', 'mongodb')
-        loopDelay = configuration.getInt('DEFAULT', 'loopDelay')
+        loopDelay = configuration.getint('DEFAULT', 'loopDelay')
         print "done"
 
         print "establishing db connection"
