@@ -107,8 +107,22 @@ class GroupPackager:
 
             # if we have a partly filled container after processing all files, close and delete it.
             if container:
+                isOld = False
+                ctime_oldfile_threshold = (now - self.maxAge*60)
+                for archived in container.getFilelist():
+                    if self.db.files.find( { 'pnfsid': archived.filename, 'ctime': { '$lt': ctime_oldfile_threshold } } ).count() > 0:
+                        isOld = True
+
                 container.arcfile.close()
-                os.remove(container.arcfile.filename)
+
+                if not isOld:
+                    os.remove(container.arcfile.filename)
+                else:
+                    if self.verifyContainer(container):
+                        for archived in container.getFilelist():
+                            self.db.files.update( { 'pnfsid': archived.filename },
+                                { '$set' :
+                                    { 'archivePath': container.arcfile.filename } } )
 
 
 
