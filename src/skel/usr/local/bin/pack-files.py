@@ -2,6 +2,7 @@
 
 import os
 import sys
+import time
 from datetime import datetime, timedelta
 import hashlib
 import signal
@@ -22,7 +23,7 @@ class Container:
         tmpfile = NamedTemporaryFile(suffix = '.darc', dir=targetdir, delete=False)
         self.arcfile = ZipFile(tmpfile.name, mode = 'w', allowZip64 = True)
         self.size = 0
-        self.count = 0
+        self.filecount = 0
 
     def close(self):
         self.arcfile.close()
@@ -31,13 +32,13 @@ class Container:
         self.arcfile.write(localpath, arcname=pnfsid)
         self.arcfile.comment += "%s:%15d %s" % (pnfsid, size, filepath)
         self.size += size
-        self.count += 1
+        self.filecount += 1
 
     def getFilelist(self):
         return self.arcfile.filelist
 
     def verifyFilelist(self):
-        return (self.arcfile.filelist.count() == self.count)
+        return (len(self.arcfile.filelist) == self.filecount)
 
     def verifyChecksum(self, chksum):
         print("WARN: Checksum verification not implemented, yet")
@@ -61,8 +62,8 @@ class GroupPackager:
 
     def run(self):
         now = int(datetime.now().strftime("%s"))
-        ctime_threshold = (now - minAge*60)
-        with self.db.files.find( { 'archivePath': { '$exists': False }, 'path': self.pathExpression, 'ctime': { '$lt': ctime_threshold } }, snapshot=True ).sort( { ctime: 1 } ) as files:
+        ctime_threshold = (now - self.minAge*60)
+        with self.db.files.find( { 'archivePath': { '$exists': False }, 'path': self.pathExpression, 'ctime': { '$lt': ctime_threshold } }, snapshot=True ) as files:
             print "found %d files" % (files.count())
             container = None
             for f in files:
@@ -71,17 +72,13 @@ class GroupPackager:
                     print os.path.join(self.archivePath, container.arcfile.filename)
 
                 try:
-                    container.add(f['pnfsid'], f['path'], os.path.join(f['parent'], f['filename']), f['size'])
+                    localfile = f['path'].replace(dataRoot, mountPoint)
+                    container.add(f['pnfsid'], f['path'], localfile, f['size'])
                 except OSError as e:
                     self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
 
                 if container.size >= self.archiveSize:
                     container.close()
-
-                    for archived in container.getFilelist():
-                        self.db.files.update( { 'pnfsid': archived.filename },
-                            { '$set' :
-                                { 'archivePath': container.arcfile.filename } } )
 
                     # container verification
                     verified = False
@@ -95,7 +92,12 @@ class GroupPackager:
                         print("WARN: Unknown verification method %s, no check performed!" % self.verify)
                         verified = True
 
-                    if not verified:
+                    if verified:
+                        for archived in container.getFilelist():
+                            self.db.files.update( { 'pnfsid': archived.filename },
+                                { '$set' :
+                                    { 'archivePath': container.arcfile.filename } } )
+                    else:
                         os.remove(container.arcfile.filename)
 
                     container = None
@@ -104,6 +106,7 @@ class GroupPackager:
             if container:
                 container.arcfile.close()
                 os.remove(container.arcfile.filename)
+
 
 
 def dotfile(filepath, tag):
@@ -115,7 +118,7 @@ def dotfile(filepath, tag):
 def main(configfile = '/etc/dcache/container.conf'):
     try:
         print "reading configuration"
-        configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles' })
+        configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5 })
         configuration.read(configfile)
 
         global mountPoint
@@ -126,6 +129,7 @@ def main(configfile = '/etc/dcache/container.conf'):
         dataRoot = configuration.get('DEFAULT', 'dataRoot')
         mongoUri = configuration.get('DEFAULT', 'mongoUri')
         mongoDb  = configuration.get('DEFAULT', 'mongodb')
+        loopDelay = configuration.getInt('DEFAULT', 'loopDelay')
         print "done"
 
         print "establishing db connection"
@@ -147,48 +151,52 @@ def main(configfile = '/etc/dcache/container.conf'):
             print "added packager %s for paths matching %s" % (group, (groupPackagers[group].pathExpression.pattern))
         print "done"
 
-    #    while True:
-        print "getting new files"
-        with db.files.find( { 'path': None }, snaphot=True ) as newFilesCursor:
-            print "found %d new files" % (newFilesCursor.count())
-            for record in newFilesCursor:
+        while True:
+            print "getting new files"
+            with db.files.find( { 'path': None }, snaphot=True ) as newFilesCursor:
+                print "found %d new files" % (newFilesCursor.count())
+                for record in newFilesCursor:
+                    try:
+                        pathof = dotfile(os.path.join(mountPoint, record['pnfsid']), 'pathof')
+                        localpath = pathof.replace(dataRoot, mountPoint)
+                        stats = os.stat(localpath)
+
+                        record['path'] = pathof
+                        record['size'] = stats.st_size
+                        record['ctime'] = stats.st_ctime
+
+                        newFilesCursor.collection.save(record)
+                    except KeyError as e:
+                        print "KeyError: " + str(record) + ":" + e.message
+                    except IOError as e:
+                        print "IOError: " + str(record) + ":" + e.strerror
+                        db.files.remove( { 'pnfsid': record['pnfsid'] } )
+            print "done"
+
+            print "running packagers..."
+            for packager in groupPackagers.values():
+                packager.run()
+            print "done"
+
+            print "writing urls into archived file records"
+            archives = {}
+            for arcPath in db.files.distinct( 'archivePath' ):
                 try:
-                    pathof = dotfile(os.path.join(mountPoint, record['pnfsid']), 'pathof')
-                    localpath = re.sub(dataRoot, mountPoint, pathof)
-                    parentpath = os.path.dirname(localpath)
-                    filename = os.path.basename(localpath)
-                    stats = os.stat(localpath)
-
-                    record['path'] = pathof
-                    record['parent'] = parentpath
-                    record['filename'] = filename
-                    record['size'] = stats.st_size
-                    record['ctime'] = stats.st_ctime
-
-                    newFilesCursor.collection.save(record)
-                except KeyError as e:
-                    print "KeyError: " + str(record) + ":" + e.message
+                    archives[arcPath] = dotfile(arcPath, 'id')
                 except IOError as e:
-                    print "IOError: " + str(record) + ":" + e.strerror
-                    db.files.remove( { 'pnfsid': record['pnfsid'] } )
-        print "done"
+                    print("WARN: Could not find archive file %s, referred to by file entries in database! This needs fixing by hand or you will lose data!" % arcPath)
 
-        print "running packagers..."
-        for packager in groupPackagers.values():
-            packager.run()
-        print "done"
+            with db.files.find( { 'archivePath': { '$exists': True }, 'archiveUrl': { '$exists': False } }, snapshot=True ) as archivedFilesCursor:
+                try:
+                    for record in archivedFilesCursor:
+                        record['archiveUrl'] = "dcache://dcache/?store=%s&group=%s&bfid=%s:%s" % (record['store'],record['group'],record['pnfsid'],archives[record['archivePath']])
+                        archivedFilesCursor.collection.save(record)
+                except KeyError as e:
+                    print("WARN: Skipping non existent archive URL %s" % e.message)
 
-        print "writing urls into archived file records"
-        archives = {}
-        for arcPath in db.files.distinct( 'archivePath' ):
-            archives[arcPath] = dotfile(arcPath, 'id')
+            time.sleep(loopDelay)
 
-        with db.files.find( { 'archivePath': { '$exists': True }, 'archiveUrl': { '$exists': False } }, snapshot=True ) as archivedFilesCursor:
-            for record in archivedFilesCursor:
-                record['archiveUrl'] = "dcache://dcache/?store=%s&group=%s&bfid=%s:%s" % (record['store'],record['group'],record['pnfsid'],archives[record['archivePath']])
-
-                archivedFilesCursor.collection.save(record)
-        print "done"
+            print "done"
 
     except parser.NoOptionError:
         print("Missing option")
@@ -198,6 +206,10 @@ def main(configfile = '/etc/dcache/container.conf'):
 
 
 if __name__ == '__main__':
+    if not os.getuid() == 0:
+        print("pack-files must run as root!")
+        sys.exit(2)
+
     if len(sys.argv) == 1:
         main()
     elif len(sys.argv) == 2:
