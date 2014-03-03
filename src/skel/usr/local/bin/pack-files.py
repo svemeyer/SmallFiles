@@ -12,6 +12,10 @@ from tempfile import NamedTemporaryFile
 from zipfile import ZipFile
 from pymongo import MongoClient, Connection
 
+def sigint_handler(signum, frame):
+    print("Caught signal %d." % signum)
+    sys.exit(1)
+
 mongoUri = "mongodb://localhost/"
 mongoDb  = "smallfiles"
 mountPoint = ""
@@ -50,6 +54,8 @@ class GroupPackager:
     def __init__(self, pathExpression, archivePath, archiveSize, minAge, maxAge, verify):
         self.pathExpression = re.compile(pathExpression)
         self.archivePath=os.path.join(mountPoint, archivePath)
+        if not os.path.exists(self.archivePath):
+            os.makedirs(self.archivePath, mode = 0770)
         self.archiveSize = int(archiveSize.replace('G','000000000').replace('M','000000').replace('K','000'))
         self.minAge = int(minAge)
         self.maxAge = int(maxAge)
@@ -169,27 +175,6 @@ def main(configfile = '/etc/dcache/container.conf'):
         print "done"
 
         while True:
-            print "getting new files"
-            with db.files.find( { 'path': None }, snaphot=True ) as newFilesCursor:
-                print "found %d new files" % (newFilesCursor.count())
-                for record in newFilesCursor:
-                    try:
-                        pathof = dotfile(os.path.join(mountPoint, record['pnfsid']), 'pathof')
-                        localpath = pathof.replace(dataRoot, mountPoint)
-                        stats = os.stat(localpath)
-
-                        record['path'] = pathof
-                        record['size'] = stats.st_size
-                        record['ctime'] = stats.st_ctime
-
-                        newFilesCursor.collection.save(record)
-                    except KeyError as e:
-                        print "KeyError: " + str(record) + ":" + e.message
-                    except IOError as e:
-                        print "IOError: " + str(record) + ":" + e.strerror
-                        db.files.remove( { 'pnfsid': record['pnfsid'] } )
-            print "done"
-
             print "running packagers..."
             for packager in groupPackagers.values():
                 packager.run()
@@ -223,6 +208,7 @@ def main(configfile = '/etc/dcache/container.conf'):
 
 
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, sigint_handler)
     if not os.getuid() == 0:
         print("pack-files must run as root!")
         sys.exit(2)
