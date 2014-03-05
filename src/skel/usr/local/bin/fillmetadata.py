@@ -42,7 +42,7 @@ def main(configfile = '/etc/dcache/container.conf'):
             try:
                 client = MongoClient(mongoUri)
                 db = client[mongoDb]
-            except ConnectionFailure as e
+            except ConnectionFailure as e:
                 print("Connection failure: %s" % e.strerror)
 
             with db.files.find( { 'path': None }, snaphot=True ) as newFilesCursor:
@@ -75,7 +75,7 @@ def main(configfile = '/etc/dcache/container.conf'):
 
 if __name__ == '__main__':
     if not os.getuid() == 0:
-        print("pack-files must run as root!")
+        print("fillmetadata.py must run as root!")
         sys.exit(2)
 
     if len(sys.argv) == 1:

@@ -12,6 +12,8 @@ from tempfile import NamedTemporaryFile
 from zipfile import ZipFile
 from pymongo import MongoClient, Connection
 
+intr = False
+
 def sigint_handler(signum, frame):
     print("Caught signal %d." % signum)
     sys.exit(1)
@@ -81,17 +83,13 @@ class GroupPackager:
         return verified
 
 
-    def setBfid(self, container):
+    def createArchiveEntry(self, container):
         try:
             containerLocalPath = container.arcfile.filename
             containerChimeraPath = containerLocalPath.replace(mountPoint, dataRoot)
             containerPnfsid = dotfile(containerLocalPath, 'id')
 
-            for f in container.getFilelist():
-                filerecord = self.db.files.find_one( { 'pnfsid': f.filename } )
-                filerecord['archiveUrl'] = "dcache://dcache/?store=%s&group=%s&bfid=%s:%s" % (filerecord['store'],filerecord['group'],f.filename,containerPnfsid)
-                self.db.files.save(filerecord)
-
+            self.db.archives.insert( { 'pnfsid': containerPnfsid, 'path': containerChimeraPath } )
         except IOError as e:
             print("CRITICAL: Could not find archive file %s, referred to by file entries in database! This needs immediate attention or you will lose data!" % arcPath)
 
@@ -120,7 +118,7 @@ class GroupPackager:
                     print("Writing bfids")
 
                     if self.verifyContainer(container):
-                        self.setBfid(container)
+                        self.createArchiveEntry(container)
                     else:
                         os.remove(container.arcfile.filename)
 
@@ -140,7 +138,7 @@ class GroupPackager:
                     os.remove(container.arcfile.filename)
                 else:
                     if self.verifyContainer(container):
-                        self.setBfid(container)
+                        self.createArchiveEntry(container)
                     else:
                         os.remove(container.arcfile.filename)
 
