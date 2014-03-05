@@ -7,9 +7,12 @@ import signal
 import ConfigParser as parser
 from pymongo import MongoClient, Connection
 
+running = True
 
-def signalhandler(signum, frame):
-    sys.exit(1)
+def sigint_handler(signum, frame):
+    global running
+    print("Caught signal %d.'" % signum)
+    running = False
 
 mongoUri = "mongodb://localhost/"
 mongoDb  = "smallfiles"
@@ -22,8 +25,9 @@ def dotfile(filepath, tag):
     return result
 
 def main(configfile = '/etc/dcache/container.conf'):
+    global running
     try:
-        while True:
+        while running:
             print "reading configuration"
             configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5 })
             configuration.read(configfile)
@@ -48,6 +52,8 @@ def main(configfile = '/etc/dcache/container.conf'):
             with db.files.find( { 'path': None }, snaphot=True ) as newFilesCursor:
                 print "found %d new files" % (newFilesCursor.count())
                 for record in newFilesCursor:
+                    if not running:
+                        sys.exit(1)
                     try:
                         pathof = dotfile(os.path.join(mountPoint, record['pnfsid']), 'pathof')
                         localpath = pathof.replace(dataRoot, mountPoint)
@@ -74,6 +80,7 @@ def main(configfile = '/etc/dcache/container.conf'):
 
 
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, sigint_handler)
     if not os.getuid() == 0:
         print("fillmetadata.py must run as root!")
         sys.exit(2)

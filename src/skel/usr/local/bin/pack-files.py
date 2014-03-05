@@ -12,11 +12,12 @@ from tempfile import NamedTemporaryFile
 from zipfile import ZipFile
 from pymongo import MongoClient, Connection
 
-intr = False
+running = True
 
 def sigint_handler(signum, frame):
+    global running
     print("Caught signal %d." % signum)
-    sys.exit(1)
+    running = False
 
 mongoUri = "mongodb://localhost/"
 mongoDb  = "smallfiles"
@@ -95,12 +96,16 @@ class GroupPackager:
 
 
     def run(self):
+        global running
         now = int(datetime.now().strftime("%s"))
         ctime_threshold = (now - self.minAge*60)
         with self.db.files.find( { 'archiveUrl': { '$exists': False }, 'path': self.pathExpression, 'ctime': { '$lt': ctime_threshold } }, snapshot=True ) as files:
             print "found %d files" % (files.count())
             container = None
             for f in files:
+                if not running:
+                    break
+
                 if container == None:
                     container = Container(os.path.join(self.archivePath))
                     print os.path.join(self.archivePath, container.arcfile.filename)
@@ -150,8 +155,9 @@ def dotfile(filepath, tag):
 
 
 def main(configfile = '/etc/dcache/container.conf'):
+    global running
     try:
-        while True:
+        while running:
             print "reading configuration"
             configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5 })
             configuration.read(configfile)
@@ -188,6 +194,8 @@ def main(configfile = '/etc/dcache/container.conf'):
 
             print "running packagers..."
             for packager in groupPackagers.values():
+                if not running:
+                    sys.exit(1)
                 packager.run()
             print "done"
 

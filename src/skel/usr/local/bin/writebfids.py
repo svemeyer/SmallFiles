@@ -8,20 +8,17 @@ from zipfile import ZipFile
 from pymongo import MongoClient, Connection
 import ConfigParser as parser
 
+running = True
+
 def sigint_handler(signum, frame):
+    global running
     print("Caught signal %d." % signum)
-    sys.exit(1)
-
-
-def dotfile(filepath, tag):
-    with open(os.path.join(os.path.dirname(filepath), ".(%s)(%s)" % (tag, os.path.basename(filepath))), mode='r') as dotfile:
-       result = dotfile.readline().strip()
-    return result
-
+    running = False
 
 def main(configfile = '/etc/dcache/container.conf'):
+    global running
     try:
-        while True:
+        while running:
             print "reading configuration"
             configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5 })
             configuration.read(configfile)
@@ -44,9 +41,11 @@ def main(configfile = '/etc/dcache/container.conf'):
 
             with db.archives.find() as archives:
                 for archive in archives:
+                    if not running:
+                        sys.exit(1)
                     try:
                         localpath = archive['path'].replace(dataRoot, mountPoint)
-                        archivePnfsid = dotfile(localpath, 'id')
+                        archivePnfsid = archive['pnfsid']
                         zf = ZipFile(localpath, mode='r', allowZip64 = True)
                         for f in zf.filelist:
                             print("find_one( { pnfsid: %s } )" % f.filename)
