@@ -23,27 +23,28 @@ def dotfile(filepath, tag):
 
 def main(configfile = '/etc/dcache/container.conf'):
     try:
-        print "reading configuration"
-        configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5 })
-        configuration.read(configfile)
-
-        global mountPoint
-        global dataRoot
-        global mongoUri
-        global mongoDb
-        mountPoint = configuration.get('DEFAULT', 'mountPoint')
-        dataRoot = configuration.get('DEFAULT', 'dataRoot')
-        mongoUri = configuration.get('DEFAULT', 'mongoUri')
-        mongoDb  = configuration.get('DEFAULT', 'mongodb')
-        loopDelay = configuration.getint('DEFAULT', 'loopDelay')
-        print "done"
-
-        print "establishing db connection"
-        client = MongoClient(mongoUri)
-        db = client[mongoDb]
-        print "done"
-
         while True:
+            print "reading configuration"
+            configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5 })
+            configuration.read(configfile)
+
+            global mountPoint
+            global dataRoot
+            global mongoUri
+            global mongoDb
+            mountPoint = configuration.get('DEFAULT', 'mountPoint')
+            dataRoot = configuration.get('DEFAULT', 'dataRoot')
+            mongoUri = configuration.get('DEFAULT', 'mongoUri')
+            mongoDb  = configuration.get('DEFAULT', 'mongodb')
+            loopDelay = configuration.getint('DEFAULT', 'loopDelay')
+            print "done"
+
+            try:
+                client = MongoClient(mongoUri)
+                db = client[mongoDb]
+            except ConnectionFailure as e
+                print("Connection failure: %s" % e.strerror)
+
             with db.files.find( { 'path': None }, snaphot=True ) as newFilesCursor:
                 print "found %d new files" % (newFilesCursor.count())
                 for record in newFilesCursor:

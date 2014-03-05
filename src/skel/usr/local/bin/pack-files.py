@@ -81,10 +81,25 @@ class GroupPackager:
         return verified
 
 
+    def setBfid(self, container):
+        try:
+            containerLocalPath = container.arcfile.filename
+            containerChimeraPath = containerLocalPath.replace(mountPoint, dataRoot)
+            containerPnfsid = dotfile(containerLocalPath, 'id')
+
+            for f in container.getFilelist():
+                filerecord = self.db.files.find_one( { 'pnfsid': f.filename } )
+                filerecord['archiveUrl'] = "dcache://dcache/?store=%s&group=%s&bfid=%s:%s" % (filerecord['store'],filerecord['group'],f.filename,containerPnfsid)
+                self.db.files.save(filerecord)
+
+        except IOError as e:
+            print("CRITICAL: Could not find archive file %s, referred to by file entries in database! This needs immediate attention or you will lose data!" % arcPath)
+
+
     def run(self):
         now = int(datetime.now().strftime("%s"))
         ctime_threshold = (now - self.minAge*60)
-        with self.db.files.find( { 'archivePath': { '$exists': False }, 'path': self.pathExpression, 'ctime': { '$lt': ctime_threshold } }, snapshot=True ) as files:
+        with self.db.files.find( { 'archiveUrl': { '$exists': False }, 'path': self.pathExpression, 'ctime': { '$lt': ctime_threshold } }, snapshot=True ) as files:
             print "found %d files" % (files.count())
             container = None
             for f in files:
@@ -96,16 +111,16 @@ class GroupPackager:
                     localfile = f['path'].replace(dataRoot, mountPoint)
                     container.add(f['pnfsid'], f['path'], localfile, f['size'])
                 except OSError as e:
+                    print("WARN: Could not add file %s to archive %s, %s" % (f['path'], container.arcfile.filename, e.strerror) )
                     self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
 
                 if container.size >= self.archiveSize:
                     container.close()
 
+                    print("Writing bfids")
+
                     if self.verifyContainer(container):
-                        for archived in container.getFilelist():
-                            self.db.files.update( { 'pnfsid': archived.filename },
-                                { '$set' :
-                                    { 'archivePath': container.arcfile.filename } } )
+                        self.setBfid(container)
                     else:
                         os.remove(container.arcfile.filename)
 
@@ -125,11 +140,9 @@ class GroupPackager:
                     os.remove(container.arcfile.filename)
                 else:
                     if self.verifyContainer(container):
-                        for archived in container.getFilelist():
-                            self.db.files.update( { 'pnfsid': archived.filename },
-                                { '$set' :
-                                    { 'archivePath': container.arcfile.filename } } )
-
+                        self.setBfid(container)
+                    else:
+                        os.remove(container.arcfile.filename)
 
 
 def dotfile(filepath, tag):
@@ -140,65 +153,47 @@ def dotfile(filepath, tag):
 
 def main(configfile = '/etc/dcache/container.conf'):
     try:
-        print "reading configuration"
-        configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5 })
-        configuration.read(configfile)
-
-        global mountPoint
-        global dataRoot
-        global mongoUri
-        global mongoDb
-        mountPoint = configuration.get('DEFAULT', 'mountPoint')
-        dataRoot = configuration.get('DEFAULT', 'dataRoot')
-        mongoUri = configuration.get('DEFAULT', 'mongoUri')
-        mongoDb  = configuration.get('DEFAULT', 'mongodb')
-        loopDelay = configuration.getint('DEFAULT', 'loopDelay')
-        print "done"
-
-        print "establishing db connection"
-        client = MongoClient(mongoUri)
-        db = client[mongoDb]
-        print "done"
-
-        print "creating group packagers"
-        groups = configuration.sections()
-        groupPackagers = {}
-        for group in groups:
-            groupPackagers[group] = GroupPackager(
-                configuration.get(group, 'pathExpression'),
-                configuration.get(group, 'archivePath'),
-                configuration.get(group, 'archiveSize'),
-                configuration.get(group, 'minAge'),
-                configuration.get(group, 'maxAge'),
-                configuration.get(group, 'verify') )
-            print "added packager %s for paths matching %s" % (group, (groupPackagers[group].pathExpression.pattern))
-        print "done"
-
         while True:
+            print "reading configuration"
+            configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5 })
+            configuration.read(configfile)
+
+            global mountPoint
+            global dataRoot
+            global mongoUri
+            global mongoDb
+            mountPoint = configuration.get('DEFAULT', 'mountPoint')
+            dataRoot = configuration.get('DEFAULT', 'dataRoot')
+            mongoUri = configuration.get('DEFAULT', 'mongoUri')
+            mongoDb  = configuration.get('DEFAULT', 'mongodb')
+            loopDelay = configuration.getint('DEFAULT', 'loopDelay')
+            print "done"
+
+            print "establishing db connection"
+            client = MongoClient(mongoUri)
+            db = client[mongoDb]
+            print "done"
+
+            print "creating group packagers"
+            groups = configuration.sections()
+            groupPackagers = {}
+            for group in groups:
+                groupPackagers[group] = GroupPackager(
+                    configuration.get(group, 'pathExpression'),
+                    configuration.get(group, 'archivePath'),
+                    configuration.get(group, 'archiveSize'),
+                    configuration.get(group, 'minAge'),
+                    configuration.get(group, 'maxAge'),
+                    configuration.get(group, 'verify') )
+                print "added packager %s for paths matching %s" % (group, (groupPackagers[group].pathExpression.pattern))
+            print "done"
+
             print "running packagers..."
             for packager in groupPackagers.values():
                 packager.run()
             print "done"
 
-            print "writing urls into archived file records"
-            archives = {}
-            for arcPath in db.files.distinct( 'archivePath' ):
-                try:
-                    archives[arcPath] = dotfile(arcPath, 'id')
-                except IOError as e:
-                    print("WARN: Could not find archive file %s, referred to by file entries in database! This needs fixing by hand or you will lose data!" % arcPath)
-
-            with db.files.find( { 'archivePath': { '$exists': True }, 'archiveUrl': { '$exists': False } }, snapshot=True ) as archivedFilesCursor:
-                try:
-                    for record in archivedFilesCursor:
-                        record['archiveUrl'] = "dcache://dcache/?store=%s&group=%s&bfid=%s:%s" % (record['store'],record['group'],record['pnfsid'],archives[record['archivePath']])
-                        archivedFilesCursor.collection.save(record)
-                except KeyError as e:
-                    print("WARN: Skipping non existent archive URL %s" % e.message)
-
             time.sleep(loopDelay)
-
-            print "done"
 
     except parser.NoOptionError:
         print("Missing option")
