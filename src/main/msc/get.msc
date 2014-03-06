@@ -3,14 +3,11 @@ msc {
     
     poola         [ label="Pool A"],
     hsm           [ label="hsm-internal.sh"],
-    dcap          [ label="dcap door"],
-    chimera       [ label="Chimera DB"];
+    dcap          [ label="dcap door"];
 
     poola=>hsm    [ label = "hsm-internal.sh get file_n"];
 
-    hsm=>dcap     [ label = "tar -xf dcap://dcap_door/archive_m file_n"];
-    dcap=>chimera [ label = "file stored in Pool A"];
-    dcap<<chimera [ label = "ok"];
+    hsm=>dcap     [ label = "unzip pnfs://<dcap-door>/<archiveId> <fileId>"];
     hsm<<dcap     [ label = "ok"];
     poola<<hsm    [ label = "ok"];
 }
