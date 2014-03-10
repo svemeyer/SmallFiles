@@ -1,4 +1,4 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python
 
 import os
 import sys
@@ -18,6 +18,7 @@ def sigint_handler(signum, frame):
 def main(configfile = '/etc/dcache/container.conf'):
     global running
     try:
+        print("running = %s" % running)
         while running:
             print "reading configuration"
             configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5 })
@@ -42,15 +43,14 @@ def main(configfile = '/etc/dcache/container.conf'):
             with db.archives.find() as archives:
                 for archive in archives:
                     if not running:
+                        print("Exiting")
                         sys.exit(1)
                     try:
                         localpath = archive['path'].replace(dataRoot, mountPoint)
                         archivePnfsid = archive['pnfsid']
                         zf = ZipFile(localpath, mode='r', allowZip64 = True)
                         for f in zf.filelist:
-                            print("find_one( { pnfsid: %s } )" % f.filename)
                             filerecord = db.files.find_one( { 'pnfsid': f.filename } )
-                            print(filerecord)
                             if filerecord:
                                 url = "dcache://dcache/?store=%s&group=%s&bfid=%s:%s" % (filerecord['store'], filerecord['group'], f.filename, archivePnfsid)
                                 filerecord['archiveUrl'] = url
@@ -74,6 +74,7 @@ def main(configfile = '/etc/dcache/container.conf'):
 
 
 if __name__ == '__main__':
+    print("Hallo!")
     signal.signal(signal.SIGINT, sigint_handler)
     if not os.getuid() == 0:
         print("writebfsids.py must run as root!")
@@ -85,5 +86,5 @@ if __name__ == '__main__':
         main(sys.argv[1])
     else:
         print("Usage: pack-files.py <configfile>")
-        sys.exit(1)
+        sys.exit(2)
 

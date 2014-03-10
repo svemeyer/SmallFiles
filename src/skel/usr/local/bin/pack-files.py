@@ -54,8 +54,9 @@ class Container:
 
 class GroupPackager:
 
-    def __init__(self, pathExpression, archivePath, archiveSize, minAge, maxAge, verify):
-        self.pathExpression = re.compile(pathExpression)
+    def __init__(self, path, filePattern, archivePath, archiveSize, minAge, maxAge, verify):
+        self.path = path
+        self.pathPattern = re.compile(os.path.join(path, filePattern))
         self.archivePath=os.path.join(mountPoint, archivePath)
         if not os.path.exists(self.archivePath):
             os.makedirs(self.archivePath, mode = 0770)
@@ -99,35 +100,36 @@ class GroupPackager:
         global running
         now = int(datetime.now().strftime("%s"))
         ctime_threshold = (now - self.minAge*60)
-        with self.db.files.find( { 'archiveUrl': { '$exists': False }, 'path': self.pathExpression, 'ctime': { '$lt': ctime_threshold } }, snapshot=True ) as files:
+        with self.db.files.find( { 'archiveUrl': { '$exists': False }, 'path': self.pathPattern, 'ctime': { '$lt': ctime_threshold } }, snapshot=True ) as files:
             print "found %d files" % (files.count())
             container = None
-            for f in files:
-                if not running:
-                    break
+            try:
+                for f in files:
+                    if not running:
+                        break
 
-                if container == None:
-                    container = Container(os.path.join(self.archivePath))
-                    print os.path.join(self.archivePath, container.arcfile.filename)
+                    if container == None:
+                        container = Container(os.path.join(self.archivePath))
+                        print os.path.join(self.archivePath, container.arcfile.filename)
 
-                try:
-                    localfile = f['path'].replace(dataRoot, mountPoint)
-                    container.add(f['pnfsid'], f['path'], localfile, f['size'])
-                except OSError as e:
-                    print("WARN: Could not add file %s to archive %s, %s" % (f['path'], container.arcfile.filename, e.strerror) )
-                    self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
+                    try:
+                        localfile = f['path'].replace(dataRoot, mountPoint)
+                        container.add(f['pnfsid'], f['path'], localfile, f['size'])
+                    except OSError as e:
+                        print("WARN: Could not add file %s to archive %s, %s" % (f['path'], container.arcfile.filename, e.strerror) )
+                        self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
 
-                if container.size >= self.archiveSize:
-                    container.close()
+                    if container.size >= self.archiveSize:
+                        container.close()
 
-                    print("Writing bfids")
+                        if self.verifyContainer(container):
+                            self.createArchiveEntry(container)
+                        else:
+                            os.remove(container.arcfile.filename)
 
-                    if self.verifyContainer(container):
-                        self.createArchiveEntry(container)
-                    else:
-                        os.remove(container.arcfile.filename)
-
-                    container = None
+                        container = None
+            except OperationFailure as e:
+                print('ERROR: %s' % e.strerror)
 
             # if we have a partly filled container after processing all files, close and delete it.
             if container:
@@ -156,8 +158,8 @@ def dotfile(filepath, tag):
 
 def main(configfile = '/etc/dcache/container.conf'):
     global running
-    try:
-        while running:
+    while running:
+        try:
             print "reading configuration"
             configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5 })
             configuration.read(configfile)
@@ -182,14 +184,34 @@ def main(configfile = '/etc/dcache/container.conf'):
             groups = configuration.sections()
             groupPackagers = {}
             for group in groups:
-                groupPackagers[group] = GroupPackager(
-                    configuration.get(group, 'pathExpression'),
-                    configuration.get(group, 'archivePath'),
-                    configuration.get(group, 'archiveSize'),
-                    configuration.get(group, 'minAge'),
-                    configuration.get(group, 'maxAge'),
-                    configuration.get(group, 'verify') )
-                print "added packager %s for paths matching %s" % (group, (groupPackagers[group].pathExpression.pattern))
+                print(group)
+                filePattern = configuration.get(group, 'fileExpression') 
+                archivePath = configuration.get(group, 'archivePath')
+                archiveSize = configuration.get(group, 'archiveSize')
+                minAge = configuration.get(group, 'minAge')
+                maxAge = configuration.get(group, 'maxAge')
+                verify = configuration.get(group, 'verify') 
+                pathre = re.compile(configuration.get(group, 'pathExpression'))
+                print(pathre.pattern)
+                paths = db.files.find( { 'parent': pathre } ).distinct( 'parent')
+                print(paths)
+                pathset = set()
+                for path in paths:
+                    print(path)
+                    pathmatch = re.match("(?P<sfpath>%s)" % pathre.pattern, path).group('sfpath')
+                    print(pathmatch)
+                    pathset.add(pathmatch)
+
+                for path in pathset:
+                    groupPackagers[group] = GroupPackager(
+                        path,
+                        filePattern,
+                        archivePath,
+                        archiveSize,
+                        minAge,
+                        maxAge,
+                        verify)
+                    print "added packager %s for paths matching %s" % (group, (groupPackagers[group].path))
             print "done"
 
             print "running packagers..."
@@ -201,11 +223,13 @@ def main(configfile = '/etc/dcache/container.conf'):
 
             time.sleep(loopDelay)
 
-    except parser.NoOptionError:
-        print("Missing option")
-    except parser.Error:
-        print("Error reading configfile", configfile)
-        sys.exit(2)
+        except parser.NoOptionError:
+            print("Missing option")
+        except parser.Error:
+            print("Error reading configfile", configfile)
+            sys.exit(2)
+        except Exception as e:
+            print("Unexpected exception: %s" % e.message)
 
 
 if __name__ == '__main__':

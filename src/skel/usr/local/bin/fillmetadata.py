@@ -60,6 +60,7 @@ def main(configfile = '/etc/dcache/container.conf'):
                         stats = os.stat(localpath)
 
                         record['path'] = pathof
+                        record['parent'] = os.path.dirname(pathof)
                         record['size'] = stats.st_size
                         record['ctime'] = stats.st_ctime
 
