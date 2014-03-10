@@ -7,6 +7,7 @@ import signal
 from zipfile import ZipFile
 from pymongo import MongoClient, Connection
 import ConfigParser as parser
+import logging
 
 running = True
 
@@ -17,11 +18,11 @@ def sigint_handler(signum, frame):
 
 def main(configfile = '/etc/dcache/container.conf'):
     global running
+    logging.basicConfig(filename = '/var/log/dcache/writebfids.log')
+
     try:
-        print("running = %s" % running)
         while running:
-            print "reading configuration"
-            configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5 })
+            configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5, 'logLevel': 'ERROR' })
             configuration.read(configfile)
 
             global mountPoint
@@ -32,18 +33,23 @@ def main(configfile = '/etc/dcache/container.conf'):
             dataRoot = configuration.get('DEFAULT', 'dataRoot')
             mongoUri = configuration.get('DEFAULT', 'mongoUri')
             mongoDb  = configuration.get('DEFAULT', 'mongodb')
-            loopDelay = configuration.getint('DEFAULT', 'loopDelay')
-            print "done"
+            logLevelStr = configuration.get('DEFAULT', 'logLevel')
+            logLevel = getattr(logging, logLevelStr.upper(), None)
 
-            print "establishing db connection"
+            loopDelay = configuration.getint('DEFAULT', 'loopDelay')
+
+            logging.getLogger().setLevel(logLevel)
+
+            logging.info('Successfully read configuration from file %s.' % configfile)
+
             client = MongoClient(mongoUri)
             db = client[mongoDb]
-            print "done"
+            logging.info("Established db connection")
 
             with db.archives.find() as archives:
                 for archive in archives:
                     if not running:
-                        print("Exiting")
+                        logging.info("Exiting.")
                         sys.exit(1)
                     try:
                         localpath = archive['path'].replace(dataRoot, mountPoint)
@@ -56,25 +62,26 @@ def main(configfile = '/etc/dcache/container.conf'):
                                 filerecord['archiveUrl'] = url
                                 db.files.save(filerecord)
                             else:
-                                print("WARN: File %s in archive %s has no entry in DB. Assuming it was deleted on disk." % (f.filename, localpath) )
+                                logging.warn("File %s in archive %s has no entry in DB. Assuming it was deleted on disk." % (f.filename, localpath) )
+
                     except Exception as e:
-                        print("ERROR: %s" % e.message)
+                        logging.error("Unexpected error: %s" % e.message)
                         # db.archives.remove( { 'id': archive['pnfsid'] } )
                     
                     db.archives.remove( { 'pnfsid': archive['pnfsid'] } )
 
-
             time.sleep(60)
 
-    except parser.NoOptionError:
-        print("Missing option")
-    except parser.Error:
-        print("Error reading configfile", configfile)
+    except parser.NoOptionError as e:
+        print("Missing option: %s" % e.strerror)
+        logging.error("Missing option: %s" % e.strerror)
+    except parser.Error as e:
+        print("Error reading configfile %s: %s" % (configfile, e.strerror))
+        logging.error("Error reading configfile %s: %s" % (configfile, e.message))
         sys.exit(2)
 
 
 if __name__ == '__main__':
-    print("Hallo!")
     signal.signal(signal.SIGINT, sigint_handler)
     if not os.getuid() == 0:
         print("writebfsids.py must run as root!")
@@ -85,6 +92,6 @@ if __name__ == '__main__':
     elif len(sys.argv) == 2:
         main(sys.argv[1])
     else:
-        print("Usage: pack-files.py <configfile>")
+        print("Usage: writebfids.py <configfile>")
         sys.exit(2)
 

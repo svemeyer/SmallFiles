@@ -11,11 +11,13 @@ import ConfigParser as parser
 from tempfile import NamedTemporaryFile
 from zipfile import ZipFile
 from pymongo import MongoClient, Connection
+import logging
 
 running = True
 
 def sigint_handler(signum, frame):
     global running
+    logging.info("Caught signal %d." % signum)
     print("Caught signal %d." % signum)
     running = False
 
@@ -48,7 +50,7 @@ class Container:
         return (len(self.arcfile.filelist) == self.filecount)
 
     def verifyChecksum(self, chksum):
-        print("WARN: Checksum verification not implemented, yet")
+        logging.warn("Checksum verification not implemented, yet")
         return True
 
 
@@ -81,7 +83,7 @@ class GroupPackager:
         elif self.verify == 'off':
             verified = True
         else:
-            print("WARN: Unknown verification method %s. Assuming failure!" % self.verify)
+            logging.warn("Unknown verification method %s. Assuming failure!" % self.verify)
             verified = False
 
         return verified
@@ -95,7 +97,7 @@ class GroupPackager:
 
             self.db.archives.insert( { 'pnfsid': containerPnfsid, 'path': containerChimeraPath } )
         except IOError as e:
-            print("CRITICAL: Could not find archive file %s, referred to by file entries in database! This needs immediate attention or you will lose data!" % arcPath)
+            logging.critical("Could not find archive file %s, referred to by file entries in database! This needs immediate attention or you will lose data!" % arcPath)
 
 
     def run(self):
@@ -103,7 +105,7 @@ class GroupPackager:
         now = int(datetime.now().strftime("%s"))
         ctime_threshold = (now - self.minAge*60)
         with self.db.files.find( { 'archiveUrl': { '$exists': False }, 'path': self.pathPattern, 'group': self.sGroup, 'store': self.storeName, 'ctime': { '$lt': ctime_threshold } }, snapshot=True ) as files:
-            print "found %d files" % (files.count())
+            logging.info("found %d files" % files.count())
             container = None
             try:
                 for f in files:
@@ -112,26 +114,29 @@ class GroupPackager:
 
                     if container == None:
                         container = Container(os.path.join(self.archivePath))
-                        print os.path.join(self.archivePath, container.arcfile.filename)
+                        logging.info("Creating new container %s" % os.path.join(self.archivePath, container.arcfile.filename))
 
                     try:
                         localfile = f['path'].replace(dataRoot, mountPoint)
                         container.add(f['pnfsid'], f['path'], localfile, f['size'])
                     except OSError as e:
-                        print("WARN: Could not add file %s to archive %s, %s" % (f['path'], container.arcfile.filename, e.strerror) )
+                        logging.warn("Could not add file %s to archive %s, %s" % (f['path'], container.arcfile.filename, e.strerror) )
+                        logging.debug("Removing entry for file %s" % f['pnfsid'])
                         self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
 
                     if container.size >= self.archiveSize:
                         container.close()
 
                         if self.verifyContainer(container):
+                            logging.info("Container %s successfully stored" % container.arcfile.filename)
                             self.createArchiveEntry(container)
                         else:
+                            logging.warn("Removing container %s due to verification error" % container.arcfile.filename)
                             os.remove(container.arcfile.filename)
 
                         container = None
             except OperationFailure as e:
-                print('ERROR: %s' % e.strerror)
+                logging.error('%s' % e.strerror)
 
             # if we have a partly filled container after processing all files, close and delete it.
             if container:
@@ -147,8 +152,10 @@ class GroupPackager:
                     os.remove(container.arcfile.filename)
                 else:
                     if self.verifyContainer(container):
+                        logging.info("Container %s with old files successfully stored" % container.arcfile.filename)
                         self.createArchiveEntry(container)
                     else:
+                        logging.warn("Removing container %s with old files due to verification error" % container.arcfile.filename)
                         os.remove(container.arcfile.filename)
 
 
@@ -160,10 +167,11 @@ def dotfile(filepath, tag):
 
 def main(configfile = '/etc/dcache/container.conf'):
     global running
+    logging.basicConfig(filename = '/var/log/dcache/pack-files.log')
+
     while running:
         try:
-            print "reading configuration"
-            configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5 })
+            configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5, 'logLevel': 'ERROR' })
             configuration.read(configfile)
 
             global mountPoint
@@ -174,38 +182,55 @@ def main(configfile = '/etc/dcache/container.conf'):
             dataRoot = configuration.get('DEFAULT', 'dataRoot')
             mongoUri = configuration.get('DEFAULT', 'mongoUri')
             mongoDb  = configuration.get('DEFAULT', 'mongodb')
-            loopDelay = configuration.getint('DEFAULT', 'loopDelay')
-            print "done"
+            logLevelStr = configuration.get('DEFAULT', 'logLevel')
+            logLevel = getattr(logging, logLevelStr.upper(), None)
 
-            print "establishing db connection"
+            loopDelay = configuration.getint('DEFAULT', 'loopDelay')
+
+            logging.getLogger().setLevel(logLevel)
+
+            logging.info('Successfully read configuration from file %s.' % configfile)
+            logging.debug('mountPoint = %s' % mountPoint)
+            logging.debug('dataRoot = %s' % dataRoot)
+            logging.debug('mongoUri = %s' % mongoUri)
+            logging.debug('mongoDb = %s' % mongoDb)
+            logging.debug('logLevel = %s' % logLevel)
+            logging.debug('loopDelay = %s' % loopDelay)
+
             client = MongoClient(mongoUri)
             db = client[mongoDb]
-            print "done"
+            logging.info("Established db connection")
 
-            print "creating group packagers"
+            logging.info("Creating group packagers")
             groups = configuration.sections()
             groupPackagers = {}
             for group in groups:
-                print(group)
+                logging.debug("Group: %s" % group)
                 filePattern = configuration.get(group, 'fileExpression') 
+                logging.debug("filePattern: %s" % filePattern)
                 sGroup = configuration.get(group, 'sGroup')
+                logging.debug("sGroup: %s" % sGroup)
                 storeName = configuration.get(group, 'storeName')
+                logging.debug("storeName: %s" % storeName)
                 archivePath = configuration.get(group, 'archivePath')
+                logging.debug("archivePath: %s" % archivePath)
                 archiveSize = configuration.get(group, 'archiveSize')
+                logging.debug("archiveSize: %s" % archiveSize)
                 minAge = configuration.get(group, 'minAge')
+                logging.debug("minAge: %s" % minAge)
                 maxAge = configuration.get(group, 'maxAge')
+                logging.debug("maxAge: %s" % maxAge)
                 verify = configuration.get(group, 'verify') 
+                logging.debug("verify: %s" % verify)
                 pathre = re.compile(configuration.get(group, 'pathExpression'))
-                print(pathre.pattern)
+                logging.debug("pathExpression: %s" % pathre.pattern)
                 paths = db.files.find( { 'parent': pathre } ).distinct( 'parent')
-                print(paths)
                 pathset = set()
                 for path in paths:
-                    print(path)
                     pathmatch = re.match("(?P<sfpath>%s)" % pathre.pattern, path).group('sfpath')
-                    print(pathmatch)
                     pathset.add(pathmatch)
 
+                logging.debug("Creating a packager for each path in: %s" % pathset)
                 for path in pathset:
                     groupPackagers[group] = GroupPackager(
                         path,
@@ -217,26 +242,24 @@ def main(configfile = '/etc/dcache/container.conf'):
                         minAge,
                         maxAge,
                         verify)
-                    print "added packager %s for paths matching %s" % (group, (groupPackagers[group].path))
-            print "done"
+                    logging.info("Added packager %s for paths matching %s" % (group, (groupPackagers[group].path)))
 
-            print "running packagers..."
+            logging.info("Running packagers")
             for packager in groupPackagers.values():
                 if not running:
                     sys.exit(1)
                 packager.run()
-            print "done"
+            logging.info("all packagers finished. Sleeping for %d seconds" % loopDelay)
 
             time.sleep(loopDelay)
 
-        except parser.NoOptionError:
-            print("Missing option")
-        except parser.Error:
-            print("Error reading configfile", configfile)
+        except parser.NoOptionError as e:
+            print("Missing option: %s" % e.strerror)
+            logging.error("Missing option: %s" % e.strerror)
+        except parser.Error as e:
+            print("Error reading configfile %s: %s" % (configfile, e.strerror))
+            logging.error("Error reading configfile %s: %s" % (configfile, e.message))
             sys.exit(2)
-        except Exception as e:
-            print("Unexpected exception: %s" % e.message)
-
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, sigint_handler)

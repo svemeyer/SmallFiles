@@ -6,11 +6,13 @@ import time
 import signal
 import ConfigParser as parser
 from pymongo import MongoClient, Connection
+import logging
 
 running = True
 
 def sigint_handler(signum, frame):
     global running
+    logging.info("Caught signal %d." % signum)
     print("Caught signal %d.'" % signum)
     running = False
 
@@ -26,10 +28,11 @@ def dotfile(filepath, tag):
 
 def main(configfile = '/etc/dcache/container.conf'):
     global running
+    logging.basicConfig(filename='/var/log/dcache/fillmetadata.log')
+
     try:
         while running:
-            print "reading configuration"
-            configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5 })
+            configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5, 'logLevel': 'ERROR' })
             configuration.read(configfile)
 
             global mountPoint
@@ -41,42 +44,53 @@ def main(configfile = '/etc/dcache/container.conf'):
             mongoUri = configuration.get('DEFAULT', 'mongoUri')
             mongoDb  = configuration.get('DEFAULT', 'mongodb')
             loopDelay = configuration.getint('DEFAULT', 'loopDelay')
-            print "done"
+            logLevelStr = configuration.get('DEFAULT', 'logLevel')
+            logLevel = getattr(logging, logLevelStr.upper(), None)
+
+            logging.getLogger().setLevel(logLevel)
+
+            logging.info('Successfully read configuration from file %s.' % configfile)
 
             try:
                 client = MongoClient(mongoUri)
                 db = client[mongoDb]
+
+                with db.files.find( { 'path': None }, snaphot=True ) as newFilesCursor:
+                    logging.info("found %d new files" % (newFilesCursor.count()))
+                    for record in newFilesCursor:
+                        if not running:
+                            sys.exit(1)
+                        try:
+                            pathof = dotfile(os.path.join(mountPoint, record['pnfsid']), 'pathof')
+                            localpath = pathof.replace(dataRoot, mountPoint)
+                            stats = os.stat(localpath)
+
+                            record['path'] = pathof
+                            record['parent'] = os.path.dirname(pathof)
+                            record['size'] = stats.st_size
+                            record['ctime'] = stats.st_ctime
+
+                            newFilesCursor.collection.save(record)
+                        except KeyError as e:
+                            logging.WARN("KeyError: %s: %s" % (str(record), e.message))
+                        except IOError as e:
+                            logging.WARN("IOError: %s: %s" % (str(record), e.strerror))
+                            logging.INFO("Removing entry for file %s" % record['pnfsid'])
+                            db.files.remove( { 'pnfsid': record['pnfsid'] } )
+
             except ConnectionFailure as e:
-                print("Connection failure: %s" % e.strerror)
+                logging.WARN("Connection failure: %s" % e.strerror)
 
-            with db.files.find( { 'path': None }, snaphot=True ) as newFilesCursor:
-                print "found %d new files" % (newFilesCursor.count())
-                for record in newFilesCursor:
-                    if not running:
-                        sys.exit(1)
-                    try:
-                        pathof = dotfile(os.path.join(mountPoint, record['pnfsid']), 'pathof')
-                        localpath = pathof.replace(dataRoot, mountPoint)
-                        stats = os.stat(localpath)
-
-                        record['path'] = pathof
-                        record['parent'] = os.path.dirname(pathof)
-                        record['size'] = stats.st_size
-                        record['ctime'] = stats.st_ctime
-
-                        newFilesCursor.collection.save(record)
-                    except KeyError as e:
-                        print "KeyError: " + str(record) + ":" + e.message
-                    except IOError as e:
-                        print "IOError: " + str(record) + ":" + e.strerror
-                        db.files.remove( { 'pnfsid': record['pnfsid'] } )
-
+            logging.info("Sleeping for 60 seconds")
             time.sleep(60)
 
-    except parser.NoOptionError:
-        print("Missing option")
-    except parser.Error:
-        print("Error reading configfile", configfile)
+    except parser.NoOptionError as e:
+        print("Missing option: %s" % e.strerror)
+        logging.ERROR("Missing option: %s" % e.strerror)
+        sys.exit(2)
+    except parser.Error as e:
+        print("Error reading configfile %s: %s" % (configfile, e.strerror))
+        logging.ERROR("Error reading configfile %s" % (configfile, e.message))
         sys.exit(2)
 
 
@@ -91,6 +105,6 @@ if __name__ == '__main__':
     elif len(sys.argv) == 2:
         main(sys.argv[1])
     else:
-        print("Usage: pack-files.py <configfile>")
+        print("Usage: fillmetadata.py <configfile>")
         sys.exit(1)
 
