@@ -54,9 +54,11 @@ class Container:
 
 class GroupPackager:
 
-    def __init__(self, path, filePattern, archivePath, archiveSize, minAge, maxAge, verify):
+    def __init__(self, path, filePattern, sGroup, storeName, archivePath, archiveSize, minAge, maxAge, verify):
         self.path = path
         self.pathPattern = re.compile(os.path.join(path, filePattern))
+        self.sGroup = re.compile(sGroup)
+        self.storeName = re.compile("StoreName %s" % storeName)
         self.archivePath=os.path.join(mountPoint, archivePath)
         if not os.path.exists(self.archivePath):
             os.makedirs(self.archivePath, mode = 0770)
@@ -100,7 +102,7 @@ class GroupPackager:
         global running
         now = int(datetime.now().strftime("%s"))
         ctime_threshold = (now - self.minAge*60)
-        with self.db.files.find( { 'archiveUrl': { '$exists': False }, 'path': self.pathPattern, 'ctime': { '$lt': ctime_threshold } }, snapshot=True ) as files:
+        with self.db.files.find( { 'archiveUrl': { '$exists': False }, 'path': self.pathPattern, 'group': self.sGroup, 'store': self.storeName, 'ctime': { '$lt': ctime_threshold } }, snapshot=True ) as files:
             print "found %d files" % (files.count())
             container = None
             try:
@@ -186,6 +188,8 @@ def main(configfile = '/etc/dcache/container.conf'):
             for group in groups:
                 print(group)
                 filePattern = configuration.get(group, 'fileExpression') 
+                sGroup = configuration.get(group, 'sGroup')
+                storeName = configuration.get(group, 'storeName')
                 archivePath = configuration.get(group, 'archivePath')
                 archiveSize = configuration.get(group, 'archiveSize')
                 minAge = configuration.get(group, 'minAge')
@@ -206,6 +210,8 @@ def main(configfile = '/etc/dcache/container.conf'):
                     groupPackagers[group] = GroupPackager(
                         path,
                         filePattern,
+                        sGroup,
+                        storeName,
                         archivePath,
                         archiveSize,
                         minAge,
