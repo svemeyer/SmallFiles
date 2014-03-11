@@ -3,7 +3,7 @@ msc {
     
     poola   [ label="Pool A"],
     hsm     [ label="hsm-internal.sh"],
-    chimera [ label="Chimera DB"];
+    mongodb [ label="Mongo DB"];
 
     ---          [ label = " flush interval expired "];
 
@@ -11,11 +11,8 @@ msc {
 
     hsm box hsm  [ label = "groupDir_m='hsm/requests/<sGroup>/<osmInstance>/md5sum(dir(file_n))')"];
 
-    hsm=>chimera [ label = "creadlevel groupDir_m/id(file_n) 5"];
-    hsm<<chimera [ label = "Error: File not found"];
-    hsm=>chimera [ label = "cstat groupDir_m/id(file_n)"];
-    hsm<<chimera [ label = "Error: File not found"];
-    hsm=>chimera [ label = "cmkdir groupDir_m"];
-    hsm=>chimera [ label = "ctouch groupDir_m/id(file_n)"];
+    hsm=>mongodb [ label = "db.files.findOne( { pnfsid: id(file_n) } )"];
+    hsm<<mongodb [ label = "null"];
+    hsm=>mongodb [ label = "db.files.insert( { pnfsid: id(file_n), store: store(file_n), group(file_n) } )"];
     poola<<hsm   [ label = "Initializing request; Request initialized (async) (3)"];
 }
