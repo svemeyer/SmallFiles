@@ -83,7 +83,15 @@ datasetPut() {
 
    [ -z ${reply} ] && problem 2 "Not yet ready"
 
-   echo "${reply}"
+   iserror=$(expr "${reply}" : "ERROR \([0-9]*\).*")
+
+   if [ $? -eq 0 ]
+   then
+      return ${iserror}
+   else 
+      echo "${reply}"
+      return 0
+   fi
 }
 #
 ###############################################################
