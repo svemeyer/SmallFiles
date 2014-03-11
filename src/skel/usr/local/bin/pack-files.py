@@ -33,13 +33,14 @@ class Container:
         self.arcfile = ZipFile(tmpfile.name, mode = 'w', allowZip64 = True)
         self.size = 0
         self.filecount = 0
+        self.logger = logging.getLogger(name = "Container[%s]" % tmpfile)
 
     def close(self):
         self.arcfile.close()
 
     def add(self, pnfsid, filepath, localpath, size):
         self.arcfile.write(localpath, arcname=pnfsid)
-        self.arcfile.comment += "%s:%15d %s" % (pnfsid, size, filepath)
+        self.arcfile.comment += "%s:%15d %s\n" % (pnfsid, size, filepath)
         self.size += size
         self.filecount += 1
 
@@ -50,7 +51,7 @@ class Container:
         return (len(self.arcfile.filelist) == self.filecount)
 
     def verifyChecksum(self, chksum):
-        logging.warn("Checksum verification not implemented, yet")
+        self.logger.warn("Checksum verification not implemented, yet")
         return True
 
 
@@ -60,7 +61,7 @@ class GroupPackager:
         self.path = path
         self.pathPattern = re.compile(os.path.join(path, filePattern))
         self.sGroup = re.compile(sGroup)
-        self.storeName = re.compile("StoreName %s" % storeName)
+        self.storeName = re.compile(storeName)
         self.archivePath=os.path.join(mountPoint, archivePath)
         if not os.path.exists(self.archivePath):
             os.makedirs(self.archivePath, mode = 0770)
@@ -70,6 +71,7 @@ class GroupPackager:
         self.verify = verify
         self.client = MongoClient(mongoUri)
         self.db = self.client[mongoDb]
+        self.logger = logging.getLogger(name = "GroupPackager[%s]" % self.pathPattern.pattern)
 
     def __del__(self):
         pass
@@ -83,7 +85,7 @@ class GroupPackager:
         elif self.verify == 'off':
             verified = True
         else:
-            logging.warn("Unknown verification method %s. Assuming failure!" % self.verify)
+            self.logger.warn("Unknown verification method %s. Assuming failure!" % self.verify)
             verified = False
 
         return verified
@@ -97,15 +99,16 @@ class GroupPackager:
 
             self.db.archives.insert( { 'pnfsid': containerPnfsid, 'path': containerChimeraPath } )
         except IOError as e:
-            logging.critical("Could not find archive file %s, referred to by file entries in database! This needs immediate attention or you will lose data!" % arcPath)
+            self.logger.critical("Could not find archive file %s, referred to by file entries in database! This needs immediate attention or you will lose data!" % arcPath)
 
 
     def run(self):
         global running
         now = int(datetime.now().strftime("%s"))
         ctime_threshold = (now - self.minAge*60)
+        self.logger.debug("Looking for files matching { path: %s, group: %s, store: %s, ctime: { $lt: %d } }" % (self.pathPattern.pattern, self.sGroup.pattern, self.storeName.pattern, ctime_threshold) )
         with self.db.files.find( { 'archiveUrl': { '$exists': False }, 'path': self.pathPattern, 'group': self.sGroup, 'store': self.storeName, 'ctime': { '$lt': ctime_threshold } }, snapshot=True ) as files:
-            logging.info("found %d files" % files.count())
+            self.logger.info("found %d files" % files.count())
             container = None
             try:
                 for f in files:
@@ -114,29 +117,29 @@ class GroupPackager:
 
                     if container == None:
                         container = Container(os.path.join(self.archivePath))
-                        logging.info("Creating new container %s" % os.path.join(self.archivePath, container.arcfile.filename))
+                        self.logger.info("Creating new container %s" % os.path.join(self.archivePath, container.arcfile.filename))
 
                     try:
                         localfile = f['path'].replace(dataRoot, mountPoint)
                         container.add(f['pnfsid'], f['path'], localfile, f['size'])
                     except OSError as e:
-                        logging.warn("Could not add file %s to archive %s, %s" % (f['path'], container.arcfile.filename, e.strerror) )
-                        logging.debug("Removing entry for file %s" % f['pnfsid'])
+                        self.logger.warn("Could not add file %s to archive %s, %s" % (f['path'], container.arcfile.filename, e.strerror) )
+                        self.logger.debug("Removing entry for file %s" % f['pnfsid'])
                         self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
 
                     if container.size >= self.archiveSize:
                         container.close()
 
                         if self.verifyContainer(container):
-                            logging.info("Container %s successfully stored" % container.arcfile.filename)
+                            self.logger.info("Container %s successfully stored" % container.arcfile.filename)
                             self.createArchiveEntry(container)
                         else:
-                            logging.warn("Removing container %s due to verification error" % container.arcfile.filename)
+                            self.logger.warn("Removing container %s due to verification error" % container.arcfile.filename)
                             os.remove(container.arcfile.filename)
 
                         container = None
             except OperationFailure as e:
-                logging.error('%s' % e.strerror)
+                self.logger.error('%s' % e.strerror)
 
             # if we have a partly filled container after processing all files, close and delete it.
             if container:
@@ -152,10 +155,10 @@ class GroupPackager:
                     os.remove(container.arcfile.filename)
                 else:
                     if self.verifyContainer(container):
-                        logging.info("Container %s with old files successfully stored" % container.arcfile.filename)
+                        self.logger.info("Container %s with old files successfully stored" % container.arcfile.filename)
                         self.createArchiveEntry(container)
                     else:
-                        logging.warn("Removing container %s with old files due to verification error" % container.arcfile.filename)
+                        self.logger.warn("Removing container %s with old files due to verification error" % container.arcfile.filename)
                         os.remove(container.arcfile.filename)
 
 

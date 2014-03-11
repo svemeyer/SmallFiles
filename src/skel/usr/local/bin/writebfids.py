@@ -56,6 +56,7 @@ def main(configfile = '/etc/dcache/container.conf'):
                         archivePnfsid = archive['pnfsid']
                         zf = ZipFile(localpath, mode='r', allowZip64 = True)
                         for f in zf.filelist:
+                            logging.debug("Entering bfid into record for file %s" % f.filename)
                             filerecord = db.files.find_one( { 'pnfsid': f.filename } )
                             if filerecord:
                                 url = "dcache://dcache/?store=%s&group=%s&bfid=%s:%s" % (filerecord['store'], filerecord['group'], f.filename, archivePnfsid)
