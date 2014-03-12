@@ -145,6 +145,7 @@ class GroupPackager:
             if container:
                 isOld = False
                 ctime_oldfile_threshold = (now - self.maxAge*60)
+                self.logger.debug("Checking container %s for old files (ctime < %d)" % (container.arcfile.filename,ctime_oldfile_threshold))
                 for archived in container.getFilelist():
                     if self.db.files.find( { 'pnfsid': archived.filename, 'ctime': { '$lt': ctime_oldfile_threshold } } ).count() > 0:
                         isOld = True
@@ -152,6 +153,7 @@ class GroupPackager:
                 container.arcfile.close()
 
                 if not isOld:
+                    self.logger.info("Removing unfull container %s" % container.arcfile.filename)
                     os.remove(container.arcfile.filename)
                 else:
                     if self.verifyContainer(container):
