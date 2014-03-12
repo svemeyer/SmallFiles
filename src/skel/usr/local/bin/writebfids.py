@@ -57,13 +57,15 @@ def main(configfile = '/etc/dcache/container.conf'):
                         zf = ZipFile(localpath, mode='r', allowZip64 = True)
                         for f in zf.filelist:
                             logging.debug("Entering bfid into record for file %s" % f.filename)
-                            filerecord = db.files.find_one( { 'pnfsid': f.filename } )
-                            if filerecord:
-                                url = "dcache://dcache/?store=%s&group=%s&bfid=%s:%s" % (filerecord['store'], filerecord['group'], f.filename, archivePnfsid)
-                                filerecord['archiveUrl'] = url
-                                db.files.save(filerecord)
-                            else:
-                                logging.warn("File %s in archive %s has no entry in DB. Assuming it was deleted on disk." % (f.filename, localpath) )
+                            with db.files.find( { 'pnfsid': f.filename }, await_data=True, snapshot=True).limit(1) as recordcursor:
+                                filerecord = recordcursor[0]
+                                if filerecord:
+                                    url = "dcache://dcache/?store=%s&group=%s&bfid=%s:%s" % (filerecord['store'], filerecord['group'], f.filename, archivePnfsid)
+                                    filerecord['archiveUrl'] = url
+                                    db.files.save(filerecord)
+                                else:
+                                    logging.warn("File %s in archive %s has no entry in DB. Will retry later." % (f.filename, localpath) )
+                                    db.failures.insert( { 'archiveId': archivePnfsid, 'pnfsid': f.filename } )
 
                     except Exception as e:
                         logging.error("Unexpected error: %s" % e.message)
@@ -74,10 +76,10 @@ def main(configfile = '/etc/dcache/container.conf'):
             time.sleep(60)
 
     except parser.NoOptionError as e:
-        print("Missing option: %s" % e.strerror)
-        logging.error("Missing option: %s" % e.strerror)
+        print("Missing option: %s" % e.message)
+        logging.error("Missing option: %s" % e.message)
     except parser.Error as e:
-        print("Error reading configfile %s: %s" % (configfile, e.strerror))
+        print("Error reading configfile %s: %s" % (configfile, e.message))
         logging.error("Error reading configfile %s: %s" % (configfile, e.message))
         sys.exit(2)
 
