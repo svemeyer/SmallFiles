@@ -72,24 +72,24 @@ def main(configfile = '/etc/dcache/container.conf'):
 
                             newFilesCursor.collection.save(record)
                         except KeyError as e:
-                            logging.WARN("KeyError: %s: %s" % (str(record), e.message))
+                            logging.warn("KeyError: %s: %s" % (str(record), e.message))
                         except IOError as e:
-                            logging.WARN("IOError: %s: %s" % (str(record), e.strerror))
-                            logging.INFO("Removing entry for file %s" % record['pnfsid'])
+                            logging.warn("IOError: %s: %s" % (str(record), e.message))
+                            logging.info("Removing entry for file %s" % record['pnfsid'])
                             db.files.remove( { 'pnfsid': record['pnfsid'] } )
 
             except errors.ConnectionFailure as e:
-                logging.WARN("Connection failure: %s" % e.strerror)
+                logging.warn("Connection failure: %s" % e.message)
 
             logging.info("Sleeping for 60 seconds")
             time.sleep(60)
 
     except parser.NoOptionError as e:
-        print("Missing option: %s" % e.strerror)
-        logging.ERROR("Missing option: %s" % e.strerror)
+        print("Missing option: %s" % e.message)
+        logging.ERROR("Missing option: %s" % e.message)
         sys.exit(2)
     except parser.Error as e:
-        print("Error reading configfile %s: %s" % (configfile, e.strerror))
+        print("Error reading configfile %s: %s" % (configfile, e.message))
         logging.ERROR("Error reading configfile %s" % (configfile, e.message))
         sys.exit(2)
 

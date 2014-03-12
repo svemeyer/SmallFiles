@@ -123,7 +123,7 @@ class GroupPackager:
                         localfile = f['path'].replace(dataRoot, mountPoint)
                         container.add(f['pnfsid'], f['path'], localfile, f['size'])
                     except OSError as e:
-                        self.logger.warn("Could not add file %s to archive %s, %s" % (f['path'], container.arcfile.filename, e.strerror) )
+                        self.logger.warn("Could not add file %s to archive %s, %s" % (f['path'], container.arcfile.filename, e.message) )
                         self.logger.debug("Removing entry for file %s" % f['pnfsid'])
                         self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
 
@@ -139,7 +139,7 @@ class GroupPackager:
 
                         container = None
             except OperationFailure as e:
-                self.logger.error('%s' % e.strerror)
+                self.logger.error('%s' % e.message)
 
             # if we have a partly filled container after processing all files, close and delete it.
             if container:
@@ -259,10 +259,10 @@ def main(configfile = '/etc/dcache/container.conf'):
             time.sleep(loopDelay)
 
         except parser.NoOptionError as e:
-            print("Missing option: %s" % e.strerror)
-            logging.error("Missing option: %s" % e.strerror)
+            print("Missing option: %s" % e.message)
+            logging.error("Missing option: %s" % e.message)
         except parser.Error as e:
-            print("Error reading configfile %s: %s" % (configfile, e.strerror))
+            print("Error reading configfile %s: %s" % (configfile, e.message))
             logging.error("Error reading configfile %s: %s" % (configfile, e.message))
             sys.exit(2)
 
