@@ -5,7 +5,7 @@ import sys
 import time
 import signal
 import ConfigParser as parser
-from pymongo import MongoClient, Connection
+from pymongo import MongoClient, Connection, errors
 import logging
 
 running = True
@@ -78,7 +78,7 @@ def main(configfile = '/etc/dcache/container.conf'):
                             logging.INFO("Removing entry for file %s" % record['pnfsid'])
                             db.files.remove( { 'pnfsid': record['pnfsid'] } )
 
-            except ConnectionFailure as e:
+            except errors.ConnectionFailure as e:
                 logging.WARN("Connection failure: %s" % e.strerror)
 
             logging.info("Sleeping for 60 seconds")
