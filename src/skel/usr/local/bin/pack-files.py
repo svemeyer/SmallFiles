@@ -10,7 +10,7 @@ import re
 import ConfigParser as parser
 from tempfile import NamedTemporaryFile
 from zipfile import ZipFile
-from pymongo import MongoClient, Connection
+from pymongo import MongoClient, Connection, errors
 import logging
 
 running = True
@@ -100,7 +100,7 @@ class GroupPackager:
 
             self.db.archives.insert( { 'pnfsid': containerPnfsid, 'path': containerChimeraPath } )
         except IOError as e:
-            self.logger.critical("Could not find archive file %s, referred to by file entries in database! This needs immediate attention or you will lose data!" % arcPath)
+            self.logger.critical("Could not find archive file %s, referred to by file entries in database! This needs immediate attention or you will lose data!" % containerChimeraPath)
 
 
     def run(self):
@@ -126,6 +126,10 @@ class GroupPackager:
                         f['state'] = "added: %s" % container.arcfile.filename.replace(mountPoint, dataRoot)
                         files.collection.save(f)
                         self.logger.debug("Added file %s [%s], size: %d" % (f['path'], f['pnfsid'], f['size']))
+                    except IOError as e:
+                        self.logger.warn("Could not add file %s to archive %s [%s], %s" % (f['path'], f['pnfsid'], container.arcfile.filename, e.message) )
+                        self.logger.debug("Removing entry for file %s" % f['pnfsid'])
+                        self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
                     except OSError as e:
                         self.logger.warn("Could not add file %s to archive %s [%s], %s" % (f['path'], f['pnfsid'], container.arcfile.filename, e.message) )
                         self.logger.debug("Removing entry for file %s" % f['pnfsid'])
@@ -137,15 +141,15 @@ class GroupPackager:
 
                         if self.verifyContainer(container):
                             self.logger.info("Container %s successfully stored" % container.arcfile.filename)
-                            self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { 'state': 'archived: %s' % containerChimeraPath }, { multi: True } )
+                            self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'archived: %s' % containerChimeraPath } }, multi = True )
                             self.createArchiveEntry(container)
                         else:
                             self.logger.warn("Removing container %s due to verification error" % container.arcfile.filename)
-                            self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { 'state': 'new' }, { multi: True } )
+                            self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
                             os.remove(container.arcfile.filename)
 
                         container = None
-            except OperationFailure as e:
+            except errors.OperationFailure as e:
                 self.logger.error('%s' % e.message)
 
             # if we have a partly filled container after processing all files, close and delete it.
@@ -162,16 +166,16 @@ class GroupPackager:
 
                 if not isOld:
                     self.logger.info("Removing unfull container %s" % container.arcfile.filename)
-                    self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { 'state': 'new' }, { multi: True } )
+                    self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
                     os.remove(container.arcfile.filename)
                 else:
                     if self.verifyContainer(container):
                         self.logger.info("Container %s with old files successfully stored" % container.arcfile.filename)
-                        self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { 'state': 'archived: %s' % containerChimeraPath }, { multi: True } )
+                        self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'archived: %s' % containerChimeraPath } }, multi = True )
                         self.createArchiveEntry(container)
                     else:
                         self.logger.warn("Removing container %s with old files due to verification error" % container.arcfile.filename)
-                        self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { 'state': 'new' }, { multi: True } )
+                        self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
                         os.remove(container.arcfile.filename)
 
 
@@ -184,7 +188,7 @@ def dotfile(filepath, tag):
 def main(configfile = '/etc/dcache/container.conf'):
     global running
     logging.basicConfig(filename = '/var/log/dcache/pack-files.log',
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+                        format='%(asctime)s %(name)-80s %(levelname)-8s %(message)s')
 
     while running:
         try:
