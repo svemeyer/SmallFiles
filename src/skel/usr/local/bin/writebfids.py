@@ -18,7 +18,8 @@ def sigint_handler(signum, frame):
 
 def main(configfile = '/etc/dcache/container.conf'):
     global running
-    logging.basicConfig(filename = '/var/log/dcache/writebfids.log')
+    logging.basicConfig(filename = '/var/log/dcache/writebfids.log',
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
 
     try:
         while running:
@@ -57,15 +58,15 @@ def main(configfile = '/etc/dcache/container.conf'):
                         zf = ZipFile(localpath, mode='r', allowZip64 = True)
                         for f in zf.filelist:
                             logging.debug("Entering bfid into record for file %s" % f.filename)
-                            with db.files.find( { 'pnfsid': f.filename }, await_data=True, snapshot=True).limit(1) as recordcursor:
-                                filerecord = recordcursor[0]
-                                if filerecord:
-                                    url = "dcache://dcache/?store=%s&group=%s&bfid=%s:%s" % (filerecord['store'], filerecord['group'], f.filename, archivePnfsid)
-                                    filerecord['archiveUrl'] = url
-                                    db.files.save(filerecord)
-                                else:
-                                    logging.warn("File %s in archive %s has no entry in DB. Will retry later." % (f.filename, localpath) )
-                                    db.failures.insert( { 'archiveId': archivePnfsid, 'pnfsid': f.filename } )
+                            filerecord = db.files.find_one( { 'pnfsid': f.filename }, await_data=True )
+                            if filerecord:
+                                url = "dcache://dcache/?store=%s&group=%s&bfid=%s:%s" % (filerecord['store'], filerecord['group'], f.filename, archivePnfsid)
+                                filerecord['archiveUrl'] = url
+                                db.files.save(filerecord)
+                                logging.debug("Updated record with URL %s in archive %s" % (url,archive['path']))
+                            else:
+                                logging.warn("File %s in archive %s has no entry in DB. Will retry later." % (f.filename, archive['path']) )
+                                db.failures.insert( { 'archiveId': archivePnfsid, 'pnfsid': f.filename } )
 
                     except Exception as e:
                         logging.error("Unexpected error: %s" % e.message)

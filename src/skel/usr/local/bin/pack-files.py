@@ -43,6 +43,7 @@ class Container:
         self.arcfile.comment += "%s:%15d %s\n" % (pnfsid, size, filepath)
         self.size += size
         self.filecount += 1
+        self.logger.debug("Added file %s with pnfsid %s" % (filepath, pnfsid))
 
     def getFilelist(self):
         return self.arcfile.filelist
@@ -172,7 +173,8 @@ def dotfile(filepath, tag):
 
 def main(configfile = '/etc/dcache/container.conf'):
     global running
-    logging.basicConfig(filename = '/var/log/dcache/pack-files.log')
+    logging.basicConfig(filename = '/var/log/dcache/pack-files.log',
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
 
     while running:
         try:

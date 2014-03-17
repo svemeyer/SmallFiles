@@ -28,7 +28,8 @@ def dotfile(filepath, tag):
 
 def main(configfile = '/etc/dcache/container.conf'):
     global running
-    logging.basicConfig(filename='/var/log/dcache/fillmetadata.log')
+    logging.basicConfig(filename='/var/log/dcache/fillmetadata.log',
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
 
     try:
         while running:
@@ -71,6 +72,7 @@ def main(configfile = '/etc/dcache/container.conf'):
                             record['ctime'] = stats.st_ctime
 
                             newFilesCursor.collection.save(record)
+                            logging.debug("Updated record: %s" % str(record))
                         except KeyError as e:
                             logging.warn("KeyError: %s: %s" % (str(record), e.message))
                         except IOError as e:
