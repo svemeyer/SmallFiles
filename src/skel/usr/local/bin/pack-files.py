@@ -33,7 +33,7 @@ class Container:
         self.arcfile = ZipFile(tmpfile.name, mode = 'w', allowZip64 = True)
         self.size = 0
         self.filecount = 0
-        self.logger = logging.getLogger(name = "Container[%s]" % tmpfile)
+        self.logger = logging.getLogger(name = "Container[%s]" % tmpfile.name)
 
     def close(self):
         self.arcfile.close()
@@ -108,7 +108,7 @@ class GroupPackager:
         now = int(datetime.now().strftime("%s"))
         ctime_threshold = (now - self.minAge*60)
         self.logger.debug("Looking for files matching { path: %s, group: %s, store: %s, ctime: { $lt: %d } }" % (self.pathPattern.pattern, self.sGroup.pattern, self.storeName.pattern, ctime_threshold) )
-        with self.db.files.find( { 'archiveUrl': { '$exists': False }, 'path': self.pathPattern, 'group': self.sGroup, 'store': self.storeName, 'ctime': { '$lt': ctime_threshold } }, snapshot=True ) as files:
+        with self.db.files.find( { 'state': 'new', 'path': self.pathPattern, 'group': self.sGroup, 'store': self.storeName, 'ctime': { '$lt': ctime_threshold } }, snapshot=True ) as files:
             self.logger.info("found %d files" % files.count())
             container = None
             try:
@@ -123,19 +123,25 @@ class GroupPackager:
                     try:
                         localfile = f['path'].replace(dataRoot, mountPoint)
                         container.add(f['pnfsid'], f['path'], localfile, f['size'])
+                        f['state'] = "added: %s" % container.arcfile.filename.replace(mountPoint, dataRoot)
+                        files.collection.save(f)
+                        self.logger.debug("Added file %s [%s], size: %d" % (f['path'], f['pnfsid'], f['size']))
                     except OSError as e:
-                        self.logger.warn("Could not add file %s to archive %s, %s" % (f['path'], container.arcfile.filename, e.message) )
+                        self.logger.warn("Could not add file %s to archive %s [%s], %s" % (f['path'], f['pnfsid'], container.arcfile.filename, e.message) )
                         self.logger.debug("Removing entry for file %s" % f['pnfsid'])
                         self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
 
                     if container.size >= self.archiveSize:
                         container.close()
+                        containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot)
 
                         if self.verifyContainer(container):
                             self.logger.info("Container %s successfully stored" % container.arcfile.filename)
+                            self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { 'state': 'archived: %s' % containerChimeraPath }, { multi: True } )
                             self.createArchiveEntry(container)
                         else:
                             self.logger.warn("Removing container %s due to verification error" % container.arcfile.filename)
+                            self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { 'state': 'new' }, { multi: True } )
                             os.remove(container.arcfile.filename)
 
                         container = None
@@ -152,16 +158,20 @@ class GroupPackager:
                         isOld = True
 
                 container.arcfile.close()
+                containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot)
 
                 if not isOld:
                     self.logger.info("Removing unfull container %s" % container.arcfile.filename)
+                    self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { 'state': 'new' }, { multi: True } )
                     os.remove(container.arcfile.filename)
                 else:
                     if self.verifyContainer(container):
                         self.logger.info("Container %s with old files successfully stored" % container.arcfile.filename)
+                        self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { 'state': 'archived: %s' % containerChimeraPath }, { multi: True } )
                         self.createArchiveEntry(container)
                     else:
                         self.logger.warn("Removing container %s with old files due to verification error" % container.arcfile.filename)
+                        self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { 'state': 'new' }, { multi: True } )
                         os.remove(container.arcfile.filename)
 
 

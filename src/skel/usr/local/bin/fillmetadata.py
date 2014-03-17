@@ -70,6 +70,7 @@ def main(configfile = '/etc/dcache/container.conf'):
                             record['parent'] = os.path.dirname(pathof)
                             record['size'] = stats.st_size
                             record['ctime'] = stats.st_ctime
+                            record['state'] = 'new'
 
                             newFilesCursor.collection.save(record)
                             logging.debug("Updated record: %s" % str(record))

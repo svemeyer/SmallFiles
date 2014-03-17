@@ -58,14 +58,15 @@ def main(configfile = '/etc/dcache/container.conf'):
                         zf = ZipFile(localpath, mode='r', allowZip64 = True)
                         for f in zf.filelist:
                             logging.debug("Entering bfid into record for file %s" % f.filename)
-                            filerecord = db.files.find_one( { 'pnfsid': f.filename }, await_data=True )
+                            filerecord = db.files.find_one( { 'pnfsid': f.filename, 'state': 'archived: %s' % archive['path'] }, await_data=True )
                             if filerecord:
                                 url = "dcache://dcache/?store=%s&group=%s&bfid=%s:%s" % (filerecord['store'], filerecord['group'], f.filename, archivePnfsid)
                                 filerecord['archiveUrl'] = url
+                                filerecord['state'] = 'verified: %s' % archive['path']
                                 db.files.save(filerecord)
                                 logging.debug("Updated record with URL %s in archive %s" % (url,archive['path']))
                             else:
-                                logging.warn("File %s in archive %s has no entry in DB. Will retry later." % (f.filename, archive['path']) )
+                                logging.warn("File %s in archive %s has no entry in DB. Creating failure entry." % (f.filename, archive['path']) )
                                 db.failures.insert( { 'archiveId': archivePnfsid, 'pnfsid': f.filename } )
 
                     except Exception as e:
