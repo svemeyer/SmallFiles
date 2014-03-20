@@ -209,7 +209,7 @@ if [ $command = "get" ] ; then
    #
    archiveId=`expr "${getBfid}" : ".*:\(.*\)" 2>/dev/null`
    if [ $? -ne 0 ] ; then
-      problem 1 "This is not an archive : ${getBfid}"
+      problem 243 "This is not an small files archive : ${getBfid}"
    fi
    #
    originalId=`expr "${getBfid}" : "\(.*\):.*" 2>/dev/null`
@@ -225,7 +225,7 @@ if [ $command = "get" ] ; then
    unzip "pnfs://${DCAP_DOOR}/${archiveId}" "${originalId}" 2>>$LOG
    rc=$?
    cd -
-   if [ $rc -ne 0 ] ; then problem 4 "Tar couldn't replay the file" ; fi
+   if [ $rc -ne 0 ] ; then problem 243 "Unzip couldn't replay the file($rc). Check the log for details!" ; fi
    #
    report "Extraction finished, done"
    #
