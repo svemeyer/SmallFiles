@@ -69,10 +69,12 @@ def main(configfile = '/etc/dcache/container.conf'):
                                 logging.warn("File %s in archive %s has no entry in DB. Creating failure entry." % (f.filename, archive['path']) )
                                 db.failures.insert( { 'archiveId': archivePnfsid, 'pnfsid': f.filename } )
 
+                    except zipfile.BadZipFile as e:
+                        logging.warn("Archive %s is not yet ready. Will try later." % localpath)
+
                     except Exception as e:
                         logging.error("Unexpected error: %s" % e.message)
-                        # db.archives.remove( { 'id': archive['pnfsid'] } )
-                    
+
                     db.archives.remove( { 'pnfsid': archive['pnfsid'] } )
 
             time.sleep(60)

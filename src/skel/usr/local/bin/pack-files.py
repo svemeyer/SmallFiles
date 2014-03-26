@@ -11,6 +11,7 @@ import ConfigParser as parser
 from tempfile import NamedTemporaryFile
 from zipfile import ZipFile
 from pymongo import MongoClient, Connection, errors, ASCENDING
+from pwd import getpwnam
 import logging
 
 running = True
@@ -21,6 +22,8 @@ def sigint_handler(signum, frame):
     print("Caught signal %d." % signum)
     running = False
 
+archiveUser = 'root'
+archiveMode = '0777'
 mongoUri = "mongodb://localhost/"
 mongoDb  = "smallfiles"
 mountPoint = ""
@@ -31,12 +34,18 @@ class Container:
     def __init__(self, targetdir):
         tmpfile = NamedTemporaryFile(suffix = '.darc', dir=targetdir, delete=False)
         self.arcfile = ZipFile(tmpfile.name, mode = 'w', allowZip64 = True)
+        global archiveUser
+        global archiveMode
+        self.archiveUid = getpwnam(archiveUser).pw_uid
+        self.archiveMod = int(archiveMode, 8)
         self.size = 0
         self.filecount = 0
         self.logger = logging.getLogger(name = "Container[%s]" % tmpfile.name)
 
     def close(self):
         self.arcfile.close()
+        os.chown(self.arcfile.filename, self.archiveUid, os.getgid())
+        os.chmod(self.arcfile.filelist, self.archiveMod)
 
     def add(self, pnfsid, filepath, localpath, size):
         self.arcfile.write(localpath, arcname=pnfsid)
@@ -65,7 +74,7 @@ class GroupPackager:
         self.storeName = re.compile(storeName)
         self.archivePath=os.path.join(mountPoint, archivePath)
         if not os.path.exists(self.archivePath):
-            os.makedirs(self.archivePath, mode = 0770)
+            os.makedirs(self.archivePath, mode = 0777)
         self.archiveSize = int(archiveSize.replace('G','000000000').replace('M','000000').replace('K','000'))
         self.minAge = int(minAge)
         self.maxAge = int(maxAge)
@@ -91,7 +100,6 @@ class GroupPackager:
 
         return verified
 
-
     def createArchiveEntry(self, container):
         try:
             containerLocalPath = container.arcfile.filename
@@ -101,7 +109,6 @@ class GroupPackager:
             self.db.archives.insert( { 'pnfsid': containerPnfsid, 'path': containerChimeraPath } )
         except IOError as e:
             self.logger.critical("Could not find archive file %s, referred to by file entries in database! This needs immediate attention or you will lose data!" % containerChimeraPath)
-
 
     def run(self):
         global running
@@ -193,13 +200,17 @@ def main(configfile = '/etc/dcache/container.conf'):
 
     while running:
         try:
-            configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5, 'logLevel': 'ERROR' })
+            configuration = parser.RawConfigParser(defaults = { 'archiveUser': 'root', 'archiveMode': '0777', 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5, 'logLevel': 'ERROR' })
             configuration.read(configfile)
 
+            global archiveUser
+            global archiveMode
             global mountPoint
             global dataRoot
             global mongoUri
             global mongoDb
+            archiveUser = configuration.get('DEFAULT', 'archiveUser')
+            archiveMode = configuration.get('DEFAULT', 'archiveMode')
             mountPoint = configuration.get('DEFAULT', 'mountPoint')
             dataRoot = configuration.get('DEFAULT', 'dataRoot')
             mongoUri = configuration.get('DEFAULT', 'mongoUri')
@@ -212,6 +223,8 @@ def main(configfile = '/etc/dcache/container.conf'):
             logging.getLogger().setLevel(logLevel)
 
             logging.info('Successfully read configuration from file %s.' % configfile)
+            logging.debug('archiveUser = %s' % archiveUser)
+            logging.debug('archiveMode = %s' % archiveMode)
             logging.debug('mountPoint = %s' % mountPoint)
             logging.debug('dataRoot = %s' % dataRoot)
             logging.debug('mongoUri = %s' % mongoUri)
