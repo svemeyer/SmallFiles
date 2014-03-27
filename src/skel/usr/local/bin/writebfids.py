@@ -75,6 +75,7 @@ def main(configfile = '/etc/dcache/container.conf'):
 
                         os.chown(localpath, archiveUser, os.getgid())
                         os.chmod(localpath, int(archiveMode, 8))
+                        logging.debug("stat(%s): %s" % (localpath, os.stat(localpath)))
 
                     except BadZipfile as e:
                         logging.warn("Archive %s is not yet ready. Will try later." % localpath)
