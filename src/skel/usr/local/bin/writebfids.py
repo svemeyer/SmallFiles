@@ -4,7 +4,7 @@ import os
 import sys
 import time
 import signal
-from zipfile import ZipFile
+from zipfile import ZipFile, BadZipfile
 from pymongo import MongoClient, Connection
 import ConfigParser as parser
 import logging
@@ -26,10 +26,14 @@ def main(configfile = '/etc/dcache/container.conf'):
             configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5, 'logLevel': 'ERROR' })
             configuration.read(configfile)
 
+            global archiveUser
+            global archiveMode
             global mountPoint
             global dataRoot
             global mongoUri
             global mongoDb
+            archiveUser = configuration.get('DEFAULT', 'archiveUser')
+            archiveMode = configuration.get('DEFAULT', 'archiveMode')
             mountPoint = configuration.get('DEFAULT', 'mountPoint')
             dataRoot = configuration.get('DEFAULT', 'dataRoot')
             mongoUri = configuration.get('DEFAULT', 'mongoUri')
@@ -69,7 +73,10 @@ def main(configfile = '/etc/dcache/container.conf'):
                                 logging.warn("File %s in archive %s has no entry in DB. Creating failure entry." % (f.filename, archive['path']) )
                                 db.failures.insert( { 'archiveId': archivePnfsid, 'pnfsid': f.filename } )
 
-                    except zipfile.BadZipFile as e:
+                        os.chown(localpath, archiveUser, os.getgid())
+                        os.chmod(localpath, int(archiveMode, 8))
+
+                    except BadZipfile as e:
                         logging.warn("Archive %s is not yet ready. Will try later." % localpath)
 
                     except Exception as e:
