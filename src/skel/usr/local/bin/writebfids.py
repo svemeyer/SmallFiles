@@ -73,7 +73,7 @@ def main(configfile = '/etc/dcache/container.conf'):
                                 logging.warn("File %s in archive %s has no entry in DB. Creating failure entry." % (f.filename, archive['path']) )
                                 db.failures.insert( { 'archiveId': archivePnfsid, 'pnfsid': f.filename } )
 
-                        os.chown(localpath, archiveUser, os.getgid())
+                        os.chown(localpath, getpwnam(archiveUser).pw_uid, os.getgid())
                         os.chmod(localpath, int(archiveMode, 8))
                         logging.debug("stat(%s): %s" % (localpath, os.stat(localpath)))
 
