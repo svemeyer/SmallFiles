@@ -83,6 +83,8 @@ def main(configfile = '/etc/dcache/container.conf'):
 
             except errors.ConnectionFailure as e:
                 logging.warn("Connection failure: %s" % e.message)
+            except errors.OperationFailure as e:
+                logging.warn("Could not create cursor: %s" % e.message)
 
             logging.info("Sleeping for 60 seconds")
             time.sleep(60)
