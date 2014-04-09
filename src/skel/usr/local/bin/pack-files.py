@@ -45,7 +45,7 @@ class Container:
     def close(self):
         self.arcfile.close()
         os.chown(self.arcfile.filename, self.archiveUid, os.getgid())
-        os.chmod(self.arcfile.filelist, self.archiveMod)
+        os.chmod(self.arcfile.filename, self.archiveMod)
 
     def add(self, pnfsid, filepath, localpath, size):
         self.arcfile.write(localpath, arcname=pnfsid)
@@ -238,7 +238,7 @@ def main(configfile = '/etc/dcache/container.conf'):
 
             logging.info("Creating group packagers")
             groups = configuration.sections()
-            groupPackagers = {}
+            groupPackagers = []
             for group in groups:
                 logging.debug("Group: %s" % group)
                 filePattern = configuration.get(group, 'fileExpression') 
@@ -267,7 +267,7 @@ def main(configfile = '/etc/dcache/container.conf'):
 
                 logging.debug("Creating a packager for each path in: %s" % pathset)
                 for path in pathset:
-                    groupPackagers[group] = GroupPackager(
+                    packager = GroupPackager(
                         path,
                         filePattern,
                         sGroup,
@@ -277,10 +277,11 @@ def main(configfile = '/etc/dcache/container.conf'):
                         minAge,
                         maxAge,
                         verify)
-                    logging.info("Added packager %s for paths matching %s" % (group, (groupPackagers[group].path)))
+                    groupPackagers.append(packager)
+                    logging.info("Added packager %s for paths matching %s" % (group, (packager.path)))
 
             logging.info("Running packagers")
-            for packager in groupPackagers.values():
+            for packager in groupPackagers:
                 if not running:
                     sys.exit(1)
                 packager.run()
