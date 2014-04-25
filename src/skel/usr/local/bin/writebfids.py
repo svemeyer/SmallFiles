@@ -3,6 +3,7 @@
 import os
 import sys
 import time
+import errno
 import signal
 from zipfile import ZipFile, BadZipfile
 from pymongo import MongoClient, Connection
@@ -73,17 +74,20 @@ def main(configfile = '/etc/dcache/container.conf'):
                                 logging.warn("File %s in archive %s has no entry in DB. Creating failure entry." % (f.filename, archive['path']) )
                                 db.failures.insert( { 'archiveId': archivePnfsid, 'pnfsid': f.filename } )
 
-                        os.chown(localpath, getpwnam(archiveUser).pw_uid, os.getgid())
-                        os.chmod(localpath, int(archiveMode, 8))
                         logging.debug("stat(%s): %s" % (localpath, os.stat(localpath)))
+
+                        db.archives.remove( { 'pnfsid': archive['pnfsid'] } )
+                        logging.debug("Removed entry for archive %s[%s]" % ( archive['path'], archive['pnfsid'] ) )
 
                     except BadZipfile as e:
                         logging.warn("Archive %s is not yet ready. Will try later." % localpath)
 
+                    except IOError as e:
+                        if e.errno != errno.EINTR:
+                            raise
+
                     except Exception as e:
                         logging.error("Unexpected error: %s" % e.message)
-
-                    db.archives.remove( { 'pnfsid': archive['pnfsid'] } )
 
             time.sleep(60)
 
