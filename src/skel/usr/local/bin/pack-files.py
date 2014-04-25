@@ -169,7 +169,7 @@ class GroupPackager:
                     if self.db.files.find( { 'pnfsid': archived.filename, 'ctime': { '$lt': ctime_oldfile_threshold } } ).count() > 0:
                         isOld = True
 
-                container.arcfile.close()
+                container.close()
                 containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot)
 
                 if not isOld:
