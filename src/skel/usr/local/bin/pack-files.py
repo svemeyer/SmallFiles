@@ -115,7 +115,7 @@ class GroupPackager:
         now = int(datetime.now().strftime("%s"))
         ctime_threshold = (now - self.minAge*60)
         self.logger.debug("Looking for files matching { path: %s, group: %s, store: %s, ctime: { $lt: %d } }" % (self.pathPattern.pattern, self.sGroup.pattern, self.storeName.pattern, ctime_threshold) )
-        with self.db.files.find( { 'state': 'new', 'path': self.pathPattern, 'group': self.sGroup, 'store': self.storeName, 'ctime': { '$lt': ctime_threshold } } ) as files:
+        with self.db.files.find( { 'state': 'new', 'path': self.pathPattern, 'group': self.sGroup, 'store': self.storeName, 'ctime': { '$lt': ctime_threshold } } ).batch_size(120) as files:
             files.sort('ctime', ASCENDING)
             self.logger.info("found %d files" % files.count())
             container = None
@@ -144,6 +144,7 @@ class GroupPackager:
                         self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
 
                     if container.size >= self.archiveSize:
+                        self.logger.debug("Closing archive %s because size limit was reached" % container.arcfile.filename)
                         container.close()
                         containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot)
 
