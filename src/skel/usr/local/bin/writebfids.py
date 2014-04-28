@@ -91,6 +91,7 @@ def main(configfile = '/etc/dcache/container.conf'):
                     except Exception as e:
                         logging.error("Unexpected error: %s" % e.message)
 
+            logging.info("Processed all archive entries. Sleeping 60 seconds.")
             time.sleep(60)
 
     except parser.NoOptionError as e:
