@@ -85,7 +85,7 @@ def main(configfile = '/etc/dcache/container.conf'):
                     except IOError as e:
                         if e.errno != errno.EINTR:
                             logging.error("IOError: %s" % e.strerror)
-                        else
+                        else:
                             logging.info("User interrupt.")
 
                     except Exception as e:
