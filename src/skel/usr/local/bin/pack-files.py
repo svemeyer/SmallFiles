@@ -158,34 +158,42 @@ class GroupPackager:
                             os.remove(container.arcfile.filename)
 
                         container = None
-            except errors.OperationFailure as e:
-                self.logger.error('%s' % e.message)
 
-            # if we have a partly filled container after processing all files, close and delete it.
-            if container:
-                isOld = False
-                ctime_oldfile_threshold = (now - self.maxAge*60)
-                self.logger.debug("Checking container %s for old files (ctime < %d)" % (container.arcfile.filename,ctime_oldfile_threshold))
-                for archived in container.getFilelist():
-                    if self.db.files.find( { 'pnfsid': archived.filename, 'ctime': { '$lt': ctime_oldfile_threshold } } ).count() > 0:
-                        isOld = True
-
-                container.close()
-                containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot)
-
-                if not isOld:
-                    self.logger.info("Removing unfull container %s" % container.arcfile.filename)
-                    self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
+                if container and not running:
+                    self.logger.info("Cleaning up unfinished container %s." % container.arcfile.filename)
                     os.remove(container.arcfile.filename)
-                else:
-                    if self.verifyContainer(container):
-                        self.logger.info("Container %s with old files successfully stored" % container.arcfile.filename)
-                        self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'archived: %s' % containerChimeraPath } }, multi = True )
-                        self.createArchiveEntry(container)
-                    else:
-                        self.logger.warn("Removing container %s with old files due to verification error" % container.arcfile.filename)
+                    self.logger.info("Cleaning up modified file entries.")
+                    containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot)
+                    self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
+                elif container:
+                    isOld = False
+                    ctime_oldfile_threshold = (now - self.maxAge*60)
+                    self.logger.debug("Checking container %s for old files (ctime < %d)" % (container.arcfile.filename,ctime_oldfile_threshold))
+                    for archived in container.getFilelist():
+                        if self.db.files.find( { 'pnfsid': archived.filename, 'ctime': { '$lt': ctime_oldfile_threshold } } ).count() > 0:
+                            isOld = True
+                            break
+
+                    container.close()
+                    containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot)
+
+                    if not isOld:
+                        self.logger.info("Removing unfull container %s" % container.arcfile.filename)
                         self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
                         os.remove(container.arcfile.filename)
+                    else:
+                        if self.verifyContainer(container):
+                            self.logger.info("Container %s with old files successfully stored" % container.arcfile.filename)
+                            self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'archived: %s' % containerChimeraPath } }, multi = True )
+                            self.createArchiveEntry(container)
+                        else:
+                            self.logger.warn("Removing container %s with old files due to verification error" % container.arcfile.filename)
+                            self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
+                            os.remove(container.arcfile.filename)
+
+            except errors.OperationFailure as e:
+                self.logger.error('%s' % e.message)
+                self.logger.info("Exception in database communication. This probably left some files in state: 'added'. This needs to be fixed manually!")
 
 
 def dotfile(filepath, tag):
@@ -286,6 +294,11 @@ def main(configfile = '/etc/dcache/container.conf'):
                 if not running:
                     sys.exit(1)
                 packager.run()
+
+            if not running:
+                logging.info("Finished cleaning up. Exiting.")
+                sys.exit(1)
+
             logging.info("all packagers finished. Sleeping for %d seconds" % loopDelay)
 
             time.sleep(loopDelay)
