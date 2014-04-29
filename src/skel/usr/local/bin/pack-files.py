@@ -64,6 +64,12 @@ class Container:
         self.logger.warn("Checksum verification not implemented, yet")
         return True
 
+class UserInterruptException(Exception):
+    def __init__(self, arcfile):
+        self.arcfile = arcfile
+
+    def __str__(self):
+        return repr(arcfile)
 
 class GroupPackager:
 
@@ -122,7 +128,10 @@ class GroupPackager:
             try:
                 for f in files:
                     if not running:
-                        break
+                        if container:
+                            raise UserInterruptException(container.arcfile.filename)
+                        else:
+                            raise UserInterruptException(None)
 
                     if container == None:
                         container = Container(os.path.join(self.archivePath))
@@ -159,13 +168,7 @@ class GroupPackager:
 
                         container = None
 
-                if container and not running:
-                    self.logger.info("Cleaning up unfinished container %s." % container.arcfile.filename)
-                    os.remove(container.arcfile.filename)
-                    self.logger.info("Cleaning up modified file entries.")
-                    containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot)
-                    self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
-                elif container:
+                if container:
                     isOld = False
                     ctime_oldfile_threshold = (now - self.maxAge*60)
                     self.logger.debug("Checking container %s for old files (ctime < %d)" % (container.arcfile.filename,ctime_oldfile_threshold))
@@ -207,7 +210,7 @@ def main(configfile = '/etc/dcache/container.conf'):
     logging.basicConfig(filename = '/var/log/dcache/pack-files.log',
                         format='%(asctime)s %(name)-80s %(levelname)-8s %(message)s')
 
-    while running:
+    while True:
         try:
             configuration = parser.RawConfigParser(defaults = { 'archiveUser': 'root', 'archiveMode': '0777', 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5, 'logLevel': 'ERROR' })
             configuration.read(configfile)
@@ -291,18 +294,21 @@ def main(configfile = '/etc/dcache/container.conf'):
 
             logging.info("Running packagers")
             for packager in groupPackagers:
-                if not running:
-                    sys.exit(1)
                 packager.run()
-
-            if not running:
-                logging.info("Finished cleaning up. Exiting.")
-                sys.exit(1)
 
             logging.info("all packagers finished. Sleeping for %d seconds" % loopDelay)
 
             time.sleep(loopDelay)
 
+        except UserInterruptException as e:
+            if e.arcfile:
+                logging.info("Cleaning up unfinished container %s." % e.arcfile)
+                os.remove(e.arcfile)
+                logging.info("Cleaning up modified file entries.")
+                containerChimeraPath = e.arcfile.replace(mountPoint, dataRoot)
+                db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
+            logging.info("Finished cleaning up. Exiting.")
+            sys.exit(1)
         except parser.NoOptionError as e:
             print("Missing option: %s" % e.message)
             logging.error("Missing option: %s" % e.message)
