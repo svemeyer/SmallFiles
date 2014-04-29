@@ -71,7 +71,7 @@ def main(configfile = '/etc/dcache/container.conf'):
                                 db.files.save(filerecord)
                                 logging.debug("Updated record with URL %s in archive %s" % (url,archive['path']))
                             else:
-                                logging.warn("File %s in archive %s has no entry in DB. Creating failure entry." % (f.filename, archive['path']) )
+                                logging.warn("File %s in archive %s has no entry in DB. This could be caused by a previous forced interrupt. Creating failure entry." % (f.filename, archive['path']) )
                                 db.failures.insert( { 'archiveId': archivePnfsid, 'pnfsid': f.filename } )
 
                         logging.debug("stat(%s): %s" % (localpath, os.stat(localpath)))
