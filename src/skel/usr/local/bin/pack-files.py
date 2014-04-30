@@ -127,6 +127,7 @@ class GroupPackager:
             container = None
             try:
                 for f in files:
+                    self.logger.debug("Next file %s [%s]" % (f['path'], f['pnfsid']) )
                     if not running:
                         if container:
                             raise UserInterruptException(container.arcfile.filename)
@@ -139,7 +140,9 @@ class GroupPackager:
 
                     try:
                         localfile = f['path'].replace(dataRoot, mountPoint)
+                        self.logger.debug("before container.add")
                         container.add(f['pnfsid'], f['path'], localfile, f['size'])
+                        self.logger.debug("before collection.save")
                         f['state'] = "added: %s" % container.arcfile.filename.replace(mountPoint, dataRoot)
                         files.collection.save(f)
                         self.logger.debug("Added file %s [%s], size: %d" % (f['path'], f['pnfsid'], f['size']))
@@ -210,7 +213,7 @@ def main(configfile = '/etc/dcache/container.conf'):
     logging.basicConfig(filename = '/var/log/dcache/pack-files.log',
                         format='%(asctime)s %(name)-80s %(levelname)-8s %(message)s')
 
-    while True:
+    while running:
         try:
             configuration = parser.RawConfigParser(defaults = { 'archiveUser': 'root', 'archiveMode': '0777', 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5, 'logLevel': 'ERROR' })
             configuration.read(configfile)
