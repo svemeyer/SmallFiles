@@ -10,7 +10,7 @@ import re
 import ConfigParser as parser
 from tempfile import NamedTemporaryFile
 from zipfile import ZipFile
-from pymongo import MongoClient, Connection, errors, ASCENDING
+from pymongo import MongoClient, Connection, errors, ASCENDING, DESCENDING
 from pwd import getpwnam
 import logging
 
@@ -122,12 +122,36 @@ class GroupPackager:
         ctime_threshold = (now - self.minAge*60)
         self.logger.debug("Looking for files matching { path: %s, group: %s, store: %s, ctime: { $lt: %d } }" % (self.pathPattern.pattern, self.sGroup.pattern, self.storeName.pattern, ctime_threshold) )
         with self.db.files.find( { 'state': 'new', 'path': self.pathPattern, 'group': self.sGroup, 'store': self.storeName, 'ctime': { '$lt': ctime_threshold } } ).batch_size(120) as files:
-            files.sort('ctime', ASCENDING)
-            self.logger.info("found %d files" % files.count())
+            files.sort('ctime', DESCENDING)
+            sumsize = 0
+            hasOldFiles = False
+            ctime_oldfile_threshold = (now - self.maxAge*60)
+            for f in files:
+                if f['ctime'] < ctime_oldfile_threshold:
+                    hasOldFiles = True
+                else:
+                    self.logger.debug("%s needs %d more seconds to become old" % (f['pnfsid'], f['ctime']-ctime_oldfile_threshold))
+                sumsize += f['size']
+
+            filecount = files.count()
+
+            self.logger.info("found %d files with a combined size of %d bytes" % (filecount, sumsize))
+            if hasOldFiles:
+                self.logger.debug("containing old files: ctime < %d" % ctime_oldfile_threshold)
+            else:
+                self.logger.debug("containing no old files: ctime < %d" % ctime_oldfile_threshold)
+
+            if hasOldFiles:
+                self.logger.info("found old files, starting packaging independent of combined size")
+            elif sumsize < self.archiveSize:
+                self.logger.info("%d bytes missing to create archive of size %d, leaving packager" % (self.archiveSize-sumsize, self.archiveSize))
+                return
+
+            files.rewind()
             container = None
             try:
                 for f in files:
-                    self.logger.debug("Next file %s [%s]" % (f['path'], f['pnfsid']) )
+                    self.logger.debug("Next file %s [%s], remaining %d [%d bytes]" % (f['path'], f['pnfsid'], filecount, sumsize) )
                     if not running:
                         if container:
                             raise UserInterruptException(container.arcfile.filename)
@@ -135,9 +159,14 @@ class GroupPackager:
                             raise UserInterruptException(None)
 
                     if container == None:
-                        container = Container(os.path.join(self.archivePath))
-                        self.logger.info("Creating new container %s" % os.path.join(self.archivePath, container.arcfile.filename))
+                        if sumsize >= self.archiveSize or hasOldFiles:
+                            container = Container(os.path.join(self.archivePath))
+                            self.logger.info("Creating new container %s. %d files [%d bytes] remaining." % (os.path.join(self.archivePath, container.arcfile.filename), filecount, sumsize))
+                        else:
+                            self.logger.info("remaining combined size %d < %d, leaving packager" % (sumsize, self.archiveSize))
+                            return
 
+                    self.logger.debug("%d bytes remaining for this archive" % (self.archiveSize-container.size))
                     try:
                         localfile = f['path'].replace(dataRoot, mountPoint)
                         self.logger.debug("before container.add")
@@ -146,6 +175,8 @@ class GroupPackager:
                         f['state'] = "added: %s" % container.arcfile.filename.replace(mountPoint, dataRoot)
                         files.collection.save(f)
                         self.logger.debug("Added file %s [%s], size: %d" % (f['path'], f['pnfsid'], f['size']))
+                        sumsize -= f['size']
+                        filecount -= 1
                     except IOError as e:
                         self.logger.warn("Could not add file %s to archive %s [%s], %s" % (f['path'], f['pnfsid'], container.arcfile.filename, e.message) )
                         self.logger.debug("Removing entry for file %s" % f['pnfsid'])
@@ -156,7 +187,7 @@ class GroupPackager:
                         self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
 
                     if container.size >= self.archiveSize:
-                        self.logger.debug("Closing archive %s because size limit was reached" % container.arcfile.filename)
+                        self.logger.debug("Closing full archive %s" % container.arcfile.filename)
                         container.close()
                         containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot)
 
@@ -172,30 +203,20 @@ class GroupPackager:
                         container = None
 
                 if container:
-                    isOld = False
-                    ctime_oldfile_threshold = (now - self.maxAge*60)
-                    self.logger.debug("Checking container %s for old files (ctime < %d)" % (container.arcfile.filename,ctime_oldfile_threshold))
-                    for archived in container.getFilelist():
-                        if self.db.files.find( { 'pnfsid': archived.filename, 'ctime': { '$lt': ctime_oldfile_threshold } } ).count() > 0:
-                            isOld = True
-                            break
+                    assert hasOldFiles
 
+                    self.logger.debug("Closing archive %s containing remaining old files")
                     container.close()
                     containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot)
 
-                    if not isOld:
-                        self.logger.info("Removing unfull container %s" % container.arcfile.filename)
+                    if self.verifyContainer(container):
+                        self.logger.info("Container %s with old files successfully stored" % container.arcfile.filename)
+                        self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'archived: %s' % containerChimeraPath } }, multi = True )
+                        self.createArchiveEntry(container)
+                    else:
+                        self.logger.warn("Removing container %s with old files due to verification error" % container.arcfile.filename)
                         self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
                         os.remove(container.arcfile.filename)
-                    else:
-                        if self.verifyContainer(container):
-                            self.logger.info("Container %s with old files successfully stored" % container.arcfile.filename)
-                            self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'archived: %s' % containerChimeraPath } }, multi = True )
-                            self.createArchiveEntry(container)
-                        else:
-                            self.logger.warn("Removing container %s with old files due to verification error" % container.arcfile.filename)
-                            self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
-                            os.remove(container.arcfile.filename)
 
             except errors.OperationFailure as e:
                 self.logger.error('%s' % e.message)
@@ -256,7 +277,7 @@ def main(configfile = '/etc/dcache/container.conf'):
             groupPackagers = []
             for group in groups:
                 logging.debug("Group: %s" % group)
-                filePattern = configuration.get(group, 'fileExpression') 
+                filePattern = configuration.get(group, 'fileExpression')
                 logging.debug("filePattern: %s" % filePattern)
                 sGroup = configuration.get(group, 'sGroup')
                 logging.debug("sGroup: %s" % sGroup)
@@ -270,7 +291,7 @@ def main(configfile = '/etc/dcache/container.conf'):
                 logging.debug("minAge: %s" % minAge)
                 maxAge = configuration.get(group, 'maxAge')
                 logging.debug("maxAge: %s" % maxAge)
-                verify = configuration.get(group, 'verify') 
+                verify = configuration.get(group, 'verify')
                 logging.debug("verify: %s" % verify)
                 pathre = re.compile(configuration.get(group, 'pathExpression'))
                 logging.debug("pathExpression: %s" % pathre.pattern)
