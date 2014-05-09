@@ -9,8 +9,6 @@ msc {
 
     poola=>hsm   [ label = "hsm-internal.sh put file_n"];
 
-    hsm box hsm  [ label = "groupDir_m='hsm/requests/<sGroup>/<osmInstance>/md5sum(dir(file_n))')"];
-
     hsm=>mongodb [ label = "db.files.findOne( { pnfsid: id(file_n) } )"];
     hsm<<mongodb [ label = "entry = { pnfsid: id(file_n), store: store(file_n), group(file_n) }"];
     hsm=>hsm     [ label = "entry.archiveUrl"];

@@ -6,13 +6,13 @@ msc {
     nfs     [ label="dCache NFS4.1 door"],
     chimera [ label="Chimera DB"];
 
-    pack->mongodb [ label = "find( { archiveUrl: { $exists: false } } )" ];
+    pack->mongodb [ label = "find( { state: 'new' } )" ];
     
-    pack box pack [ label = " Create as many archives of minimal size 
+    pack box pack [ label = " Create as many archives of size 
                               <archive size> as possible. If remaining files 
                               are older than maxAge then pack those, too." ];
     
-    pack box pack [ label = "create archive in <archiveDir>"];
+    pack box pack [ label = "create archive in <archivePath>"];
 
     pack->nfs     [ label = "cat .(id)(archive)" ];
     nfs->chimera  [ label = "select id where path = archive" ];
