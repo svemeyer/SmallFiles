@@ -122,29 +122,34 @@ class GroupPackager:
         ctime_threshold = (now - self.minAge*60)
         self.logger.debug("Looking for files matching { path: %s, group: %s, store: %s, ctime: { $lt: %d } }" % (self.pathPattern.pattern, self.sGroup.pattern, self.storeName.pattern, ctime_threshold) )
         with self.db.files.find( { 'state': 'new', 'path': self.pathPattern, 'group': self.sGroup, 'store': self.storeName, 'ctime': { '$lt': ctime_threshold } } ).batch_size(120) as files:
-            files.sort('ctime', DESCENDING)
+            files.sort('ctime', ASCENDING)
             sumsize = 0
-            hasOldFiles = False
+            old_file_mode = False
             ctime_oldfile_threshold = (now - self.maxAge*60)
             for f in files:
                 if f['ctime'] < ctime_oldfile_threshold:
-                    hasOldFiles = True
-                else:
-                    self.logger.debug("%s needs %d more seconds to become old" % (f['pnfsid'], f['ctime']-ctime_oldfile_threshold))
+                    old_file_mode = True
+                # else:
+                #    self.logger.debug("%s needs %d more seconds to become old" % (f['pnfsid'], f['ctime']-ctime_oldfile_threshold))
                 sumsize += f['size']
 
             filecount = files.count()
 
             self.logger.info("found %d files with a combined size of %d bytes" % (filecount, sumsize))
-            if hasOldFiles:
+            if old_file_mode:
                 self.logger.debug("containing old files: ctime < %d" % ctime_oldfile_threshold)
             else:
                 self.logger.debug("containing no old files: ctime < %d" % ctime_oldfile_threshold)
 
-            if hasOldFiles:
-                self.logger.info("found old files, starting packaging independent of combined size")
+            if old_file_mode:
+                if sumsize < self.archiveSize:
+                   self.logger.info("combined size of old files not big enough for a regular archive, packing in old-file-mode")
+
+                else:
+                   old_file_mode = False
+                   self.logger.info("combined size of old files big enough for regular archive, packing in normal mode")
             elif sumsize < self.archiveSize:
-                self.logger.info("%d bytes missing to create archive of size %d, leaving packager" % (self.archiveSize-sumsize, self.archiveSize))
+                self.logger.info("no old files found and %d bytes missing to create regular archive of size %d, leaving packager" % (self.archiveSize-sumsize, self.archiveSize))
                 return
 
             files.rewind()
@@ -159,14 +164,18 @@ class GroupPackager:
                             raise UserInterruptException(None)
 
                     if container == None:
-                        if sumsize >= self.archiveSize or hasOldFiles:
+                        if sumsize >= self.archiveSize or old_file_mode:
                             container = Container(os.path.join(self.archivePath))
                             self.logger.info("Creating new container %s. %d files [%d bytes] remaining." % (os.path.join(self.archivePath, container.arcfile.filename), filecount, sumsize))
                         else:
                             self.logger.info("remaining combined size %d < %d, leaving packager" % (sumsize, self.archiveSize))
                             return
 
-                    self.logger.debug("%d bytes remaining for this archive" % (self.archiveSize-container.size))
+                    if old_file_mode:
+                        self.logger.debug("%d bytes remaining for this archive" % sumsize)
+                    else:
+                        self.logger.debug("%d bytes remaining for this archive" % (self.archiveSize-container.size))
+
                     try:
                         localfile = f['path'].replace(dataRoot, mountPoint)
                         self.logger.debug("before container.add")
@@ -203,7 +212,7 @@ class GroupPackager:
                         container = None
 
                 if container:
-                    assert hasOldFiles
+                    assert old_file_mode
 
                     self.logger.debug("Closing archive %s containing remaining old files")
                     container.close()
