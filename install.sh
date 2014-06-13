@@ -15,15 +15,15 @@ then
   exit 1
 fi
 
-if [ ${1} -eq "pack" ];
+if [ ${1} = "pack" ];
 then
   echo "Copying packing scripts to ${LOCAL_BIN}"
-  cp "${SRC_BIN}/pack-files.sh" "${LOCAL_BIN}"
+  cp "${SRC_BIN}/pack-files.py" "${LOCAL_BIN}"
   cp "${SRC_BIN}/fillmetadata.py" "${LOCAL_BIN}"
   cp "${SRC_BIN}/writebfids.py" "${LOCAL_BIN}"
 fi
 
-if [ ${1} -eq "pool" ];
+if [ ${1} = "pool" ];
 then
   echo "Copying hsm scripts to ${DCACHE_LIB}"
   cp "${SRC_LIB}/hsm-internal.sh" "${DCACHE_LIB}"
