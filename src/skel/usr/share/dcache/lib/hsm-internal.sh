@@ -14,7 +14,7 @@
 #
 #   prerequisits
 #
-LOG=/tmp/hsmio.log
+LOG=/var/log/dcache/hsm-internal.log
 DEVTTY=$LOG
 AWK=gawk
 LIBPDCAP="/usr/lib64/libpdcap.so.1"
