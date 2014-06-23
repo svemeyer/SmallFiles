@@ -17,9 +17,6 @@
 LOG=/var/log/dcache/hsm-internal.log
 DEVTTY=$LOG
 AWK=gawk
-LIBPDCAP="/usr/lib64/libpdcap.so.1"
-DCAP_DOOR="ceph-mon1:22125"
-
 #
 #
 #########################################################
@@ -154,6 +151,10 @@ filename="${3}"
 #
 # check for some basic variables
 #
+# 
+[ -z "${dcapLib}" ] && problem 3 "Variable 'dcapLib' not defined"
+#
+[ -z "${dcapDoor}" ] && problem 3 "Variable 'dcapDoor' not defined"
 # report "Checking mongoUrl"
 [ -z "${mongoUrl}" ] && problem 3 "Variable 'mongoUrl' not defined"
 #
@@ -220,9 +221,9 @@ if [ $command = "get" ] ; then
    report "Extracting file into $extractDir"
    #
    cd "${extractDir}"
-   report "Preloading ${LIBPDCAP}"
-   export LD_PRELOAD="${LIBPDCAP}"
-   unzip "pnfs://${DCAP_DOOR}/${archiveId}" "${originalId}" 2>>$LOG
+   report "Preloading ${dcapLib}"
+   export LD_PRELOAD="${dcapLib}"
+   unzip "pnfs://${dcapDoor}/${archiveId}" "${originalId}" 2>>$LOG
    rc=$?
    cd -
    if [ $rc -ne 0 ] ; then problem 243 "Unzip couldn't replay the file($rc). Check the log for details!" ; fi
