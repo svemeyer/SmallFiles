@@ -227,6 +227,10 @@ class GroupPackager:
                         self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
                         os.remove(container.arcfile.filename)
 
+            except IOError as e:
+                self.logger.error("I/O Error. Trying to clean up files in state: 'added'. This might need additional manual fixing! See below for details.")
+                self.logger.error(e.message)
+                self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
             except errors.OperationFailure as e:
                 self.logger.error('%s' % e.message)
                 self.logger.info("Exception in database communication. This probably left some files in state: 'added'. This needs to be fixed manually!")
