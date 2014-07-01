@@ -154,6 +154,7 @@ class GroupPackager:
 
             files.rewind()
             container = None
+            containerChimeraPath = "unset"
             try:
                 for f in files:
                     self.logger.debug("Next file %s [%s], remaining %d [%d bytes]" % (f['path'], f['pnfsid'], filecount, sumsize) )
