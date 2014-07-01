@@ -198,8 +198,8 @@ class GroupPackager:
 
                     if container.size >= self.archiveSize:
                         self.logger.debug("Closing full archive %s" % container.arcfile.filename)
-                        container.close()
                         containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot)
+                        container.close()
 
                         if self.verifyContainer(container):
                             self.logger.info("Container %s successfully stored" % container.arcfile.filename)
@@ -215,9 +215,9 @@ class GroupPackager:
                 if container:
                     assert old_file_mode
 
-                    self.logger.debug("Closing archive %s containing remaining old files")
-                    container.close()
+                    self.logger.debug("Closing archive %s containing remaining old files", container.arcfile.filename)
                     containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot)
+                    container.close()
 
                     if self.verifyContainer(container):
                         self.logger.info("Container %s with old files successfully stored" % container.arcfile.filename)
@@ -229,8 +229,7 @@ class GroupPackager:
                         os.remove(container.arcfile.filename)
 
             except IOError as e:
-                self.logger.error("I/O Error. Trying to clean up files in state: 'added'. This might need additional manual fixing! See below for details.")
-                self.logger.error(e.message)
+                self.logger.error("%s closing file %s. Trying to clean up files in state: 'added'. This might need additional manual fixing!" % (e.strerror, containerChimeraPath))
                 self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
             except errors.OperationFailure as e:
                 self.logger.error('%s' % e.message)
