@@ -185,8 +185,6 @@ class GroupPackager:
                         f['state'] = "added: %s" % container.arcfile.filename.replace(mountPoint, dataRoot)
                         files.collection.save(f)
                         self.logger.debug("Added file %s [%s], size: %d" % (f['path'], f['pnfsid'], f['size']))
-                        sumsize -= f['size']
-                        filecount -= 1
                     except IOError as e:
                         self.logger.warn("Could not add file %s to archive %s [%s], %s" % (f['path'], f['pnfsid'], container.arcfile.filename, e.message) )
                         self.logger.debug("Removing entry for file %s" % f['pnfsid'])
@@ -196,8 +194,11 @@ class GroupPackager:
                         self.logger.debug("Removing entry for file %s" % f['pnfsid'])
                         self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
 
+                    sumsize -= f['size']
+                    filecount -= 1
+
                     if container.size >= self.archiveSize:
-                        self.logger.debug("Closing full archive %s" % container.arcfile.filename)
+                        self.logger.debug("Closing full container %s" % container.arcfile.filename)
                         containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot)
                         container.close()
 
@@ -213,9 +214,13 @@ class GroupPackager:
                         container = None
 
                 if container:
-                    assert old_file_mode
+                    if not old_file_mode:
+                        self.logger.warn("Removing unful container %s. Maybe a file was deleted during packaging." % container.arcfile.filename)
+                        container.close()
+                        os.remove(container.arcfile.filename)
+                        return
 
-                    self.logger.debug("Closing archive %s containing remaining old files", container.arcfile.filename)
+                    self.logger.debug("Closing container %s containing remaining old files", container.arcfile.filename)
                     containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot)
                     container.close()
 
