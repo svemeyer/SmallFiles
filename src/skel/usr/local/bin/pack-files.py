@@ -352,6 +352,8 @@ def main(configfile = '/etc/dcache/container.conf'):
                 db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
             logging.info("Finished cleaning up. Exiting.")
             sys.exit(1)
+        except errors.ConnectionFailure as e:
+            logging.error("Connection to DB failed: %s" % e.message)
         except parser.NoOptionError as e:
             print("Missing option: %s" % e.message)
             logging.error("Missing option: %s" % e.message)
