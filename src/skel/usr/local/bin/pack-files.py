@@ -287,60 +287,63 @@ def main(configfile = '/etc/dcache/container.conf'):
             logging.debug('logLevel = %s' % logLevel)
             logging.debug('loopDelay = %s' % loopDelay)
 
-            client = MongoClient(mongoUri)
-            db = client[mongoDb]
-            logging.info("Established db connection")
+            try:
+                client = MongoClient(mongoUri)
+                db = client[mongoDb]
+                logging.info("Established db connection")
 
-            logging.info("Creating group packagers")
-            groups = configuration.sections()
-            groupPackagers = []
-            for group in groups:
-                logging.debug("Group: %s" % group)
-                filePattern = configuration.get(group, 'fileExpression')
-                logging.debug("filePattern: %s" % filePattern)
-                sGroup = configuration.get(group, 'sGroup')
-                logging.debug("sGroup: %s" % sGroup)
-                storeName = configuration.get(group, 'storeName')
-                logging.debug("storeName: %s" % storeName)
-                archivePath = configuration.get(group, 'archivePath')
-                logging.debug("archivePath: %s" % archivePath)
-                archiveSize = configuration.get(group, 'archiveSize')
-                logging.debug("archiveSize: %s" % archiveSize)
-                minAge = configuration.get(group, 'minAge')
-                logging.debug("minAge: %s" % minAge)
-                maxAge = configuration.get(group, 'maxAge')
-                logging.debug("maxAge: %s" % maxAge)
-                verify = configuration.get(group, 'verify')
-                logging.debug("verify: %s" % verify)
-                pathre = re.compile(configuration.get(group, 'pathExpression'))
-                logging.debug("pathExpression: %s" % pathre.pattern)
-                paths = db.files.find( { 'parent': pathre } ).distinct( 'parent')
-                pathset = set()
-                for path in paths:
-                    pathmatch = re.match("(?P<sfpath>%s)" % pathre.pattern, path).group('sfpath')
-                    pathset.add(pathmatch)
+                logging.info("Creating group packagers")
+                groups = configuration.sections()
+                groupPackagers = []
+                for group in groups:
+                    logging.debug("Group: %s" % group)
+                    filePattern = configuration.get(group, 'fileExpression')
+                    logging.debug("filePattern: %s" % filePattern)
+                    sGroup = configuration.get(group, 'sGroup')
+                    logging.debug("sGroup: %s" % sGroup)
+                    storeName = configuration.get(group, 'storeName')
+                    logging.debug("storeName: %s" % storeName)
+                    archivePath = configuration.get(group, 'archivePath')
+                    logging.debug("archivePath: %s" % archivePath)
+                    archiveSize = configuration.get(group, 'archiveSize')
+                    logging.debug("archiveSize: %s" % archiveSize)
+                    minAge = configuration.get(group, 'minAge')
+                    logging.debug("minAge: %s" % minAge)
+                    maxAge = configuration.get(group, 'maxAge')
+                    logging.debug("maxAge: %s" % maxAge)
+                    verify = configuration.get(group, 'verify')
+                    logging.debug("verify: %s" % verify)
+                    pathre = re.compile(configuration.get(group, 'pathExpression'))
+                    logging.debug("pathExpression: %s" % pathre.pattern)
+                    paths = db.files.find( { 'parent': pathre } ).distinct( 'parent')
+                    pathset = set()
+                    for path in paths:
+                        pathmatch = re.match("(?P<sfpath>%s)" % pathre.pattern, path).group('sfpath')
+                        pathset.add(pathmatch)
 
-                logging.debug("Creating a packager for each path in: %s" % pathset)
-                for path in pathset:
-                    packager = GroupPackager(
-                        path,
-                        filePattern,
-                        sGroup,
-                        storeName,
-                        archivePath,
-                        archiveSize,
-                        minAge,
-                        maxAge,
-                        verify)
-                    groupPackagers.append(packager)
-                    logging.info("Added packager %s for paths matching %s" % (group, (packager.path)))
+                    logging.debug("Creating a packager for each path in: %s" % pathset)
+                    for path in pathset:
+                        packager = GroupPackager(
+                            path,
+                            filePattern,
+                            sGroup,
+                            storeName,
+                            archivePath,
+                            archiveSize,
+                            minAge,
+                            maxAge,
+                            verify)
+                        groupPackagers.append(packager)
+                        logging.info("Added packager %s for paths matching %s" % (group, (packager.path)))
 
-            logging.info("Running packagers")
-            for packager in groupPackagers:
-                packager.run()
+                logging.info("Running packagers")
+                for packager in groupPackagers:
+                    packager.run()
 
-            logging.info("all packagers finished. Sleeping for %d seconds" % loopDelay)
+            except errors.ConnectionFailure as e:
+                logging.error("Connection to DB failed: %s" % e.message)
 
+            logging.info("Sleeping for %d seconds" % loopDelay)
             time.sleep(loopDelay)
 
         except UserInterruptException as e:
@@ -352,8 +355,6 @@ def main(configfile = '/etc/dcache/container.conf'):
                 db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
             logging.info("Finished cleaning up. Exiting.")
             sys.exit(1)
-        except errors.ConnectionFailure as e:
-            logging.error("Connection to DB failed: %s" % e.message)
         except parser.NoOptionError as e:
             print("Missing option: %s" % e.message)
             logging.error("Missing option: %s" % e.message)
