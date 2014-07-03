@@ -10,7 +10,7 @@ import re
 import ConfigParser as parser
 from tempfile import NamedTemporaryFile
 from zipfile import ZipFile
-from pymongo import MongoClient, Connection, errors, ASCENDING, DESCENDING
+from pymongo import MongoClient, errors, ASCENDING, DESCENDING
 from pwd import getpwnam
 import logging
 
@@ -121,7 +121,7 @@ class GroupPackager:
         now = int(datetime.now().strftime("%s"))
         ctime_threshold = (now - self.minAge*60)
         self.logger.debug("Looking for files matching { path: %s, group: %s, store: %s, ctime: { $lt: %d } }" % (self.pathPattern.pattern, self.sGroup.pattern, self.storeName.pattern, ctime_threshold) )
-        with self.db.files.find( { 'state': 'new', 'path': self.pathPattern, 'group': self.sGroup, 'store': self.storeName, 'ctime': { '$lt': ctime_threshold } } ).batch_size(120) as files:
+        with self.db.files.find( { 'state': 'new', 'path': self.pathPattern, 'group': self.sGroup, 'store': self.storeName, 'ctime': { '$lt': ctime_threshold } } ).batch_size(1024) as files:
             files.sort('ctime', ASCENDING)
             sumsize = 0
             old_file_mode = False
@@ -212,6 +212,7 @@ class GroupPackager:
                             os.remove(container.arcfile.filename)
 
                         container = None
+
 
                 if container:
                     if not old_file_mode:
