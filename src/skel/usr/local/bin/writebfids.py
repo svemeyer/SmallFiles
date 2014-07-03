@@ -6,7 +6,7 @@ import time
 import errno
 import signal
 from zipfile import ZipFile, BadZipfile
-from pymongo import MongoClient, Connection
+from pymongo import MongoClient, errors
 import ConfigParser as parser
 import logging
 
@@ -22,8 +22,8 @@ def main(configfile = '/etc/dcache/container.conf'):
     logging.basicConfig(filename = '/var/log/dcache/writebfids.log',
                         format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
 
-    try:
-        while running:
+    while running:
+        try:
             configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5, 'logLevel': 'ERROR' })
             configuration.read(configfile)
 
@@ -94,13 +94,16 @@ def main(configfile = '/etc/dcache/container.conf'):
             logging.info("Processed all archive entries. Sleeping 60 seconds.")
             time.sleep(60)
 
-    except parser.NoOptionError as e:
-        print("Missing option: %s" % e.message)
-        logging.error("Missing option: %s" % e.message)
-    except parser.Error as e:
-        print("Error reading configfile %s: %s" % (configfile, e.message))
-        logging.error("Error reading configfile %s: %s" % (configfile, e.message))
-        sys.exit(2)
+        except errors.ConnectionFailure as e:
+            print("Connection to DB failed: %s" % e.message)
+            logging.error("Connection to DB failed: %s" %s e.message)
+        except parser.NoOptionError as e:
+            print("Missing option: %s" % e.message)
+            logging.error("Missing option: %s" % e.message)
+        except parser.Error as e:
+            print("Error reading configfile %s: %s" % (configfile, e.message))
+            logging.error("Error reading configfile %s: %s" % (configfile, e.message))
+            sys.exit(2)
 
 
 if __name__ == '__main__':
