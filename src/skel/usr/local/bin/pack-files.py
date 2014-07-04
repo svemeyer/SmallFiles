@@ -241,8 +241,13 @@ class GroupPackager:
                 self.logger.error("%s closing file %s. Trying to clean up files in state: 'added'. This might need additional manual fixing!" % (e.strerror, containerChimeraPath))
                 self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' }, '$unset': { 'lock': "" } }, multi = True )
             except errors.OperationFailure as e:
+                self.logger.error("Operation Exception in database communication while creating container %s. Please check!" % containerChimeraPath )
                 self.logger.error('%s' % e.message)
-                self.logger.info("Exception in database communication. This probably left some files in state: 'added'. This needs to be fixed manually!")
+            except errors.ConnectionFailure as e:
+                self.logger.error("Connection Exception in database communication while creating container %s. Please check!" % containerChimeraPath)
+                self.logger.error('%s' % e.message)
+
+
 
 
 def dotfile(filepath, tag):
