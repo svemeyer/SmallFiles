@@ -196,6 +196,16 @@ class GroupPackager:
                         self.logger.warn("Could not add file %s to archive %s [%s], %s" % (f['path'], f['pnfsid'], container.arcfile.filename, e.message) )
                         self.logger.debug("Removing entry for file %s" % f['pnfsid'])
                         self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
+                    except errors.OperationFailure as e:
+                        self.logger.error("Removing container %s due to OperationalFailure. See below for details." % container.arcfile.filename)
+                        container.close()
+                        os.remove(container.arcfile.filename)
+                        raise e
+                    except errors.ConnectionFailure as e:
+                        self.logger.error("Removing container %s due to ConnectionFailure. See below for details." % container.arcfile.filename)
+                        container.close()
+                        os.remove(container.arcfile.filename)
+                        raise e
 
                     sumsize -= f['size']
                     filecount -= 1
