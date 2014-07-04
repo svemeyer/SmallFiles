@@ -268,7 +268,7 @@ def main(configfile = '/etc/dcache/container.conf'):
             global dataRoot
             global mongoUri
             global mongoDb
-            scriptId: configuration.get('DEFAULT', 'scriptId')
+            scriptId = configuration.get('DEFAULT', 'scriptId')
             archiveUser = configuration.get('DEFAULT', 'archiveUser')
             archiveMode = configuration.get('DEFAULT', 'archiveMode')
             mountPoint = configuration.get('DEFAULT', 'mountPoint')
@@ -299,7 +299,7 @@ def main(configfile = '/etc/dcache/container.conf'):
                 logging.info("Established db connection")
                 
                 logging.info("Sanitizing database")
-                self.db.files.update( { 'lock': scriptId }, { '$set': { 'state': 'new' }, '$unset': { 'lock': "" } }, multi = True )
+                db.files.update( { 'lock': scriptId }, { '$set': { 'state': 'new' }, '$unset': { 'lock': "" } }, multi = True )
 
                 logging.info("Creating group packagers")
                 groups = configuration.sections()
