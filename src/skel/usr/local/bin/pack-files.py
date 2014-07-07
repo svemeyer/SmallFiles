@@ -22,8 +22,9 @@ def sigint_handler(signum, frame):
     print("Caught signal %d." % signum)
     running = False
 
+scriptId = 'pack'
 archiveUser = 'root'
-archiveMode = '0777'
+archiveMode = '0644'
 mongoUri = "mongodb://localhost/"
 mongoDb  = "smallfiles"
 mountPoint = ""
@@ -117,6 +118,7 @@ class GroupPackager:
             self.logger.critical("Could not find archive file %s, referred to by file entries in database! This needs immediate attention or you will lose data!" % containerChimeraPath)
 
     def run(self):
+        global scriptId
         global running
         now = int(datetime.now().strftime("%s"))
         ctime_threshold = (now - self.minAge*60)
@@ -183,6 +185,7 @@ class GroupPackager:
                         container.add(f['pnfsid'], f['path'], localfile, f['size'])
                         self.logger.debug("before collection.save")
                         f['state'] = "added: %s" % container.arcfile.filename.replace(mountPoint, dataRoot)
+                        f['lock'] = scriptId
                         files.collection.save(f)
                         self.logger.debug("Added file %s [%s], size: %d" % (f['path'], f['pnfsid'], f['size']))
                     except IOError as e:
@@ -193,6 +196,16 @@ class GroupPackager:
                         self.logger.warn("Could not add file %s to archive %s [%s], %s" % (f['path'], f['pnfsid'], container.arcfile.filename, e.message) )
                         self.logger.debug("Removing entry for file %s" % f['pnfsid'])
                         self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
+                    except errors.OperationFailure as e:
+                        self.logger.error("Removing container %s due to OperationalFailure. See below for details." % container.arcfile.filename)
+                        container.close()
+                        os.remove(container.arcfile.filename)
+                        raise e
+                    except errors.ConnectionFailure as e:
+                        self.logger.error("Removing container %s due to ConnectionFailure. See below for details." % container.arcfile.filename)
+                        container.close()
+                        os.remove(container.arcfile.filename)
+                        raise e
 
                     sumsize -= f['size']
                     filecount -= 1
@@ -204,11 +217,11 @@ class GroupPackager:
 
                         if self.verifyContainer(container):
                             self.logger.info("Container %s successfully stored" % container.arcfile.filename)
-                            self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'archived: %s' % containerChimeraPath } }, multi = True )
+                            self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'archived: %s' % containerChimeraPath }, '$unset': { 'lock': "" } }, multi = True )
                             self.createArchiveEntry(container)
                         else:
                             self.logger.warn("Removing container %s due to verification error" % container.arcfile.filename)
-                            self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
+                            self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' }, '$unset': { 'lock': "" } }, multi = True )
                             os.remove(container.arcfile.filename)
 
                         container = None
@@ -227,19 +240,24 @@ class GroupPackager:
 
                     if self.verifyContainer(container):
                         self.logger.info("Container %s with old files successfully stored" % container.arcfile.filename)
-                        self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'archived: %s' % containerChimeraPath } }, multi = True )
+                        self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'archived: %s' % containerChimeraPath }, '$unset': { 'lock': "" } }, multi = True )
                         self.createArchiveEntry(container)
                     else:
                         self.logger.warn("Removing container %s with old files due to verification error" % container.arcfile.filename)
-                        self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
+                        self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' }, '$unset': { 'lock': "" } }, multi = True )
                         os.remove(container.arcfile.filename)
 
             except IOError as e:
                 self.logger.error("%s closing file %s. Trying to clean up files in state: 'added'. This might need additional manual fixing!" % (e.strerror, containerChimeraPath))
-                self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
+                self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' }, '$unset': { 'lock': "" } }, multi = True )
             except errors.OperationFailure as e:
+                self.logger.error("Operation Exception in database communication while creating container %s. Please check!" % containerChimeraPath )
                 self.logger.error('%s' % e.message)
-                self.logger.info("Exception in database communication. This probably left some files in state: 'added'. This needs to be fixed manually!")
+            except errors.ConnectionFailure as e:
+                self.logger.error("Connection Exception in database communication while creating container %s. Please check!" % containerChimeraPath)
+                self.logger.error('%s' % e.message)
+
+
 
 
 def dotfile(filepath, tag):
@@ -255,15 +273,17 @@ def main(configfile = '/etc/dcache/container.conf'):
 
     while running:
         try:
-            configuration = parser.RawConfigParser(defaults = { 'archiveUser': 'root', 'archiveMode': '0777', 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5, 'logLevel': 'ERROR' })
+            configuration = parser.RawConfigParser(defaults = { 'scriptId': 'pack', 'archiveUser': 'root', 'archiveMode': '0644', 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5, 'logLevel': 'ERROR' })
             configuration.read(configfile)
 
+            global scriptId
             global archiveUser
             global archiveMode
             global mountPoint
             global dataRoot
             global mongoUri
             global mongoDb
+            scriptId = configuration.get('DEFAULT', 'scriptId')
             archiveUser = configuration.get('DEFAULT', 'archiveUser')
             archiveMode = configuration.get('DEFAULT', 'archiveMode')
             mountPoint = configuration.get('DEFAULT', 'mountPoint')
@@ -278,6 +298,7 @@ def main(configfile = '/etc/dcache/container.conf'):
             logging.getLogger().setLevel(logLevel)
 
             logging.info('Successfully read configuration from file %s.' % configfile)
+            logging.debug('scriptId = %s' % scriptId)
             logging.debug('archiveUser = %s' % archiveUser)
             logging.debug('archiveMode = %s' % archiveMode)
             logging.debug('mountPoint = %s' % mountPoint)
@@ -291,6 +312,9 @@ def main(configfile = '/etc/dcache/container.conf'):
                 client = MongoClient(mongoUri)
                 db = client[mongoDb]
                 logging.info("Established db connection")
+                
+                logging.info("Sanitizing database")
+                db.files.update( { 'lock': scriptId }, { '$set': { 'state': 'new' }, '$unset': { 'lock': "" } }, multi = True )
 
                 logging.info("Creating group packagers")
                 groups = configuration.sections()
