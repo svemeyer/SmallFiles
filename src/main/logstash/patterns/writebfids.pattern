@@ -1,0 +1,20 @@
+DEBUG_ENTER_BFID %{ENTRY_PREFIX}Entering bfid into record for file %{UNIXPATH:filePath}
+
+DEBUG_UPDATED_RECORD %{ENTRY_PREFIX}Updated record with URL %{DATA:bfidUrl} in archive %{UNIXPATH:archivePath}
+
+WARN_NO_DB_ENTRY %{ENTRY_PREFIX}File %{UNIXPATH:filePath} has no entry in DB. This could be caused by a previous forced interrupt.*
+
+DEBUG_STAT %{ENTRY_PREFIX}stat\(%{UNIXPATH:archivePath}\): %{DATA:stat}
+
+DEBUG_REMOVED_ENTRY %{ENTRY_PREFIX}Removed entry for archive %{UNIXPATH:archivePath}\[%{PNFSID:archivePnfsid}\]
+
+WARN_ARCHIVE_NOT_READY %{ENTRY_PREFIX}Archive %{UNIXPATH:archivePath} is not yet ready. Will try later.
+
+ERROR_IOERROR %{ENTRY_PREFIX}IOError: %{DATA:message}
+
+WARN_CONFAILURE %{ENTRY_PREFIX}Connection to DB failed: %{DATA:message}
+
+WARN_CURSOR_FAIL %{ENTRY_PREFIX}Could not create cursor: %{DATA:message}
+
+ERROR_ERROR %{ENTRY_PREFIX}Unexpected error: %{DATA:message}
+

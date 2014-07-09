@@ -1,0 +1,16 @@
+READ_CONFIG %{ENTRY_PREFIX}%{DATA:message}
+
+FOUND_FILES %{ENTRY_PREFIX}found %{NONNEGINT:fileCount} new files
+
+UPDATED_RECORD %{ENTRY_PREFIX}Updated record: %{SF_JSON}
+
+WARN_KEYERROR %{ENTRY_PREFIX}KeyError: %{SF_JSON}: %{DATA:message}
+
+WARN_IOERROR %{ENTRY_PREFIX}IOError: %{SF_JSON}: %{DATA:message}
+
+INFO_REMOVING_ENTRY %{ENTRY_PREFIX}Removing entry for file %{PNFSID:filePnfsid}
+
+WARN_CONFAILURE %{ENTRY_PREFIX}Connection failure: %{DATA:message}
+
+WARN_CURSOR_FAIL %{ENTRY_PREFIX}Could not create cursor: %{DATA:message}
+

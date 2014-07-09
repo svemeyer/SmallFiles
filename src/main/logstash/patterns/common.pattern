@@ -1,0 +1,5 @@
+ENTRY_PREFIX %{TIMESTAMP_ISO8601:timestamp}%{SPACE}%{DATA:logger}%{SPACE}%{DATA:debuglevel}%{SPACE}
+
+SF_JSON %{\{((?:'parent': %{QS:parent}|'state': %{QS:state}|'pnfsid': u%{QS:pnfsid}|'path': %{QS:path}|'size': %{POSINT:size:int})(?:, )?)*\}}
+
+PNFSID [A-F0-9]{36}
