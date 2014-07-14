@@ -1,61 +1,35 @@
-DEBUG_ADDED_FILE_CONTAINER %{ENTRY_PREFIX}Added file %{UNIXPATH:path} with pnfsid %{PNFSID:pnfsid}
-
-WARN_CHKSUM_NOT_IMPLEMENTED %{ENTRY_PREFIX}Checksum verification not implemented. yet
-
-WARN_UNKNOWN_VERIFICATION %{ENTRY_PREFIX}Unknown verification method %{DATA:method}. Assuming failure!
-
-CRITICAL_ARCHIVE_NOT_FOUND %{ENTRY_PREFIX}Could not find archive file %{UNIXPATH:archivePath}, referred to by entries in database.*
-
-DEBUG_LOOKING_FOR_FILES %{ENTRY_PREFIX}Looking for files matching { path: %{UNIXPATH:packagerPath}, group: %{DATA:group}, store: %{DATA:store}, ctime: { $lt: %{POSINT:ctime:int} }
-
-INFO_FOUND_FILES %{ENTRY_PREFIX}found %{NONNEGINT:restFiles:int} with a combined size of %{POSINT:restBytes:int} bytes
-
-DEBUG_OLD_FILES %{ENTRY_PREFIX}containing old files: ctime < %{POSINT:ctime:int}
-
-DEBUG_NO_OLD_FILES %{ENTRY_PREFIX}containing no old files: ctime < %{POSINT:ctime:int}
-
-INFO_NOT_ENOUGH_BYTES %{ENTRY_PREFIX} combined size of old files not big enough for regular archive, packing in old-file-mode
-
+INFO_READ_CONFIG %{ENTRY_PREFIX}Successfully read configuration from file %{UNIXPATH}.
 INFO_ENOUGH_BYTES %{ENTRY_PREFIX} combined size of old files big enough for regular archive, packing in normal mode
-
-INFO_NO_OLD_FILES %{ENTRY_PREFIX} no old files found and %{POSINT} missing to create regular archive of size %{POSINT}, leaving packager
-
-DEBUG_NEXT_FILE_PACKAGER %{ENTRY_PREFIX}Next file %{UNITPATH:filePath} \[%{PNFSID:filePnfsid}\], remaining %{POSINT:restFiles:int} \[%{POSINT:restBytes:int} bytes\]
-
+INFO_FOUND_FILES %{ENTRY_PREFIX}found %{NONNEGINT:restFiles:int} files with a combined size of %{POSINT:restBytes:int} bytes
+INFO_RUNNING_PACKAGERS %{ENTRY_PREFIX}Running packagers
 INFO_NEW_CONTAINER %{ENTRY_PREFIX}Creating new container %{UNIXPATH:archivePath}. %{POSINT:restFiles:int} files \[%{POSINT:restBytes:int} bytes\] remaining.
-
+INFO_NOT_ENOUGH_BYTES %{ENTRY_PREFIX} combined size of old files not big enough for regular archive, packing in old-file-mode
 INFO_NOT_ENOUGH_BYTES %{ENTRY_PREFIX}remaining combined size %{POSINT:restBytes:int} < %{POSINT}, leaving packager
-
-DEBUG_REMAINING_BYTES %{ENTRY_PREFIX}%{POSINT:restbytescontainer:int} bytes remaining for this archive
-
-ADDED_FILE_PACKAGER %{ENTRY_PREFIX}Added file %{UNIXPATH:filePath} \[%{PNFSID:filePnfsid}\], size: %{POSINT:fileSize:int}
-
-WARN_ADD_FILE_ERROR %{ENTRY_PREFIX}Could not add file %{UNIXPATH:filePath} to archive %{UNIXPATH:archivePath} \[%{PNFSID:archivePnfsid}\], %{DATA:message}
-
-DEBUG_REMOVING_FILE_ENTRY %{ENTRY_PREFIX}Removing entry for file %{UNIXPATH:filePnfsid}
-
-ERROR_REMOVING_CONTAINER %{ENTRY_PREFIX}Removing container %{UNIXPATH:archivePath} due to (?:OperationalFailure|ConnectionFailure). See below for details.
-
-DEBUG_CLOSING_FULL %{ENTRY_PREFIX}Closing full container %{UNIXPATH:archivePath}
-
-INFO_STORE_SUCCESS %{ENTRY_PREFIX}Container %{UNIXPATH:archivePath} successfully stored
-
-WARN_VERIFY_FAILED %{ENTRY_PREFIX}Removing container %{UNIXPATH:archivePath} due to verification error
-
-WARN_REMOVING_UNFUL %{ENTRY_PREFIX}Removing unful container %{UNIXPATH:archivePath}. Maybe a file was deleted during packaging.
-
-DEBUG_CLOSE_OLD %{ENTRY_PREFIX}Closing container %{UNIXPATH:archivePath} containing remaining old files
-
+INFO_NO_OLD_FILES %{ENTRY_PREFIX} no old files found and %{POSINT} bytes missing to create regular archive of size %{POSINT}, leaving packager
 INFO_STORE_OLD_SUCCESS %{ENTRY_PREFIX}Container %{UNIXPATH:archivePath} with old files successfully stored
-
-WARN_VERIFY_OLD_FAILED %{ENTRY_PREFIX}Removing container %{UNIXPATH:archivePath} with old files due to verification error
-
-ERROR_PACKAGER_IOERROR %{ENTRY_PREFIX}%{DATA:message} closing file %{UNIXPATH:archivePath}. Trying to clean up files in state 'added'.*
-
-ERROR_PACKAGER_FAILURE %{ENTRY_PREFIX}(?:Operation|Connection) Exception in database communication while creating container %{UNIXPATH:archivePath}. Please check!
-
+INFO_STORE_SUCCESS %{ENTRY_PREFIX}Container %{UNIXPATH:archivePath} successfully stored
 INFO_CLEANING_UP %{ENTRY_PREFIX}Cleaning up unfinished container %{UNIXPATH:archivePath}.
-
+ADDED_FILE_PACKAGER %{ENTRY_PREFIX}Added file %{UNIXPATH:filePath} \[%{PNFSID:filePnfsid}\], size: %{POSINT:fileSize:int}
+WARN_ADD_FILE_ERROR %{ENTRY_PREFIX}Could not add file %{UNIXPATH:filePath} to archive %{UNIXPATH:archivePath} \[%{PNFSID:archivePnfsid}\], %{DATA:message}
+WARN_CHKSUM_NOT_IMPLEMENTED %{ENTRY_PREFIX}Checksum verification not implemented. yet
+WARN_REMOVING_UNFUL %{ENTRY_PREFIX}Removing unful container %{UNIXPATH:archivePath}. Maybe a file was deleted during packaging.
+WARN_UNKNOWN_VERIFICATION %{ENTRY_PREFIX}Unknown verification method %{DATA:method}. Assuming failure!
+WARN_VERIFY_FAILED %{ENTRY_PREFIX}Removing container %{UNIXPATH:archivePath} due to verification error
+WARN_VERIFY_OLD_FAILED %{ENTRY_PREFIX}Removing container %{UNIXPATH:archivePath} with old files due to verification error
 ERROR_MISSING_OPTION %{ENTRY_PREFIX}Missing option: %{DATA:option}
-
-
+ERROR_PACKAGER_FAILURE %{ENTRY_PREFIX}(?:Operation|Connection) Exception in database communication while creating container %{UNIXPATH:archivePath}. Please check!
+ERROR_PACKAGER_IOERROR %{ENTRY_PREFIX}%{DATA:message} closing file %{UNIXPATH:archivePath}. Trying to clean up files in state 'added'.*
+ERROR_REMOVING_CONTAINER %{ENTRY_PREFIX}Removing container %{UNIXPATH:archivePath} due to (?:OperationalFailure|ConnectionFailure). See below for details.
+CRITICAL_ARCHIVE_NOT_FOUND %{ENTRY_PREFIX}Could not find archive file %{UNIXPATH:archivePath}, referred to by entries in database.*
+DEBUG_ADDED_FILE_CONTAINER %{ENTRY_PREFIX}Added file %{UNIXPATH:path} with pnfsid %{PNFSID:pnfsid}
+DEBUG_CLOSE_OLD %{ENTRY_PREFIX}Closing container %{UNIXPATH:archivePath} containing remaining old files
+DEBUG_CLOSING_FULL %{ENTRY_PREFIX}Closing full container %{UNIXPATH:archivePath}
+DEBUG_LOOKING_FOR_FILES %{ENTRY_PREFIX}Looking for files matching { path: %{UNIXPATH:packagerPath}, group: %{DATA:group}, store: %{DATA:store}, ctime: { $lt: %{POSINT:ctime:int} }
+DEBUG_NEXT_FILE_PACKAGER %{ENTRY_PREFIX}Next file %{UNIXPATH:filePath} \[%{PNFSID:filePnfsid}\], remaining %{POSINT:restFiles:int} \[%{POSINT:restBytes:int} bytes\]
+DEBUG_NO_OLD_FILES %{ENTRY_PREFIX}containing no old files: ctime < %{POSINT:ctime:int}
+DEBUG_OLD_FILES %{ENTRY_PREFIX}containing old files: ctime < %{POSINT:ctime:int}
+DEBUG_OPTIONS %{ENTRY_PREFIX}%{DATA}: %{DATA}
+DEBUG_PROPERTIES %{ENTRY_PREFIX}%{DATA} = %{DATA}
+DEBUG_REMAINING_BYTES %{ENTRY_PREFIX}%{POSINT:restbytescontainer:int} bytes remaining for this archive
+DEBUG_REMOVING_FILE_ENTRY %{ENTRY_PREFIX}Removing entry for file %{UNIXPATH:filePnfsid}
+INFO_SLEEPING Sleeping for %{POSINT} seconds
