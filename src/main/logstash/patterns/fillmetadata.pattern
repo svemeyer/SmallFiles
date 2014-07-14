@@ -1,8 +1,9 @@
-FOUND_FILES %{ENTRY_PREFIX}found %{NONNEGINT:fileCount} new files
-INFO_REMOVING_ENTRY %{ENTRY_PREFIX}Removing entry for file %{PNFSID:filePnfsid}
-READ_CONFIG %{ENTRY_PREFIX}%{DATA:message}
-UPDATED_RECORD %{ENTRY_PREFIX}Updated record: %{SF_JSON}
-WARN_CONFAILURE %{ENTRY_PREFIX}Connection failure: %{DATA:message}
-WARN_CURSOR_FAIL %{ENTRY_PREFIX}Could not create cursor: %{DATA:message}
-WARN_IOERROR %{ENTRY_PREFIX}IOError: %{SF_JSON}: %{DATA:message}
-WARN_KEYERROR %{ENTRY_PREFIX}KeyError: %{SF_JSON}: %{DATA:message}
+FOUND_FILES found %{NONNEGINT:fileCount} new files
+INFO_REMOVING_ENTRY Removing entry for file %{PNFSID:filePnfsid}
+INFO_SLEEPING Sleeping for 60 seconds
+READ_CONFIG Successfully read configuration from file %{UNIXPATH:configFile}
+UPDATED_RECORD Updated record: %{SF_JSON}
+WARN_CONFAILURE Connection failure: %{GREEDYDATA:message}
+WARN_CURSOR_FAIL Could not create cursor: %{GREEDYDATA:message}
+WARN_IOERROR IOError: %{SF_JSON}: %{GREEDYDATA:message}
+WARN_KEYERROR KeyError: %{SF_JSON}: %{GREEDYDATA:message}

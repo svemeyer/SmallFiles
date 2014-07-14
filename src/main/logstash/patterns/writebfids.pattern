@@ -1,10 +1,16 @@
-DEBUG_ENTER_BFID %{ENTRY_PREFIX}Entering bfid into record for file %{PNFSID:filePnfsid}
-DEBUG_REMOVED_ENTRY %{ENTRY_PREFIX}Removed entry for archive %{UNIXPATH:archivePath}\[%{PNFSID:archivePnfsid}\]
-DEBUG_STAT %{ENTRY_PREFIX}stat\(%{UNIXPATH:archivePath}\): %{DATA:stat}
-DEBUG_UPDATED_RECORD %{ENTRY_PREFIX}Updated record with URL %{DATA:bfidUrl} in archive %{UNIXPATH:archivePath}
-ERROR_ERROR %{ENTRY_PREFIX}Unexpected error: %{DATA:message}
-ERROR_IOERROR %{ENTRY_PREFIX}IOError: %{DATA:message}
-WARN_ARCHIVE_NOT_READY %{ENTRY_PREFIX}Archive %{UNIXPATH:archivePath} is not yet ready. Will try later.
-WARN_CONFAILURE %{ENTRY_PREFIX}Connection to DB failed: %{DATA:message}
-WARN_CURSOR_FAIL %{ENTRY_PREFIX}Could not create cursor: %{DATA:message}
-WARN_NO_DB_ENTRY %{ENTRY_PREFIX}File %{UNIXPATH:filePath} has no entry in DB. This could be caused by a previous forced interrupt.*
+INFO_READ_CONFIG Successfully read configuration from file %{UNIXPATH}
+INFO_DB_CONNECTION Established db connection
+INFO_PROCESSED_ENTRIES Processed all archive entries. Sleeping 60 seconds
+
+DEBUG_ENTER_BFID Entering bfid into record for file %{PNFSID:filePnfsid}
+DEBUG_REMOVED_ENTRY Removed entry for archive %{UNIXPATH:archivePath}\[%{PNFSID:archivePnfsid}\]
+DEBUG_STAT stat\(%{UNIXPATH:archivePath}\): %{GREEDYDATA:stat}
+DEBUG_UPDATED_RECORD Updated record with URL %{DATA:bfidUrl} in archive %{UNIXPATH:archivePath}
+
+ERROR_ERROR Unexpected error: %{GREEDYDATA:message}
+ERROR_IOERROR IOError: %{GREEDYDATA:message}
+
+WARN_ARCHIVE_NOT_READY Archive %{UNIXPATH:archivePath} is not yet ready. Will try later
+WARN_CONFAILURE Connection to DB failed: %{GREEDYDATA:message}
+WARN_CURSOR_FAIL Could not create cursor: %{GREEDYDATA:message}
+WARN_NO_DB_ENTRY File %{UNIXPATH:filePath} has no entry in DB. This could be caused by a previous forced interrupt

@@ -169,7 +169,7 @@ class GroupPackager:
                     if container == None:
                         if sumsize >= self.archiveSize or old_file_mode:
                             container = Container(os.path.join(self.archivePath))
-                            self.logger.info("Creating new container %s. %d files [%d bytes] remaining." % (os.path.join(self.archivePath, container.arcfile.filename), filecount, sumsize))
+                            self.logger.info("Creating new container %s . %d files [%d bytes] remaining." % (os.path.join(self.archivePath, container.arcfile.filename), filecount, sumsize))
                         else:
                             self.logger.info("remaining combined size %d < %d, leaving packager" % (sumsize, self.archiveSize))
                             return
@@ -229,7 +229,7 @@ class GroupPackager:
 
                 if container:
                     if not old_file_mode:
-                        self.logger.warn("Removing unful container %s. Maybe a file was deleted during packaging." % container.arcfile.filename)
+                        self.logger.warn("Removing unful container %s . Maybe a file was deleted during packaging." % container.arcfile.filename)
                         container.close()
                         os.remove(container.arcfile.filename)
                         return
@@ -248,13 +248,13 @@ class GroupPackager:
                         os.remove(container.arcfile.filename)
 
             except IOError as e:
-                self.logger.error("%s closing file %s. Trying to clean up files in state: 'added'. This might need additional manual fixing!" % (e.strerror, containerChimeraPath))
+                self.logger.error("%s closing file %s . Trying to clean up files in state: 'added'. This might need additional manual fixing!" % (e.strerror, containerChimeraPath))
                 self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' }, '$unset': { 'lock': "" } }, multi = True )
             except errors.OperationFailure as e:
-                self.logger.error("Operation Exception in database communication while creating container %s. Please check!" % containerChimeraPath )
+                self.logger.error("Operation Exception in database communication while creating container %s . Please check!" % containerChimeraPath )
                 self.logger.error('%s' % e.message)
             except errors.ConnectionFailure as e:
-                self.logger.error("Connection Exception in database communication while creating container %s. Please check!" % containerChimeraPath)
+                self.logger.error("Connection Exception in database communication while creating container %s . Please check!" % containerChimeraPath)
                 self.logger.error('%s' % e.message)
 
 
