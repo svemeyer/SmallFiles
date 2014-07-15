@@ -2,7 +2,7 @@ INFO_READ_CONFIG Successfully read configuration from file %{UNIXPATH:configPath
 INFO_DB_CONNECTION Established db connection
 INFO_SANITIZING Sanitizing database
 INFO_ADDED_PACKAGER Added packager %{DATA:packager} for paths matching %{UNIXPATH:parentPath}
-INFO_ENOUGH_BYTES combined size of old files big enough for regular archive, packing in normal mode
+INFO_ENOUGH_BYTES combined size of old files not big enough for regular archive, packing in normal mode
 INFO_FOUND_FILES found %{NONNEGINT:restFiles:int} files with a combined size of %{NONNEGINT:restBytes:int} bytes
 INFO_GROUP_PACKAGERS Creating group packagers
 INFO_RUNNING_PACKAGERS Running packagers
@@ -24,7 +24,7 @@ WARN_VERIFY_OLD_FAILED Removing container %{UNIXPATH:archivePath} with old files
 
 ERROR_MISSING_OPTION Missing option: %{GREEDYDATA:option}
 ERROR_PACKAGER_FAILURE (?:Operation|Connection) Exception in database communication while creating container %{UNIXPATH:archivePath} . Please check
-ERROR_PACKAGER_IOERROR %{DATA:message} closing file %{UNIXPATH:archivePath}. Trying to clean up files in state 'added'.*
+ERROR_PACKAGER_IOERROR %{DATA:message} closing file %{UNIXPATH:archivePath} . Trying to clean up files in state 'added'.*
 ERROR_REMOVING_CONTAINER Removing container %{UNIXPATH:archivePath} due to (?:OperationalFailure|ConnectionFailure). See below for details
 
 CRITICAL_ARCHIVE_NOT_FOUND Could not find archive file %{UNIXPATH:archivePath}, referred to by entries in database
