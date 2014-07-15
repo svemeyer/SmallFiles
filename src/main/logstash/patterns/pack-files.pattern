@@ -2,12 +2,12 @@ INFO_READ_CONFIG Successfully read configuration from file %{UNIXPATH:configPath
 INFO_DB_CONNECTION Established db connection
 INFO_SANITIZING Sanitizing database
 INFO_ADDED_PACKAGER Added packager %{DATA:packager} for paths matching %{UNIXPATH:parentPath}
-INFO_ENOUGH_BYTES combined size of old files not big enough for regular archive, packing in normal mode
+INFO_ENOUGH_BYTES combined size of old files big enough for regular archive, packing in normal mode
 INFO_FOUND_FILES found %{NONNEGINT:restFiles:int} files with a combined size of %{NONNEGINT:restBytes:int} bytes
 INFO_GROUP_PACKAGERS Creating group packagers
 INFO_RUNNING_PACKAGERS Running packagers
 INFO_NEW_CONTAINER Creating new container %{UNIXPATH:archivePath} . %{POSINT:restFiles:int} files \[%{POSINT:restBytes:int} bytes\] remaining
-INFO_NOT_ENOUGH_BYTES combined size of old files not big enough for regular archive, packing in old-file-mode
+INFO_NOT_ENOUGH_BYTES combined size of old files not big enough for a regular archive, packing in old-file-mode
 INFO_NOT_ENOUGH_BYTES remaining combined size %{POSINT:restBytes:int} < %{POSINT}, leaving packager
 INFO_NO_OLD_FILES no old files found and %{POSINT} bytes missing to create regular archive of size %{POSINT}, leaving packager
 INFO_STORE_OLD_SUCCESS Container %{UNIXPATH:archivePath} with old files successfully stored
