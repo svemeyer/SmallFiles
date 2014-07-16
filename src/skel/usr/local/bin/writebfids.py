@@ -80,6 +80,10 @@ def main(configfile = '/etc/dcache/container.conf'):
                             db.archives.remove( { 'pnfsid': archive['pnfsid'] } )
                             logging.debug("Removed entry for archive %s[%s]" % ( archive['path'], archive['pnfsid'] ) )
 
+                            pnfsname = os.path.join(os.path.basename(localpath), archive['pnfsid'])
+                            os.rename(localpath, pnfsname)
+                            logging.debug("Renamed archive %s to %s" % (localpath, pnfsname) )
+
                         except BadZipfile as e:
                             logging.warn("Archive %s is not yet ready. Will try later." % localpath)
 
