@@ -33,7 +33,8 @@ dataRoot = ""
 class Container:
 
     def __init__(self, targetdir):
-        tmpfile = NamedTemporaryFile(suffix = '.darc', dir=targetdir, delete=False)
+        self.targetdir = targetdir
+        tmpfile = NamedTemporaryFile(suffix = '.darc', dir=self.targetdir, delete=False)
         self.arcfile = ZipFile(tmpfile.name, mode = 'w', allowZip64 = True)
         global archiveUser
         global archiveMode
@@ -47,6 +48,7 @@ class Container:
         self.arcfile.close()
         os.chown(self.arcfile.filename, self.archiveUid, os.getgid())
         os.chmod(self.arcfile.filename, self.archiveMod)
+        os.rename(self.arcfile.filename, os.path.join(self.targetdir, dotfile(self.arcfile.filelist, 'id')))
 
     def add(self, pnfsid, filepath, localpath, size):
         self.arcfile.write(localpath, arcname=pnfsid)
