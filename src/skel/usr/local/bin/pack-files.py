@@ -48,7 +48,6 @@ class Container:
         self.arcfile.close()
         os.chown(self.arcfile.filename, self.archiveUid, os.getgid())
         os.chmod(self.arcfile.filename, self.archiveMod)
-        os.rename(self.arcfile.filename, os.path.join(self.targetdir, dotfile(self.arcfile.filename, 'id')))
 
     def add(self, pnfsid, filepath, localpath, size):
         self.arcfile.write(localpath, arcname=pnfsid)
