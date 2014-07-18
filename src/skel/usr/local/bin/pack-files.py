@@ -33,8 +33,7 @@ dataRoot = ""
 class Container:
 
     def __init__(self, targetdir):
-        self.targetdir = targetdir
-        tmpfile = NamedTemporaryFile(suffix = '.darc', dir=self.targetdir, delete=False)
+        tmpfile = NamedTemporaryFile(suffix = '.darc', dir=targetdir, delete=False)
         self.arcfile = ZipFile(tmpfile.name, mode = 'w', allowZip64 = True)
         global archiveUser
         global archiveMode
