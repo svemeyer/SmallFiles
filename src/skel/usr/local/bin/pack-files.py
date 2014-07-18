@@ -189,7 +189,7 @@ class GroupPackager:
                         files.collection.save(f)
                         self.logger.debug("Added file %s [%s], size: %d" % (f['path'], f['pnfsid'], f['size']))
                     except IOError as e:
-                        self.logger.warn("Could not add file %s to archive %s [%s], %s" % (f['path'], f['pnfsid'], container.arcfile.filename, e.message) )
+                        self.logger.warn("Could not add file %s to archive %s [%s], %s" % (f['path'], container.arcfile.filename, f['pnfsid'], e.message) )
                         self.logger.debug("Removing entry for file %s" % f['pnfsid'])
                         self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
                     except OSError as e:

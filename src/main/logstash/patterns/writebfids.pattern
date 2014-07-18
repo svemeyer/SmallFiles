@@ -4,6 +4,7 @@ INFO_PROCESSED_ENTRIES Processed all archive entries. Sleeping 60 seconds
 
 DEBUG_ENTER_BFID Entering bfid into record for file %{PNFSID:filePnfsid}
 DEBUG_REMOVED_ENTRY Removed entry for archive %{UNIXPATH:archivePath}\[%{PNFSID:archivePnfsid}\]
+DEBUG_RENAMING Renamimg archive %{UNIXPATH:archivePath} do %{UNIXPATH}
 DEBUG_STAT stat\(%{UNIXPATH:archivePath}\): %{GREEDYDATA:stat}
 DEBUG_UPDATED_RECORD Updated record with URL %{DATA:bfidUrl} in archive %{UNIXPATH:archivePath}
 

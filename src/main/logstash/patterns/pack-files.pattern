@@ -2,12 +2,12 @@ INFO_READ_CONFIG Successfully read configuration from file %{UNIXPATH:configPath
 INFO_DB_CONNECTION Established db connection
 INFO_SANITIZING Sanitizing database
 INFO_ADDED_PACKAGER Added packager %{DATA:packager} for paths matching %{UNIXPATH:parentPath}
-INFO_ENOUGH_BYTES combined size of old files big enough for regular archive, packing in normal mode
+INFO_REGULAR_MODE combined size of old files big enough for regular archive, packing in normal mode
 INFO_FOUND_FILES found %{NONNEGINT:restFiles:int} files with a combined size of %{NONNEGINT:restBytes:int} bytes
 INFO_GROUP_PACKAGERS Creating group packagers
 INFO_RUNNING_PACKAGERS Running packagers
 INFO_NEW_CONTAINER Creating new container %{UNIXPATH:archivePath} . %{POSINT:restFiles:int} files \[%{POSINT:restBytes:int} bytes\] remaining
-INFO_NOT_ENOUGH_BYTES combined size of old files not big enough for a regular archive, packing in old-file-mode
+INFO_OLD_FILE_MODE combined size of old files not big enough for a regular archive, packing in old-file-mode
 INFO_NOT_ENOUGH_BYTES remaining combined size %{POSINT:restBytes:int} < %{POSINT}, leaving packager
 INFO_NO_OLD_FILES no old files found and %{POSINT} bytes missing to create regular archive of size %{POSINT}, leaving packager
 INFO_STORE_OLD_SUCCESS Container %{UNIXPATH:archivePath} with old files successfully stored
@@ -27,7 +27,7 @@ ERROR_PACKAGER_FAILURE (?:Operation|Connection) Exception in database communicat
 ERROR_PACKAGER_IOERROR %{DATA:message} closing file %{UNIXPATH:archivePath} . Trying to clean up files in state 'added'.*
 ERROR_REMOVING_CONTAINER Removing container %{UNIXPATH:archivePath} due to (?:OperationalFailure|ConnectionFailure). See below for details
 
-CRITICAL_ARCHIVE_NOT_FOUND Could not find archive file %{UNIXPATH:archivePath}, referred to by entries in database
+CRITICAL_ARCHIVE_NOT_FOUND Could not find archive file %{UNIXPATH:archivePath}
 
 DEBUG_ADDED_FILE_CONTAINER Added file %{UNIXPATH:path} with pnfsid %{PNFSID:pnfsid}
 DEBUG_CLOSE_OLD Closing container %{UNIXPATH:archivePath} containing remaining old files
@@ -37,7 +37,7 @@ DEBUG_NEXT_FILE_PACKAGER Next file %{UNIXPATH:filePath} \[%{PNFSID:filePnfsid}\]
 DEBUG_NO_OLD_FILES containing no old files: ctime < %{POSINT:ctime:int}
 DEBUG_OLD_FILES containing old files: ctime < %{POSINT:ctime:int}
 DEBUG_REMAINING_BYTES %{POSINT:restbytescontainer:int} bytes remaining for this archive
-DEBUG_REMOVING_FILE_ENTRY Removing entry for file %{UNIXPATH:filePnfsid}
+DEBUG_REMOVING_FILE_ENTRY Removing entry for file %{PNFSID:filePnfsid}
 
 INFO_SLEEPING Sleeping for %{POSINT} seconds
 
