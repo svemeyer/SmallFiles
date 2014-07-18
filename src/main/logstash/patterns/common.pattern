@@ -1,3 +1,5 @@
+LOGLEVEL (?:(?:DEBUG)|(?:INFO)|(?:WARN)|(?:ERROR)|(?:CRITICAL))
+
 ENTRY_PREFIX (?:^%{TIMESTAMP_ISO8601:timestamp}%{SPACE}%{DATA:logger}%{SPACE}%{LOGLEVEL:loglevel}%{SPACE})
 
 # SF_JSON (?:\{((?:'parent': %{QS:parent}|'state': %{QS:state}|'pnfsid': u%{QS:pnfsid}|'path': %{QS:path}|'size': %{POSINT:size:int})(?:, )?)*\})
