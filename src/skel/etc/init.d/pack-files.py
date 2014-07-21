@@ -399,6 +399,7 @@ class PackerDaemon:
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, sigint_handler)
+    signal.signal(signal.SIGTERM, sigint_handler)
     if not os.getuid() == 0:
         print("pack-files must run as root!")
         sys.exit(2)
@@ -406,3 +407,4 @@ if __name__ == '__main__':
     daemon = PackerDaemon()
     daemon_runner = runner.DaemonRunner(daemon)
     daemon_runner.do_action()
+
