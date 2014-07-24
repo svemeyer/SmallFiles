@@ -1,4 +1,4 @@
-LOGLEVEL (?:(?:DEBUG)|(?:INFO)|(?:WARN)|(?:ERROR)|(?:CRITICAL))
+LOGLEVEL (?:(?:DEBUG)|(?:INFO)|(?:WARNING)|(?:ERROR)|(?:CRITICAL))
 
 ENTRY_PREFIX (?:^%{TIMESTAMP_ISO8601:timestamp}%{SPACE}%{DATA:logger}%{SPACE}%{LOGLEVEL:loglevel}%{SPACE})
 
