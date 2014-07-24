@@ -22,6 +22,11 @@ mongoDb  = "smallfiles"
 mountPoint = ""
 dataRoot = ""
 
+def dotfile(filepath, tag):
+    with open(os.path.join(os.path.dirname(filepath), ".(%s)(%s)" % (tag, os.path.basename(filepath))), mode='r') as dotfile:
+        result = dotfile.readline().strip()
+    return result
+
 class MetaDataDaemon():
     
     def __init__(self, configfile = '/etc/dcache/container.conf'):
@@ -31,11 +36,6 @@ class MetaDataDaemon():
         self.stderr_path = '/dev/tty'
         self.pidfile_path = '/var/run/fillmetadata.pid'
         self.pidfile_timeout = 5
-
-    def dotfile(filepath, tag):
-        with open(os.path.join(os.path.dirname(filepath), ".(%s)(%s)" % (tag, os.path.basename(filepath))), mode='r') as dotfile:
-           result = dotfile.readline().strip()
-        return result
 
     def run():
         global running
