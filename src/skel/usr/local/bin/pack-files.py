@@ -158,7 +158,7 @@ class GroupPackager:
             try:
                 for f in files:
                     if filecount <= 0 or sumsize <= 0:
-                        self.logger.info("Precalculated number of files exceeds actual number, leaving packager")
+                        self.logger.info("Actual number of files exceeds precalculated number, will collect new files in next run.")
                         break
 
                     self.logger.debug("Next file %s [%s], remaining %d [%d bytes]" % (f['path'], f['pnfsid'], filecount, sumsize) )
