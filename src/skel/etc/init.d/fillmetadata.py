@@ -22,6 +22,11 @@ mongoDb  = "smallfiles"
 mountPoint = ""
 dataRoot = ""
 
+def dotfile(filepath, tag):
+    with open(os.path.join(os.path.dirname(filepath), ".(%s)(%s)" % (tag, os.path.basename(filepath))), mode='r') as dotfile:
+       result = dotfile.readline().strip()
+    return result
+
 class MetaDataDaemon():
     
     def __init__(self, configfile = '/etc/dcache/container.conf'):
@@ -31,11 +36,6 @@ class MetaDataDaemon():
         self.stderr_path = '/dev/tty'
         self.pidfile_path = '/var/run/fillmetadata.pid'
         self.pidfile_timeout = 5
-
-    def dotfile(filepath, tag):
-        with open(os.path.join(os.path.dirname(filepath), ".(%s)(%s)" % (tag, os.path.basename(filepath))), mode='r') as dotfile:
-           result = dotfile.readline().strip()
-        return result
 
     def run():
         global running
@@ -112,6 +112,7 @@ class MetaDataDaemon():
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, sigint_handler)
+    signal.signal(signal.SIGTERM, sigint_handler)
     if not os.getuid() == 0:
         print("pack-files must run as root!")
         sys.exit(2)
@@ -119,3 +120,4 @@ if __name__ == '__main__':
     daemon = MetaDataDaemon()
     daemon_runner = runner.DaemonRunner(daemon)
     daemon_runner.do_action()
+
