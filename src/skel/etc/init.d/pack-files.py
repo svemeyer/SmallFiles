@@ -132,8 +132,6 @@ class GroupPackager:
             for f in files:
                 if f['ctime'] < ctime_oldfile_threshold:
                     old_file_mode = True
-                # else:
-                #    self.logger.debug("%s needs %d more seconds to become old" % (f['pnfsid'], f['ctime']-ctime_oldfile_threshold))
                 sumsize += f['size']
 
             filecount = files.count()
@@ -160,6 +158,10 @@ class GroupPackager:
             containerChimeraPath = "unset"
             try:
                 for f in files:
+                    if filecount <= 0 or sumsize <= 0:
+                        self.logger.info("Actual number of files exceeds precalculated number, will collect new files in next run.")
+                        break
+
                     self.logger.debug("Next file %s [%s], remaining %d [%d bytes]" % (f['path'], f['pnfsid'], filecount, sumsize) )
                     if not running:
                         if container:
