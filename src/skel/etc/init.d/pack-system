@@ -1,0 +1,58 @@
+#!/bin/sh
+
+getPids() {
+  fillmetadataPid=$(ps -C python -f|grep "/usr/local/bin/fillmetadata"|grep -o -e "[0-9]*"|head -n 1)
+  packFilesPid=$(ps -C python -f|grep "/usr/local/bin/pack-files"|grep -o -e "[0-9]*"|head -n 1)
+  writeBfidsPid=$(ps -C python -f|grep "/usr/local/bin/writebfids"|grep -o -e "[0-9]*"|head -n 1)
+ echo ${fillmetadataPid}
+ echo ${packFilesPid}
+ echo ${writeBfidsPid}
+}
+
+if [ $# -ne 1 ]
+then
+    echo "Usage: /etc/init.d/pack-system {start|stop|status}"
+    echo
+    exit 1
+fi
+
+CMD=$1
+case "$CMD" in
+    start)
+        if [ -z "$(getPids)" ]
+        then
+	    /usr/local/bin/fillmetadata.py &
+	    /usr/local/bin/writebfids.py &
+	    /usr/local/bin/pack-files.py &
+	    echo "OK"
+	    exit 0
+        else
+            echo "FAILED"
+            exit 2
+        fi
+        ;;
+    stop)
+        pids="$(getPids)"
+        if [ -z "${pids}" ]
+        then
+            echo "pack-system is not running"
+            echo 2
+        else
+            kill -term ${pids}
+            wait ${pids}
+            echo "OK"
+            exit 0
+        fi
+        ;;
+    status)
+        if [ -z "$(getPids)" ]
+        then
+            echo "pack-system is not running"
+            exit 0
+        else
+            echo "pack-system is running"
+            exit 0
+        fi
+    ;;
+esac
+
