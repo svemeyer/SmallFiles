@@ -81,6 +81,8 @@ def main(configfile = '/etc/dcache/container.conf'):
                             logging.info("Removing entry for file %s" % record['pnfsid'])
                             db.files.remove( { 'pnfsid': record['pnfsid'] } )
 
+                client.close()
+
             except errors.ConnectionFailure as e:
                 logging.warn("Connection failure: %s" % e.message)
             except errors.OperationFailure as e:

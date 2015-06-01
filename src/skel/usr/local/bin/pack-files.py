@@ -366,6 +366,8 @@ def main(configfile = '/etc/dcache/container.conf'):
                 for packager in groupPackagers:
                     packager.run()
 
+                client.close()
+
             except errors.ConnectionFailure as e:
                 logging.error("Connection to DB failed: %s" % e.message)
 
