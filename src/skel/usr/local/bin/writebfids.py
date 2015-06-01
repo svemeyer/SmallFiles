@@ -93,6 +93,7 @@ def main(configfile = '/etc/dcache/container.conf'):
                             else:
                                 logging.info("User interrupt.")
 
+                client.close()
 
             except errors.ConnectionFailure as e:
                 logging.warn("Connection to DB failed: %s" % e.message)
