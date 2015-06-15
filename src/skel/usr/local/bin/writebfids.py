@@ -19,12 +19,10 @@ def sigint_handler(signum, frame):
 
 def main(configfile = '/etc/dcache/container.conf'):
     global running
-    logging.basicConfig(filename = '/var/log/dcache/writebfids.log',
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
 
     try:
         while running:
-            configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5, 'logLevel': 'ERROR' })
+            configuration = parser.RawConfigParser(defaults = { 'scriptId': 'pack',  'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5, 'logLevel': 'ERROR' })
             configuration.read(configfile)
 
             global archiveUser
@@ -33,6 +31,10 @@ def main(configfile = '/etc/dcache/container.conf'):
             global dataRoot
             global mongoUri
             global mongoDb
+
+            scriptId = configuration.get('DEFAULT', 'scriptId')
+            logging.basicConfig(filename = '/var/log/dcache/writebfids[%s].log' % scriptId,
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
             archiveUser = configuration.get('DEFAULT', 'archiveUser')
             archiveMode = configuration.get('DEFAULT', 'archiveMode')
             mountPoint = configuration.get('DEFAULT', 'mountPoint')

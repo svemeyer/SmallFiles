@@ -270,8 +270,6 @@ def dotfile(filepath, tag):
 
 def main(configfile = '/etc/dcache/container.conf'):
     global running
-    logging.basicConfig(filename = '/var/log/dcache/pack-files.log',
-                        format='%(asctime)s %(name)-80s %(levelname)-8s %(message)s')
 
     while running:
         try:
@@ -286,6 +284,10 @@ def main(configfile = '/etc/dcache/container.conf'):
             global mongoUri
             global mongoDb
             scriptId = configuration.get('DEFAULT', 'scriptId')
+            
+            logging.basicConfig(filename = '/var/log/dcache/pack-files[%s].log' % scriptId,
+                        format='%(asctime)s %(name)-80s %(levelname)-8s %(message)s')
+
             archiveUser = configuration.get('DEFAULT', 'archiveUser')
             archiveMode = configuration.get('DEFAULT', 'archiveMode')
             mountPoint = configuration.get('DEFAULT', 'mountPoint')
@@ -293,7 +295,7 @@ def main(configfile = '/etc/dcache/container.conf'):
             mongoUri = configuration.get('DEFAULT', 'mongoUri')
             mongoDb  = configuration.get('DEFAULT', 'mongodb')
             logLevelStr = configuration.get('DEFAULT', 'logLevel')
-            logLevel = getattr(logging, logLevelStr.upper(), None)
+            logLevel = getattr(logging, logLevelStr.upper(), None) 
 
             loopDelay = configuration.getint('DEFAULT', 'loopDelay')
 

@@ -28,18 +28,20 @@ def dotfile(filepath, tag):
 
 def main(configfile = '/etc/dcache/container.conf'):
     global running
-    logging.basicConfig(filename='/var/log/dcache/fillmetadata.log',
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
 
     try:
         while running:
-            configuration = parser.RawConfigParser(defaults = { 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5, 'logLevel': 'ERROR' })
+            configuration = parser.RawConfigParser(defaults = { 'scriptId': 'pack', 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5, 'logLevel': 'ERROR' })
             configuration.read(configfile)
 
             global mountPoint
             global dataRoot
             global mongoUri
             global mongoDb
+
+            scriptId = configuration.get('DEFAULT', 'scriptId')
+            logging.basicConfig(filename='/var/log/dcache/fillmetadata[%s].log' % scriptId,
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
             mountPoint = configuration.get('DEFAULT', 'mountPoint')
             dataRoot = configuration.get('DEFAULT', 'dataRoot')
             mongoUri = configuration.get('DEFAULT', 'mongoUri')
