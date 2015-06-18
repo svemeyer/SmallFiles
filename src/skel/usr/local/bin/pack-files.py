@@ -123,7 +123,7 @@ class GroupPackager:
         now = int(datetime.now().strftime("%s"))
         ctime_threshold = (now - self.minAge*60)
         self.logger.debug("Looking for files matching { path: %s, group: %s, store: %s, ctime: { $lt: %d } }" % (self.pathPattern.pattern, self.sGroup.pattern, self.storeName.pattern, ctime_threshold) )
-        with self.db.files.find( { 'state': 'new', 'path': self.pathPattern, 'group': self.sGroup, 'store': self.storeName, 'ctime': { '$lt': ctime_threshold } } ).batch_size(1024) as files:
+        with self.db.files.find( { 'state': 'new', 'path': self.pathPattern, 'group': self.sGroup, 'store': self.storeName, 'ctime': { '$lt': ctime_threshold } } ).batch_size(512) as files:
             files.sort('ctime', ASCENDING)
             sumsize = 0
             old_file_mode = False
@@ -256,8 +256,9 @@ class GroupPackager:
                 self.logger.error("Operation Exception in database communication while creating container %s . Please check!" % containerChimeraPath )
                 self.logger.error('%s' % e.message)
             except errors.ConnectionFailure as e:
-                self.logger.error("Connection Exception in database communication while creating container %s . Please check!" % containerChimeraPath)
+                self.logger.error("Connection Exception in database communication. Removing incomplete container %s ." % containerChimeraPath)
                 self.logger.error('%s' % e.message)
+                os.remove(container.arcfile.filename)
 
 
 
