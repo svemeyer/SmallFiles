@@ -216,6 +216,12 @@ if [ $command = "get" ] ; then
    originalId=`expr "${getBfid}" : "\(.*\):.*" 2>/dev/null`
    report "Data File Pnfs ID : ${originalId}"
    #
+   # handle 0-byte files
+   #
+   if [ ${originalId} = "*" ] ; then 
+     exit 0
+   fi
+   #
    extractDir=`dirname "${filename}"`
    #
    report "Extracting file into $extractDir"
@@ -243,13 +249,16 @@ elif [ $command = "put" ] ; then
    #         dcache can react accordingly.
    #
    [ -z "${filesize}" ] && problem 31 "File not found : ${filename}"
-   [ "${filesize}" = "0" ] && problem 31 "Filesize is zero (${filename})" 
-   #
-   #
-   #  now, finally copy the file to the HSM
-   #  (we assume the bfid to be returned)
-   #
-   result=`datasetPut "${store}" "${group}" "${pnfsid}"` || exit $?
+   if [ "${filesize}" = "0" ];
+   then 
+     result="dcache://dcache/store=${store}&group=${group}&bfid=*:${pnfsid}" 
+   else
+     #
+     #  now, finally copy the file to the HSM
+     #  (we assume the bfid to be returned)
+     #
+     result=`datasetPut "${store}" "${group}" "${pnfsid}"` || exit $?
+   fi
    #
    # osm://osm/?store=sql&group=chimera&bfid=3434.0.994.1188400818542
    #
