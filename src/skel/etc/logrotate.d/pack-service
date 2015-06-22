@@ -1,0 +1,9 @@
+compress
+
+/var/log/dcache/*.log {
+    rotate 5
+    missingok
+    copytruncate
+    weekly 
+}
+
