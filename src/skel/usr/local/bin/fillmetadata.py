@@ -82,6 +82,10 @@ def main(configfile = '/etc/dcache/container.conf'):
                             logging.warn("IOError: %s: %s" % (str(record), e.message))
                             logging.info("Removing entry for file %s" % record['pnfsid'])
                             db.files.remove( { 'pnfsid': record['pnfsid'] } )
+                        except OSError as e:
+                            logging.warn("OSError: %s: %s" % (str(record), e.message))
+                            logging.info("Removing entry for file %s" % record['pnfsid'])
+                            db.files.remove( { 'pnfsid': record['pnfsid'] } )
 
                 client.close()
 
