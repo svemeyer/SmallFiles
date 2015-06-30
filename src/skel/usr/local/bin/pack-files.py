@@ -50,7 +50,6 @@ class Container:
 
     def add(self, pnfsid, filepath, localpath, size):
         self.arcfile.write(localpath, arcname=pnfsid)
-        self.arcfile.comment += "%s:%15d %s\n" % (pnfsid, size, filepath)
         self.size += size
         self.filecount += 1
         self.logger.debug("Added file %s with pnfsid %s" % (filepath, pnfsid))
