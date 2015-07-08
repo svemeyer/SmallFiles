@@ -65,7 +65,7 @@ def main(configfile = '/etc/dcache/container.conf'):
                             sys.exit(1)
                         try:
                             pathof = dotfile(os.path.join(mountPoint, record['pnfsid']), 'pathof')
-                            localpath = pathof.replace(dataRoot, mountPoint)
+                            localpath = pathof.replace(dataRoot, mountPoint,1)
                             stats = os.stat(localpath)
 
                             record['path'] = pathof

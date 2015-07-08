@@ -61,7 +61,7 @@ def main(configfile = '/etc/dcache/container.conf'):
                             logging.info("Exiting.")
                             sys.exit(1)
                         try:
-                            localpath = archive['path'].replace(dataRoot, mountPoint)
+                            localpath = archive['path'].replace(dataRoot, mountPoint,1)
                             archivePnfsid = archive['pnfsid']
                             zf = ZipFile(localpath, mode='r', allowZip64 = True)
                             for f in zf.filelist:

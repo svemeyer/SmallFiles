@@ -110,7 +110,7 @@ class GroupPackager:
     def createArchiveEntry(self, container):
         try:
             containerLocalPath = container.arcfile.filename
-            containerChimeraPath = containerLocalPath.replace(mountPoint, dataRoot)
+            containerChimeraPath = containerLocalPath.replace(mountPoint, dataRoot,1)
             containerPnfsid = dotfile(containerLocalPath, 'id')
 
             self.db.archives.insert( { 'pnfsid': containerPnfsid, 'path': containerChimeraPath } )
@@ -182,11 +182,11 @@ class GroupPackager:
                         self.logger.debug("%d bytes remaining for this archive" % (self.archiveSize-container.size))
 
                     try:
-                        localfile = f['path'].replace(dataRoot, mountPoint)
+                        localfile = f['path'].replace(dataRoot, mountPoint,1)
                         self.logger.debug("before container.add")
                         container.add(f['pnfsid'], f['path'], localfile, f['size'])
                         self.logger.debug("before collection.save")
-                        f['state'] = "added: %s" % container.arcfile.filename.replace(mountPoint, dataRoot)
+                        f['state'] = "added: %s" % container.arcfile.filename.replace(mountPoint, dataRoot,1)
                         f['lock'] = scriptId
                         files.collection.save(f)
                         self.logger.debug("Added file %s [%s], size: %d" % (f['path'], f['pnfsid'], f['size']))
@@ -214,7 +214,7 @@ class GroupPackager:
 
                     if container.size >= self.archiveSize:
                         self.logger.debug("Closing full container %s" % container.arcfile.filename)
-                        containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot)
+                        containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot,1)
                         container.close()
 
                         if self.verifyContainer(container):
@@ -237,7 +237,7 @@ class GroupPackager:
                         return
 
                     self.logger.debug("Closing container %s containing remaining old files", container.arcfile.filename)
-                    containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot)
+                    containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot,1)
                     container.close()
 
                     if self.verifyContainer(container):
@@ -382,7 +382,7 @@ def main(configfile = '/etc/dcache/container.conf'):
                 logging.info("Cleaning up unfinished container %s." % e.arcfile)
                 os.remove(e.arcfile)
                 logging.info("Cleaning up modified file entries.")
-                containerChimeraPath = e.arcfile.replace(mountPoint, dataRoot)
+                containerChimeraPath = e.arcfile.replace(mountPoint, dataRoot,1)
                 db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi = True )
             logging.info("Finished cleaning up. Exiting.")
             sys.exit(1)
