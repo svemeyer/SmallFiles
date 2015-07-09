@@ -88,7 +88,7 @@ class FhOutZipFile(ZipFile):
             cmpr = None
         file_size = 0
         while 1:
-            buf = self.fh.read(1024 * 8)
+            buf = fh.read(1024 * 8)
             if not buf:
                 break
             file_size = file_size + len(buf)
@@ -138,11 +138,6 @@ class OpenFileQueue:
             fh.seek(0)
             self.queue.put((f, fh), block=True)
 
-#    def rewind(self):
-#        self.fileopenThread.join()
-#        self.cursor.rewind()
-#        self.fileopenThread.start()
-
     def __enter__(self):
         self.fileopenThread.start()
         return self
@@ -177,7 +172,7 @@ class Container:
         os.chown(self.arcfile.filename, self.archiveUid, os.getgid())
         os.chmod(self.arcfile.filename, self.archiveMod)
 
-    def add(self, pnfsid, fh, size):
+    def add(self, fh, pnfsid, size):
         self.arcfile.writeByHandle(fh, arcname=pnfsid)
         self.size += size
         self.filecount += 1
@@ -310,13 +305,13 @@ class GroupPackager:
                             self.logger.debug("%d bytes remaining for this archive" % (self.archiveSize-container.size))
 
                         try:
-                            self.logger.debug("before container.add")
-                            container.add(f['pnfsid'], fh, f['size'])
+                            self.logger.debug("before container.add(%s[%s], %s, %s)" % (fh.name, fh.mode, f['pnfsid'], f['size']))
+                            container.add(fh, f['pnfsid'], f['size'])
                             self.logger.debug("before collection.save")
                             f['state'] = "added: %s" % container.arcfile.filename.replace(mountPoint, dataRoot)
                             f['lock'] = scriptId
                             cursor.collection.save(f)
-                            self.logger.debug("Added file %s [%s], size: %d" % (f['path'], f['pnfsid'], f['size']))
+                            self.logger.debug("Added file %s [%s]" % (f['path'], f['pnfsid']))
                         except IOError as e:
                             self.logger.exception("IOError while adding file %s to archive %s [%s], %s" % (f['path'], container.arcfile.filename, f['pnfsid'], e.message) )
                             self.logger.debug("Removing entry for file %s" % f['pnfsid'])
@@ -335,6 +330,8 @@ class GroupPackager:
                             container.close()
                             os.remove(container.arcfile.filename)
                             raise e
+                        finally:
+                            fh.close()
 
                         sumsize -= f['size']
                         filecount -= 1
