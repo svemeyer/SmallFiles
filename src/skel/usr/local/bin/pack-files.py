@@ -129,7 +129,8 @@ class OpenFileQueue:
 
     def fileopener(self):
         for f in self.cursor:
-            with open(f['path'], mode='rb', buffering=-1) as fh:
+            localpath = f['path'].replace(dataRoot, mountPoint, 1)
+            with open(localpath, mode='rb', buffering=-1) as fh:
                 fh.read()
                 fh.seek(0)
                 self.queue.put((f, fh), block=True)
@@ -143,7 +144,7 @@ class OpenFileQueue:
         self.fileopenThread.start()
         return self
 
-    def __exit__(self):
+    def __exit__(self, type, value, traceback):
         self.fileopenThread.join()
 
     def __iter__(self):
@@ -174,7 +175,7 @@ class Container:
         os.chmod(self.arcfile.filename, self.archiveMod)
 
     def add(self, pnfsid, fh, size):
-        self.arcfile.write(fh, arcname=pnfsid)
+        self.arcfile.writeByHandle(fh, arcname=pnfsid)
         self.size += size
         self.filecount += 1
         self.logger.debug("Added file %s with pnfsid %s" % (fh.name, pnfsid))
