@@ -88,7 +88,7 @@ class FhOutZipFile(ZipFile):
             cmpr = None
         file_size = 0
         while 1:
-            buf = self.fp.read(1024 * 8)
+            buf = self.fh.read(1024 * 8)
             if not buf:
                 break
             file_size = file_size + len(buf)
@@ -128,17 +128,20 @@ class OpenFileQueue:
         self.cursor = cursor
 
     def fileopener(self):
+        global running
         for f in self.cursor:
+            if not running:
+                break
             localpath = f['path'].replace(dataRoot, mountPoint, 1)
-            with open(localpath, mode='rb', buffering=-1) as fh:
-                fh.read()
-                fh.seek(0)
-                self.queue.put((f, fh), block=True)
+            fh = open(localpath, mode='rb', buffering=-1)
+            fh.read()
+            fh.seek(0)
+            self.queue.put((f, fh), block=True)
 
-    def rewind(self):
-        self.fileopenThread.join()
-        self.cursor.rewind()
-        self.fileopenThread.start()
+#    def rewind(self):
+#        self.fileopenThread.join()
+#        self.cursor.rewind()
+#        self.fileopenThread.start()
 
     def __enter__(self):
         self.fileopenThread.start()
@@ -315,11 +318,11 @@ class GroupPackager:
                             cursor.collection.save(f)
                             self.logger.debug("Added file %s [%s], size: %d" % (f['path'], f['pnfsid'], f['size']))
                         except IOError as e:
-                            self.logger.warn("Could not add file %s to archive %s [%s], %s" % (f['path'], container.arcfile.filename, f['pnfsid'], e.message) )
+                            self.logger.exception("IOError while adding file %s to archive %s [%s], %s" % (f['path'], container.arcfile.filename, f['pnfsid'], e.message) )
                             self.logger.debug("Removing entry for file %s" % f['pnfsid'])
                             self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
                         except OSError as e:
-                            self.logger.warn("Could not add file %s to archive %s [%s], %s" % (f['path'], f['pnfsid'], container.arcfile.filename, e.message) )
+                            self.logger.exception("OSError while adding file %s to archive %s [%s], %s" % (f['path'], f['pnfsid'], container.arcfile.filename, e.message) )
                             self.logger.debug("Removing entry for file %s" % f['pnfsid'])
                             self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
                         except errors.OperationFailure as e:
