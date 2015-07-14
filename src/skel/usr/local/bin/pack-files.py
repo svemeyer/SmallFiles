@@ -143,7 +143,7 @@ class OpenFileQueue:
         return self
 
     def __exit__(self, type, value, traceback):
-        self.fileopenThread.join()
+        self.fileopenThread.join(2)
 
     def __iter__(self):
         return self
