@@ -69,7 +69,7 @@ class UserInterruptException(Exception):
         self.arcfile = arcfile
 
     def __str__(self):
-        return repr(arcfile)
+        return repr(self.arcfile)
 
 class GroupPackager:
 
@@ -115,6 +115,12 @@ class GroupPackager:
             self.db.archives.insert( { 'pnfsid': containerPnfsid, 'path': containerChimeraPath } )
         except IOError as e:
             self.logger.critical("Could not find archive file %s, referred to by file entries in database! This needs immediate attention or you will lose data!" % containerChimeraPath)
+
+    def writeStatus(self, arcfile, currentSize, nextFile):
+        with open("/var/log/dcache/pack-files-%s.status", 'w') as statusFile:
+            statusFile.write("Container: %s\n" % arcfile)
+            statusFile.write("Size: %d/%d\n" % ( currentSize, self.archiveSize ))
+            statusFile.write("Next: %s\n" % nextFile)
 
     def run(self):
         global scriptId
@@ -177,8 +183,10 @@ class GroupPackager:
 
                     if old_file_mode:
                         self.logger.debug("%d bytes remaining for this archive" % sumsize)
+                        self.writeStatus(container.arcfile, sumsize, "%s [%s]" % ( f['path'], f['pnfsid'] ))
                     else:
                         self.logger.debug("%d bytes remaining for this archive" % (self.archiveSize-container.size))
+                        self.writeStatus(container.arcfile, self.archiveSize-container.size, "%s [%s]" % ( f['path'], f['pnfsid'] ))
 
                     try:
                         localfile = f['path'].replace(dataRoot, mountPoint,1)
@@ -285,7 +293,7 @@ def main(configfile = '/etc/dcache/container.conf'):
             global mongoDb
             scriptId = configuration.get('DEFAULT', 'scriptId')
             
-            logging.basicConfig(filename = '/var/log/dcache/pack-files[%s].log' % scriptId,
+            logging.basicConfig(filename = '/var/log/dcache/pack-files-%s.log' % scriptId,
                         format='%(asctime)s %(name)-80s %(levelname)-8s %(message)s')
 
             archiveUser = configuration.get('DEFAULT', 'archiveUser')
