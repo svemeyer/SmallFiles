@@ -133,10 +133,15 @@ class OpenFileQueue:
             if not running:
                 break
             localpath = f['path'].replace(dataRoot, mountPoint, 1)
-            fh = open(localpath, mode='rb', buffering=-1)
-            fh.read()
-            fh.seek(0)
-            self.queue.put((f, fh), block=True)
+            try:
+                fh = open(localpath, mode='rb', buffering=-1)
+                fh.read(65536)
+                fh.seek(0)
+                self.queue.put((f, fh), block=True)
+            except IOError:
+                self.queue.put((f, None), block=True)
+            except OSError:
+                self.queue.put((f, None), block=True)
 
     def __enter__(self):
         self.fileopenThread.start()
@@ -275,7 +280,7 @@ class GroupPackager:
                 return
 
             cursor.rewind()
-            with OpenFileQueue(cursor, queuelen=10) as files:
+            with OpenFileQueue(cursor, queuelen=100) as files:
                 container = None
                 containerChimeraPath = None
                 try:
@@ -306,6 +311,8 @@ class GroupPackager:
 
                         try:
                             self.logger.debug("before container.add(%s[%s], %s, %s)" % (fh.name, fh.mode, f['pnfsid'], f['size']))
+                            if fh is None:
+                                raise IOError("File %s is not opened for reading" % f['path'])
                             container.add(fh, f['pnfsid'], f['size'])
                             self.logger.debug("before collection.save")
                             f['state'] = "added: %s" % container.arcfile.filename.replace(mountPoint, dataRoot)
