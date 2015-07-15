@@ -210,7 +210,7 @@ class GroupPackager:
         self.archivePath=os.path.join(mountPoint, archivePath)
         if not os.path.exists(self.archivePath):
             os.makedirs(self.archivePath, mode=0777)
-        self.archiveSize = int(archiveSize.replace('G','000000000').replace('M','000000').replace('K','000'))
+        self.archiveSize = int(archiveSize.replace('G', '000000000').replace('M', '000000').replace('K', '000'))
         self.minAge = int(minAge)
         self.maxAge = int(maxAge)
         self.verify = verify
@@ -237,7 +237,7 @@ class GroupPackager:
     def createArchiveEntry(self, container):
         try:
             containerLocalPath = container.arcfile.filename
-            containerChimeraPath = containerLocalPath.replace(mountPoint, dataRoot,1)
+            containerChimeraPath = containerLocalPath.replace(mountPoint, dataRoot, 1)
             containerPnfsid = dotfile(containerLocalPath, 'id')
 
             self.db.archives.insert( { 'pnfsid': containerPnfsid, 'path': containerChimeraPath } )
@@ -323,16 +323,16 @@ class GroupPackager:
                                 raise IOError("File %s is not opened for reading" % f['path'])
                             container.add(fh, f['pnfsid'], f['size'])
                             self.logger.debug("before collection.save")
-                            f['state'] = "added: %s" % container.arcfile.filename.replace(mountPoint, dataRoot)
+                            f['state'] = "added: %s" % container.arcfile.filename.replace(mountPoint, dataRoot, 1)
                             f['lock'] = scriptId
                             cursor.collection.save(f)
                             self.logger.debug("Added file %s [%s]" % (f['path'], f['pnfsid']))
                         except IOError as e:
-                            self.logger.exception("IOError while adding file %s to archive %s [%s], %s" % (f['path'], container.arcfile.filename, f['pnfsid'], e.message) )
+                            self.logger.exception("IOError while adding file %s to archive %s [%s], %s" % (f['path'], container.arcfile.filename, f['pnfsid'], e.message))
                             self.logger.debug("Removing entry for file %s" % f['pnfsid'])
                             self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
                         except OSError as e:
-                            self.logger.exception("OSError while adding file %s to archive %s [%s], %s" % (f['path'], f['pnfsid'], container.arcfile.filename, e.message) )
+                            self.logger.exception("OSError while adding file %s to archive %s [%s], %s" % (f['path'], f['pnfsid'], container.arcfile.filename, e.message))
                             self.logger.debug("Removing entry for file %s" % f['pnfsid'])
                             self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
                         except errors.OperationFailure as e:
@@ -353,7 +353,7 @@ class GroupPackager:
 
                         if container.size >= self.archiveSize:
                             self.logger.debug("Closing full container %s" % container.arcfile.filename)
-                            containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot)
+                            containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot, 1)
                             container.close()
 
                             if self.verifyContainer(container):
@@ -375,7 +375,7 @@ class GroupPackager:
                             return
 
                         self.logger.debug("Closing container %s containing remaining old files", container.arcfile.filename)
-                        containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot)
+                        containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot, 1)
                         container.close()
 
                         if self.verifyContainer(container):
@@ -517,7 +517,7 @@ def main(configfile = '/etc/dcache/container.conf'):
                 logging.info("Cleaning up unfinished container %s." % e.arcfile)
                 os.remove(e.arcfile)
                 logging.info("Cleaning up modified file entries.")
-                containerChimeraPath = e.arcfile.replace(mountPoint, dataRoot)
+                containerChimeraPath = e.arcfile.replace(mountPoint, dataRoot, 1)
                 db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' } }, multi=True )
 
             logging.info("Finished cleaning up. Exiting.")
