@@ -219,6 +219,7 @@ class GroupPackager:
         self.archivePath = os.path.join(mountPoint, archivePath)
         if not os.path.exists(self.archivePath):
             os.makedirs(self.archivePath, mode=0777)
+            os.chmod(self.archivePath, 0777)
         self.archiveSize = int(archiveSize.replace('G', '000000000').replace('M', '000000').replace('K', '000'))
         self.minAge = int(minAge)
         self.maxAge = int(maxAge)
@@ -246,7 +247,7 @@ class GroupPackager:
     def createArchiveEntry(self, container):
         try:
             containerLocalPath = container.localfilepath
-            containerChimeraPath = containerLocalPath.pnfsfilepath
+            containerChimeraPath = container.pnfsfilepath
             containerPnfsid = dotfile(containerLocalPath, 'id')
 
             self.db.archives.insert( { 'pnfsid': containerPnfsid, 'path': containerChimeraPath } )
@@ -331,6 +332,7 @@ class GroupPackager:
 
                             try:
                                 self.logger.debug("before container.add(%s[%s], %s)" % (f['path'], f['pnfsid'], f['size']))
+
                                 if fh is None:
                                     raise IOError("File %s is not opened for reading" % f['path'])
                                 container.add(fh, f['pnfsid'], f['size'])
@@ -412,8 +414,6 @@ class GroupPackager:
 
         finally:
             dcap.close()
-
-
 
 def dotfile(filepath, tag):
     with open(os.path.join(os.path.dirname(filepath), ".(%s)(%s)" % (tag, os.path.basename(filepath))), mode='r') as dotfile:
