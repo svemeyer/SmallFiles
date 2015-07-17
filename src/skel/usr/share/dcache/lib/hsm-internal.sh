@@ -120,24 +120,14 @@ fi
 # positional arguments.
 #
 # report "Splitting arguments"
-args=""
-while [ $# -gt 0 ] ; do
-   if expr "$1" : "-.*" >/dev/null ; then
-      a=`expr "$1" : "-\(.*\)" 2>/dev/null`
-      key=`echo "$a" | $AWK -F= '{print $1}' 2>/dev/null`
-      value=`echo "$a" | $AWK -F= '{for(i=2;i<NF;i++)x=x $i "=" ; x=x $NF ; print x }' 2>/dev/null`
-      if [ -z "$value" ] ; then a="${key}=" ; fi
-      eval "${key}=\"${value}\""
-      a="export ${key}"
-      eval "$a"
-   else
-      args="${args} $1"
-   fi
-   shift 1
-done
-if [ ! -z "$args" ] ; then
-   set `echo "$args" | $AWK '{ for(i=1;i<=NF;i++)print $i }'`
-fi
+si=$(echo "$*"|grep -o -e '-si=.*;')
+export si
+dcapDoor=$(echo "$*"|grep -o -e '-dcapDoor=[^ $]*'|grep -o -e '[^=]*$')
+export dcapDoor
+mongoUrl=$(echo "$*"|grep -o -e '-mongoUrl=[^ $]*'|grep -o -e '[^=]*$')
+export mongoUrl
+dcapLib=$(echo "$*"|grep -o -e '-dcapLib=[^ $]*'|grep -o -e '[^=]*$')
+export dcapLib
 #
 ##################################################################################
 #
