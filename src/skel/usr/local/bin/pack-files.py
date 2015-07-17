@@ -172,7 +172,8 @@ class Container:
         self.logger = logging.getLogger(name="Container[%s]" % self.pnfsfilepath)
         self.logger.debug("Initializing")
 
-        self.arcfile = FhOutZipFile(dcap.open_file(self.pnfsfilepath, 'w'))
+        self.dcaparc = dcap.open_file(self.pnfsfilepath, 'w')
+        self.arcfile = FhOutZipFile(self.dcaparc)
         global archiveUser
         global archiveMode
         self.archiveUid = getpwnam(archiveUser).pw_uid
@@ -183,6 +184,7 @@ class Container:
     def close(self):
         self.logger.debug("Closing")
         self.arcfile.close()
+        self.dcaparc.close()
         os.chown(self.localfilepath, self.archiveUid, os.getgid())
         os.chmod(self.localfilepath, self.archiveMod)
 
@@ -299,7 +301,7 @@ class GroupPackager:
                     return
 
                 cursor.rewind()
-                with OpenFileQueue(cursor, queuelen=100) as files:
+                with OpenFileQueue(cursor, queuelen=10) as files:
                     container = None
                     containerChimeraPath = None
                     try:
@@ -361,7 +363,8 @@ class GroupPackager:
                                 raise e
                             finally:
                                 if not fh is None:
-                                    fh.close()
+                                    self.logger.debug("Closing handle %s" % fh.name)
+                                    os.close(fh.fileno())
 
                             sumsize -= f['size']
                             filecount -= 1
@@ -403,7 +406,7 @@ class GroupPackager:
                                 os.remove(container.localfilepath)
 
                     except IOError as e:
-                        self.logger.error("%s closing file %s . Trying to clean up files in state: 'added'. This might need additional manual fixing!" % (e.strerror, containerChimeraPath))
+                        self.logger.error("%s closing file %s. Trying to clean up files in state: 'added'. This might need additional manual fixing!" % (e.strerror, containerChimeraPath))
                         self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' }, '$unset': { 'lock': "" } }, multi=True )
                     except errors.OperationFailure as e:
                         self.logger.error("Operation Exception in database communication while creating container %s . Please check!" % containerChimeraPath )
