@@ -163,21 +163,28 @@ class OpenFileQueue:
 
 class Container:
 
-    def __init__(self, targetdir, dcap):
-        tmpfile = os.path.join(targetdir, "%s" % uuid.uuid1())
-        self.arcfile = FhOutZipFile(dcap.open_file(tmpfile))
+    def __init__(self, localtargetdir, dcap):
+        self.filename = str(uuid.uuid1())
+        self.localfilepath = os.path.join(localtargetdir, self.filename)
+        pnfstargetdir = localtargetdir.replace(mountPoint, dataRoot, 1)
+        self.pnfsfilepath = os.path.join(pnfstargetdir, self.filename)
+
+        self.logger = logging.getLogger(name="Container[%s]" % self.pnfsfilepath)
+        self.logger.debug("Initializing")
+
+        self.arcfile = FhOutZipFile(dcap.open_file(self.pnfsfilepath, 'w'))
         global archiveUser
         global archiveMode
         self.archiveUid = getpwnam(archiveUser).pw_uid
         self.archiveMod = int(archiveMode, 8)
         self.size = 0
         self.filecount = 0
-        self.logger = logging.getLogger(name="Container[%s]" % tmpfile)
 
     def close(self):
+        self.logger.debug("Closing")
         self.arcfile.close()
-        os.chown(self.arcfile.filename, self.archiveUid, os.getgid())
-        os.chmod(self.arcfile.filename, self.archiveMod)
+        os.chown(self.localfilepath, self.archiveUid, os.getgid())
+        os.chmod(self.localfilepath, self.archiveMod)
 
     def add(self, fh, pnfsid, size):
         self.arcfile.writeByHandle(fh, arcname=pnfsid)
@@ -212,6 +219,7 @@ class GroupPackager:
         self.archivePath = os.path.join(mountPoint, archivePath)
         if not os.path.exists(self.archivePath):
             os.makedirs(self.archivePath, mode=0777)
+            os.chmod(self.archivePath, 0777)
         self.archiveSize = int(archiveSize.replace('G', '000000000').replace('M', '000000').replace('K', '000'))
         self.minAge = int(minAge)
         self.maxAge = int(maxAge)
@@ -238,8 +246,8 @@ class GroupPackager:
 
     def createArchiveEntry(self, container):
         try:
-            containerLocalPath = container.arcfile.filename
-            containerChimeraPath = containerLocalPath.replace(mountPoint, dataRoot, 1)
+            containerLocalPath = container.localfilepath
+            containerChimeraPath = container.pnfsfilepath
             containerPnfsid = dotfile(containerLocalPath, 'id')
 
             self.db.archives.insert( { 'pnfsid': containerPnfsid, 'path': containerChimeraPath } )
@@ -256,7 +264,8 @@ class GroupPackager:
         global scriptId
         global running
         global dcapUrl
-        with Dcap(dcapUrl) as dcap:
+        dcap = Dcap(dcapUrl)
+        try:
             now = int(datetime.now().strftime("%s"))
             ctime_threshold = (now - self.minAge*60)
             self.logger.debug("Looking for files matching { path: %s, group: %s, store: %s, ctime: { $lt: %d } }" % (self.pathPattern.pattern, self.sGroup.pattern, self.storeName.pattern, ctime_threshold) )
@@ -302,14 +311,14 @@ class GroupPackager:
                             self.logger.debug("Next file %s [%s], remaining %d [%d bytes]" % (f['path'], f['pnfsid'], filecount, sumsize) )
                             if not running:
                                 if container:
-                                    raise UserInterruptException(container.arcfile.filename)
+                                    raise UserInterruptException(container.localfilepath)
                                 else:
                                     raise UserInterruptException(None)
 
                             if container is None:
                                 if sumsize >= self.archiveSize or old_file_mode:
-                                    container = Container(os.path.join(dataRoot, self.archivePath), dcap)
-                                    self.logger.info("Creating new container %s . %d files [%d bytes] remaining." % (os.path.join(self.archivePath, container.arcfile.filename), filecount, sumsize))
+                                    container = Container(self.archivePath, dcap)
+                                    self.logger.info("Creating new container %s . %d files [%d bytes] remaining." % (container.pnfsfilepath, filecount, sumsize))
                                 else:
                                     self.logger.info("remaining combined size %d < %d, leaving packager" % (sumsize, self.archiveSize))
                                     return
@@ -322,74 +331,76 @@ class GroupPackager:
                                 self.writeStatus(container.arcfile, self.archiveSize-container.size, "%s [%s]" % ( f['path'], f['pnfsid'] ))
 
                             try:
-                                self.logger.debug("before container.add(%s[%s], %s, %s)" % (fh.name, fh.mode, f['pnfsid'], f['size']))
+                                self.logger.debug("before container.add(%s[%s], %s)" % (f['path'], f['pnfsid'], f['size']))
+
                                 if fh is None:
                                     raise IOError("File %s is not opened for reading" % f['path'])
                                 container.add(fh, f['pnfsid'], f['size'])
                                 self.logger.debug("before collection.save")
-                                f['state'] = "added: %s" % container.arcfile.filename.replace(mountPoint, dataRoot, 1)
+                                f['state'] = "added: %s" % container.pnfsfilepath
                                 f['lock'] = scriptId
                                 cursor.collection.save(f)
                                 self.logger.debug("Added file %s [%s]" % (f['path'], f['pnfsid']))
                             except IOError as e:
-                                self.logger.exception("IOError while adding file %s to archive %s [%s], %s" % (f['path'], container.arcfile.filename, f['pnfsid'], e.message))
+                                self.logger.exception("IOError while adding file %s to archive %s [%s], %s" % (f['path'], container.pnfsfilepath, f['pnfsid'], e.message))
                                 self.logger.debug("Removing entry for file %s" % f['pnfsid'])
                                 self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
                             except OSError as e:
-                                self.logger.exception("OSError while adding file %s to archive %s [%s], %s" % (f['path'], f['pnfsid'], container.arcfile.filename, e.message))
+                                self.logger.exception("OSError while adding file %s to archive %s [%s], %s" % (f['path'], f['pnfsid'], container.pnfsfilepath, e.message))
                                 self.logger.debug("Removing entry for file %s" % f['pnfsid'])
                                 self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
                             except errors.OperationFailure as e:
-                                self.logger.error("Removing container %s due to OperationalFailure. See below for details." % container.arcfile.filename)
+                                self.logger.error("Removing container %s due to OperationalFailure. See below for details." % container.localfilepath)
                                 container.close()
-                                os.remove(container.arcfile.filename)
+                                os.remove(container.localfilepath)
                                 raise e
                             except errors.ConnectionFailure as e:
-                                self.logger.error("Removing container %s due to ConnectionFailure. See below for details." % container.arcfile.filename)
+                                self.logger.error("Removing container %s due to ConnectionFailure. See below for details." % container.localfilepath)
                                 container.close()
-                                os.remove(container.arcfile.filename)
+                                os.remove(container.localfilepath)
                                 raise e
                             finally:
-                                fh.close()
+                                if not fh is None:
+                                    fh.close()
 
                             sumsize -= f['size']
                             filecount -= 1
 
                             if container.size >= self.archiveSize:
-                                self.logger.debug("Closing full container %s" % container.arcfile.filename)
-                                containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot, 1)
+                                self.logger.debug("Closing full container %s" % container.pnfsfilepath)
+                                containerChimeraPath = container.pnfsfilepath
                                 container.close()
 
                                 if self.verifyContainer(container):
-                                    self.logger.info("Container %s successfully stored" % container.arcfile.filename)
+                                    self.logger.info("Container %s successfully stored" % container.pnfsfilepath)
                                     self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'archived: %s' % containerChimeraPath }, '$unset': { 'lock': "" } }, multi=True )
                                     self.createArchiveEntry(container)
                                 else:
-                                    self.logger.warn("Removing container %s due to verification error" % container.arcfile.filename)
+                                    self.logger.warn("Removing container %s due to verification error" % container.localfilepath)
                                     self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' }, '$unset': { 'lock': "" } }, multi=True )
-                                    os.remove(container.arcfile.filename)
+                                    os.remove(container.localfilepath)
 
                                 container = None
 
                         if container:
                             if not old_file_mode:
-                                self.logger.warn("Removing unful container %s . Maybe a file was deleted during packaging." % container.arcfile.filename)
+                                self.logger.warn("Removing unful container %s . Maybe a file was deleted during packaging." % container.localfilepath)
                                 container.close()
-                                os.remove(container.arcfile.filename)
+                                os.remove(container.localfilepath)
                                 return
 
-                            self.logger.debug("Closing container %s containing remaining old files", container.arcfile.filename)
-                            containerChimeraPath = container.arcfile.filename.replace(mountPoint, dataRoot, 1)
+                            self.logger.debug("Closing container %s containing remaining old files", container.pnfsfilepath)
+                            containerChimeraPath = container.pnfsfilepath
                             container.close()
 
                             if self.verifyContainer(container):
-                                self.logger.info("Container %s with old files successfully stored" % container.arcfile.filename)
+                                self.logger.info("Container %s with old files successfully stored" % container.pnfsfilepath)
                                 self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'archived: %s' % containerChimeraPath }, '$unset': { 'lock': "" } }, multi=True )
                                 self.createArchiveEntry(container)
                             else:
-                                self.logger.warn("Removing container %s with old files due to verification error" % container.arcfile.filename)
+                                self.logger.warn("Removing container %s with old files due to verification error" % container.localfilepath)
                                 self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' }, '$unset': { 'lock': "" } }, multi=True )
-                                os.remove(container.arcfile.filename)
+                                os.remove(container.localfilepath)
 
                     except IOError as e:
                         self.logger.error("%s closing file %s . Trying to clean up files in state: 'added'. This might need additional manual fixing!" % (e.strerror, containerChimeraPath))
@@ -401,6 +412,8 @@ class GroupPackager:
                         self.logger.error("Connection Exception in database communication. Removing incomplete container %s ." % containerChimeraPath)
                         self.logger.error('%s' % e.message)
 
+        finally:
+            dcap.close()
 
 def dotfile(filepath, tag):
     with open(os.path.join(os.path.dirname(filepath), ".(%s)(%s)" % (tag, os.path.basename(filepath))), mode='r') as dotfile:
