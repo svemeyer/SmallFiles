@@ -362,8 +362,7 @@ class GroupPackager:
                                 os.remove(container.localfilepath)
                                 raise e
                             finally:
-                                if not fh is None:
-                                    self.logger.debug("Closing handle %s" % fh.name)
+                                if fh:
                                     os.close(fh.fileno())
 
                             sumsize -= f['size']
