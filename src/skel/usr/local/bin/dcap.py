@@ -40,6 +40,12 @@ class Dcap:
 		self._connect()
 		self._send_hello()
 
+	def __enter__(self):
+		return self
+
+	def __exit__(self, exc_type, exc_val, exc_tb):
+		self.close()
+
 	def _connect(self):
 		self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.socket.connect((self.host, self.port))
@@ -80,15 +86,15 @@ class Dcap:
 			(self.seq, self.host, self.port, self.root, path, mode, os.getuid(), os.getgid())
 		self._send_control_msg(open_opemmand)
 		reply = self._rcv_control_msg()
-		host, port, chalange = self.parse_reply(reply)
+		host, port, chalange = self.parse_reply(reply, path)
 
 		data_socket = self._init_data_connection(session, host, port, chalange)
 		return DcapStream(data_socket, self)
 
-	def parse_reply(self, reply):
+	def parse_reply(self, reply, path):
 		s = reply.split()
 		if s[3] == 'failed':
-			raise RuntimeError("failed to open file: " + _merge_string(s[5:]))
+			raise RuntimeError("failed to open file " + path + ": " + _merge_string(s[5:]))
 		return s[4], int(s[5]), s[6]
 
 	def _init_data_connection(self, session, host, port, chalange):
@@ -124,8 +130,14 @@ def readFully(s, count):
 class DcapStream:
 
 	def __init__(self, sock, dcap):
-		self.socket = sock;
+		self.socket = sock
 		self.dcap = dcap
+
+	def __enter__(self):
+		return self
+
+	def __exit__(self, exc_type, exc_val, exc_tb):
+		self.close()
 
 	def _get_ack(self):
 		unpacker = struct.Struct('>I')
@@ -134,7 +146,7 @@ class DcapStream:
 		msg = self.socket.recv(size)
 		return msg
 
- 	def _get_data(self):
+	def _get_data(self):
 		unpacker = struct.Struct('>II')
 		msg = self.socket.recv(unpacker.size)
 
@@ -171,6 +183,12 @@ class DcapStream:
 	def flush(self):
 		pass
 
+	def parse_reply(self, reply):
+		s = reply.split()
+		if s[3] == 'failed':
+			raise RuntimeError("failed to close file: " + _merge_string(s[4:]))
+
+
 	def close(self):
 		packer = struct.Struct('>II')
 
@@ -179,6 +197,7 @@ class DcapStream:
 		self._get_ack()
 		reply = self.dcap._rcv_control_msg()
 		self.socket.close()
+		self.parse_reply(reply)
 
 	def send_file(self, src):
 
@@ -269,17 +288,14 @@ if __name__ == "__main__":
 	remote = sys.argv[4]
 
 	if op == "PUT" :
-		dcap = Dcap(door)
-		f = dcap.open_file(remote, 'w')
-		f.send_file(local)
-		f.close()
-		dcap.close()
+		with Dcap(door) as dcap:
+			with dcap.open_file(remote, 'w') as f:
+				f.send_file(local)
+
 	elif op == "GET":
-		dcap = Dcap(door)
-		f = dcap.open_file(remote, 'r')
-		f.recv_file(local)
-		f.close()
-		dcap.close()
+		with Dcap(door) as dcap:
+			with dcap.open_file(remote, 'r') as f:
+				f.recv_file(local)
 	else:
 		usage_and_exit()
 
