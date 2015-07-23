@@ -2,7 +2,6 @@
 
 import os
 import sys
-import stat
 import signal
 import time
 import logging
@@ -10,8 +9,7 @@ from datetime import datetime
 import re
 import ConfigParser as Parser
 import uuid
-import zlib
-from zipfile import ZipFile, ZipInfo, ZIP64_LIMIT, ZIP_DEFLATED
+from zipfile import ZipFile
 from pymongo import MongoClient, errors, ASCENDING
 from pwd import getpwnam
 from dcap import Dcap
@@ -33,93 +31,6 @@ mountPoint = ""
 dataRoot = ""
 dcapUrl = ""
 
-class FhOutZipFile(ZipFile):
-
-    def __init__(self, file):
-        ZipFile.__init__(self, file, mode='w', allowZip64=True)
-
-    def writeByHandle(self, fh, arcname=None, compress_type=None):
-        if not self.fp:
-            raise RuntimeError(
-                  "Attempt to write to ZIP archive that was already closed")
-
-        st = os.stat(fh.name)
-        isdir = stat.S_ISDIR(st.st_mode)
-        mtime = time.localtime(st.st_mtime)
-        date_time = mtime[0:6]
-        # Create ZipInfo instance to store file information
-        if arcname is None:
-            raise RuntimeError("arcname has to be provided")
-
-        zinfo = ZipInfo(arcname, date_time)
-        zinfo.external_attr = (st[0] & 0xFFFF) << 16L      # Unix attributes
-        if compress_type is None:
-            zinfo.compress_type = self.compression
-        else:
-            zinfo.compress_type = compress_type
-
-        zinfo.file_size = st.st_size
-        zinfo.flag_bits = 0x00
-        zinfo.header_offset = self.fp.tell()    # Start of header bytes
-
-        self._writecheck(zinfo)
-        self._didModify = True
-
-        if isdir:
-            zinfo.file_size = 0
-            zinfo.compress_size = 0
-            zinfo.CRC = 0
-            self.filelist.append(zinfo)
-            self.NameToInfo[zinfo.filename] = zinfo
-            self.fp.write(zinfo.FileHeader(False))
-            return
-
-        # Must overwrite CRC and sizes with correct data later
-        zinfo.CRC = CRC = 0
-        zinfo.compress_size = compress_size = 0
-        # Compressed size can be larger than uncompressed size
-        zip64 = self._allowZip64 and \
-                zinfo.file_size * 1.05 > ZIP64_LIMIT
-        self.fp.write(zinfo.FileHeader(zip64))
-        if zinfo.compress_type == ZIP_DEFLATED:
-            cmpr = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
-                 zlib.DEFLATED, -15)
-        else:
-            cmpr = None
-        file_size = 0
-        while 1:
-            buf = fh.read(1024 * 8)
-            if not buf:
-                break
-            file_size = file_size + len(buf)
-            CRC = zlib.crc32(buf, CRC) & 0xffffffff
-            if cmpr:
-                buf = cmpr.compress(buf)
-                compress_size = compress_size + len(buf)
-            self.fp.write(buf)
-        if cmpr:
-            buf = cmpr.flush()
-            compress_size = compress_size + len(buf)
-            self.fp.write(buf)
-            zinfo.compress_size = compress_size
-        else:
-            zinfo.compress_size = file_size
-        zinfo.CRC = CRC
-        zinfo.file_size = file_size
-        if not zip64 and self._allowZip64:
-            if file_size > ZIP64_LIMIT:
-                raise RuntimeError('File size has increased during compressing')
-            if compress_size > ZIP64_LIMIT:
-                raise RuntimeError('Compressed size larger than uncompressed size')
-        # Seek backwards and write file header (which will now include
-        # correct CRC and file sizes)
-        position = self.fp.tell()       # Preserve current position in file
-        self.fp.seek(zinfo.header_offset, 0)
-        self.fp.write(zinfo.FileHeader(zip64))
-        self.fp.seek(position, 0)
-        self.filelist.append(zinfo)
-        self.NameToInfo[zinfo.filename] = zinfo
-
 class Container:
 
     def __init__(self, localtargetdir, dcap):
@@ -132,7 +43,7 @@ class Container:
         self.logger.debug("Initializing")
 
         self.dcaparc = dcap.open_file(self.pnfsfilepath, 'w')
-        self.arcfile = FhOutZipFile(self.dcaparc)
+        self.arcfile = ZipFile(self.dcaparc, mode='w', allowZip64=True)
         global archiveUser
         global archiveMode
         self.archiveUid = getpwnam(archiveUser).pw_uid
@@ -147,11 +58,11 @@ class Container:
         os.chown(self.localfilepath, self.archiveUid, os.getgid())
         os.chmod(self.localfilepath, self.archiveMod)
 
-    def add(self, fh, pnfsid, size):
-        self.arcfile.writeByHandle(fh, arcname=pnfsid)
+    def add(self, pnfsid, filepath, localpath, size):
+        self.arcfile.write(localpath, arcname=pnfsid)
         self.size += size
         self.filecount += 1
-        self.logger.debug("Added file %s with pnfsid %s" % (fh.name, pnfsid))
+        self.logger.debug("Added file %s with pnfsid %s" % (filepath, pnfsid))
 
     def getFilelist(self):
         return self.arcfile.filelist
@@ -292,8 +203,9 @@ class GroupPackager:
                             self.writeStatus(container.arcfile, self.archiveSize-container.size, "%s [%s]" % ( f['path'], f['pnfsid'] ))
 
                         try:
+                            localfile = f['path'].replace(dataRoot, mountPoint,1)
                             self.logger.debug("before container.add(%s[%s], %s)" % (f['path'], f['pnfsid'], f['size']))
-                            container.add(f, f['pnfsid'], f['size'])
+                            container.add(f['pnfsid'], f['path'], localfile, f['size'])
                             self.logger.debug("before collection.save")
                             f['state'] = "added: %s" % container.pnfsfilepath
                             f['lock'] = scriptId
