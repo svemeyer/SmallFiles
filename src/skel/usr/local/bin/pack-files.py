@@ -337,12 +337,15 @@ class GroupPackager:
 
                                 if fh is None:
                                     raise IOError("File %s is not opened for reading" % f['path'])
+
+                                beginAdd = datetime.now()
                                 container.add(fh, f['pnfsid'], f['size'])
+                                totalTime = datetime.now() - beginAdd
                                 self.logger.debug("before collection.save")
                                 f['state'] = "added: %s" % container.pnfsfilepath
                                 f['lock'] = scriptId
                                 cursor.collection.save(f)
-                                self.logger.debug("Added file %s [%s]" % (f['path'], f['pnfsid']))
+                                self.logger.debug("Added file %s [%s] in %s" % (f['path'], f['pnfsid'], totalTime))
                             except IOError as e:
                                 self.logger.exception("IOError while adding file %s to archive %s [%s], %s" % (f['path'], container.pnfsfilepath, f['pnfsid'], e.message))
                                 self.logger.debug("Removing entry for file %s" % f['pnfsid'])
