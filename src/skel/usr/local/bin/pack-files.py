@@ -205,12 +205,14 @@ class GroupPackager:
                         try:
                             localfile = f['path'].replace(dataRoot, mountPoint,1)
                             self.logger.debug("before container.add(%s[%s], %s)" % (f['path'], f['pnfsid'], f['size']))
+                            beginAdd = datetime.now()
                             container.add(f['pnfsid'], f['path'], localfile, f['size'])
+                            totalTime = datetime.now() - beginAdd
                             self.logger.debug("before collection.save")
                             f['state'] = "added: %s" % container.pnfsfilepath
                             f['lock'] = scriptId
                             cursor.collection.save(f)
-                            self.logger.debug("Added file %s [%s]" % (f['path'], f['pnfsid']))
+                            self.logger.debug("Added file %s [%s] in %s" % (f['path'], f['pnfsid'], totalTime))
                         except IOError as e:
                             self.logger.exception("IOError while adding file %s to archive %s [%s], %s" % (f['path'], container.pnfsfilepath, f['pnfsid'], e.message))
                             self.logger.debug("Removing entry for file %s" % f['pnfsid'])
