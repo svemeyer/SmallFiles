@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# coding=utf-8
 
 import os
 import sys
@@ -128,7 +129,8 @@ class GroupPackager:
             self.logger.critical("Could not find archive file %s, referred to by file entries in database! This needs immediate attention or you will lose data!" % containerChimeraPath)
 
     def writeStatus(self, arcfile, currentSize, nextFile):
-        with open("/var/log/dcache/pack-files-%s.status", 'w') as statusFile:
+        global scriptId
+        with open("/var/log/dcache/pack-files-%s.status" % scriptId, 'w') as statusFile:
             statusFile.write("Container: %s\n" % arcfile)
             statusFile.write("Size: %d/%d\n" % ( currentSize, self.archiveSize ))
             statusFile.write("Next: %s\n" % nextFile)
@@ -142,7 +144,7 @@ class GroupPackager:
             now = int(datetime.now().strftime("%s"))
             ctime_threshold = (now - self.minAge*60)
             self.logger.debug("Looking for files matching { path: %s, group: %s, store: %s, ctime: { $lt: %d } }" % (self.pathPattern.pattern, self.sGroup.pattern, self.storeName.pattern, ctime_threshold) )
-            with self.db.files.find( { 'state': 'new', 'path': self.pathPattern, 'group': self.sGroup, 'store': self.storeName, 'ctime': { '$lt': ctime_threshold } } ).batch_size(512) as cursor:
+            with self.db.files.find( { 'state': 'new', 'path': self.pathPattern, 'group': self.sGroup, 'store': self.storeName, 'ctime': { '$lt': ctime_threshold } }, timeout=False).batch_size(512) as cursor:
                 cursor.sort('ctime', ASCENDING)
                 sumsize = 0
                 old_file_mode = False
@@ -197,22 +199,20 @@ class GroupPackager:
 
                         if old_file_mode:
                             self.logger.debug("%d bytes remaining for this archive" % sumsize)
-                            self.writeStatus(container.arcfile, sumsize, "%s [%s]" % ( f['path'], f['pnfsid'] ))
+                            self.writeStatus(container.pnfsfilepath, sumsize, "%s [%s]" % ( f['path'], f['pnfsid'] ))
                         else:
                             self.logger.debug("%d bytes remaining for this archive" % (self.archiveSize-container.size))
-                            self.writeStatus(container.arcfile, self.archiveSize-container.size, "%s [%s]" % ( f['path'], f['pnfsid'] ))
+                            self.writeStatus(container.pnfsfilepath, self.archiveSize-container.size, "%s [%s]" % ( f['path'], f['pnfsid'] ))
 
                         try:
                             localfile = f['path'].replace(dataRoot, mountPoint,1)
                             self.logger.debug("before container.add(%s[%s], %s)" % (f['path'], f['pnfsid'], f['size']))
-                            beginAdd = datetime.now()
                             container.add(f['pnfsid'], f['path'], localfile, f['size'])
-                            totalTime = datetime.now() - beginAdd
                             self.logger.debug("before collection.save")
                             f['state'] = "added: %s" % container.pnfsfilepath
                             f['lock'] = scriptId
                             cursor.collection.save(f)
-                            self.logger.debug("Added file %s [%s] in %s" % (f['path'], f['pnfsid'], totalTime))
+                            self.logger.debug("Added file %s [%s]" % (f['path'], f['pnfsid']))
                         except IOError as e:
                             self.logger.exception("IOError while adding file %s to archive %s [%s], %s" % (f['path'], container.pnfsfilepath, f['pnfsid'], e.message))
                             self.logger.debug("Removing entry for file %s" % f['pnfsid'])

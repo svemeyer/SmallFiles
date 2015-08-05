@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# coding=utf-8
 
 import os
 import sys
@@ -40,7 +41,7 @@ def main(configfile = '/etc/dcache/container.conf'):
             global mongoDb
 
             scriptId = configuration.get('DEFAULT', 'scriptId')
-            logging.basicConfig(filename='/var/log/dcache/fillmetadata[%s].log' % scriptId,
+            logging.basicConfig(filename='/var/log/dcache/fillmetadata-%s.log' % scriptId,
                         format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
             mountPoint = configuration.get('DEFAULT', 'mountPoint')
             dataRoot = configuration.get('DEFAULT', 'dataRoot')
@@ -65,7 +66,7 @@ def main(configfile = '/etc/dcache/container.conf'):
                             sys.exit(1)
                         try:
                             pathof = dotfile(os.path.join(mountPoint, record['pnfsid']), 'pathof')
-                            localpath = pathof.replace(dataRoot, mountPoint,1)
+                            localpath = pathof.replace(dataRoot, mountPoint)
                             stats = os.stat(localpath)
 
                             record['path'] = pathof
@@ -84,6 +85,7 @@ def main(configfile = '/etc/dcache/container.conf'):
                             db.files.remove( { 'pnfsid': record['pnfsid'] } )
                         except OSError as e:
                             logging.warn("OSError: %s: %s" % (str(record), e.message))
+                            logging.exception(e)
                             logging.info("Removing entry for file %s" % record['pnfsid'])
                             db.files.remove( { 'pnfsid': record['pnfsid'] } )
 
