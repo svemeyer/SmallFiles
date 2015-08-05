@@ -277,9 +277,11 @@ class GroupPackager:
                 except errors.OperationFailure as e:
                     self.logger.error("Operation Exception in database communication while creating container %s . Please check!" % containerChimeraPath )
                     self.logger.error('%s' % e.message)
+                    os.remove(container.localfilepath)
                 except errors.ConnectionFailure as e:
                     self.logger.error("Connection Exception in database communication. Removing incomplete container %s ." % containerChimeraPath)
                     self.logger.error('%s' % e.message)
+                    os.remove(container.localfilepath)
 
         finally:
             dcap.close()
