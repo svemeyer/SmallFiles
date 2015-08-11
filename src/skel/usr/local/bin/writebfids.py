@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# coding=utf-8
 
 import os
 import sys
@@ -33,7 +34,7 @@ def main(configfile = '/etc/dcache/container.conf'):
             global mongoDb
 
             scriptId = configuration.get('DEFAULT', 'scriptId')
-            logging.basicConfig(filename = '/var/log/dcache/writebfids[%s].log' % scriptId,
+            logging.basicConfig(filename = '/var/log/dcache/writebfids-%s.log' % scriptId,
                         format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
             archiveUser = configuration.get('DEFAULT', 'archiveUser')
             archiveMode = configuration.get('DEFAULT', 'archiveMode')

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# coding=utf-8
 
 import os
 import sys
@@ -257,7 +258,8 @@ class GroupPackager:
             self.logger.critical("Could not find archive file %s, referred to by file entries in database! This needs immediate attention or you will lose data!" % containerChimeraPath)
 
     def writeStatus(self, arcfile, currentSize, nextFile):
-        with open("/var/log/dcache/pack-files-%s.status", 'w') as statusFile:
+        global scriptId
+        with open("/var/log/dcache/pack-files-%s.status" % scriptId, 'w') as statusFile:
             statusFile.write("Container: %s\n" % arcfile)
             statusFile.write("Size: %d/%d\n" % ( currentSize, self.archiveSize ))
             statusFile.write("Next: %s\n" % nextFile)
@@ -271,7 +273,7 @@ class GroupPackager:
             now = int(datetime.now().strftime("%s"))
             ctime_threshold = (now - self.minAge*60)
             self.logger.debug("Looking for files matching { path: %s, group: %s, store: %s, ctime: { $lt: %d } }" % (self.pathPattern.pattern, self.sGroup.pattern, self.storeName.pattern, ctime_threshold) )
-            with self.db.files.find( { 'state': 'new', 'path': self.pathPattern, 'group': self.sGroup, 'store': self.storeName, 'ctime': { '$lt': ctime_threshold } } ).batch_size(512) as cursor:
+            with self.db.files.find( { 'state': 'new', 'path': self.pathPattern, 'group': self.sGroup, 'store': self.storeName, 'ctime': { '$lt': ctime_threshold } }, timeout=False).batch_size(512) as cursor:
                 cursor.sort('ctime', ASCENDING)
                 sumsize = 0
                 old_file_mode = False
@@ -413,9 +415,11 @@ class GroupPackager:
                     except errors.OperationFailure as e:
                         self.logger.error("Operation Exception in database communication while creating container %s . Please check!" % containerChimeraPath )
                         self.logger.error('%s' % e.message)
+                        os.remove(container.localfilepath)
                     except errors.ConnectionFailure as e:
                         self.logger.error("Connection Exception in database communication. Removing incomplete container %s ." % containerChimeraPath)
                         self.logger.error('%s' % e.message)
+                        os.remove(container.localfilepath)
 
         finally:
             dcap.close()
