@@ -33,13 +33,14 @@ mongoDb  = "smallfiles"
 mountPoint = ""
 dataRoot = ""
 dcapUrl = ""
+rwsize = 8192
 
 class StoreZipFile(ZipFile):
 
     def __init__(self, file):
         ZipFile.__init__(self, file, mode='w', allowZip64=True)
 
-    def write(self, filename, arcname=None, compress_type=None):
+    def write(self, filename, arcname=None, compress_type=None, blocksize=8192):
         """Put the bytes from filename into the archive under the name
         arcname."""
         if not self.fp:
@@ -96,7 +97,7 @@ class StoreZipFile(ZipFile):
                 cmpr = None
             file_size = 0
             while 1:
-                buf = fp.read(2048 * 1024)
+                buf = fp.read(blocksize)
                 if not buf:
                     break
                 file_size = file_size + len(buf)
@@ -157,7 +158,8 @@ class Container:
         os.chmod(self.localfilepath, self.archiveMod)
 
     def add(self, pnfsid, filepath, localpath, size):
-        self.arcfile.write(localpath, arcname=pnfsid)
+        global rwsize
+        self.arcfile.write(localpath, arcname=pnfsid, blocksize=rwsize)
         self.size += size
         self.filecount += 1
         self.logger.debug("Added file %s with pnfsid %s" % (filepath, pnfsid))
@@ -405,6 +407,7 @@ def main(configfile = '/etc/dcache/container.conf'):
             global mongoUri
             global mongoDb
             global dcapUrl
+            global rwsize
             scriptId = configuration.get('DEFAULT', 'scriptId')
             
             logging.basicConfig(filename = '/var/log/dcache/pack-files-%s.log' % scriptId,
@@ -417,6 +420,7 @@ def main(configfile = '/etc/dcache/container.conf'):
             mongoUri = configuration.get('DEFAULT', 'mongoUri')
             mongoDb  = configuration.get('DEFAULT', 'mongodb')
             dcapUrl = configuration.get('DEFAULT', 'dcapUrl')
+            rwsize = configuration.getint('DEFAULT', 'rwsize')
             logLevelStr = configuration.get('DEFAULT', 'logLevel')
             logLevel = getattr(logging, logLevelStr.upper(), None) 
 
@@ -433,6 +437,7 @@ def main(configfile = '/etc/dcache/container.conf'):
             logging.debug('mongoUri = %s' % mongoUri)
             logging.debug('mongoDb = %s' % mongoDb)
             logging.debug('dcapUrl = %s' % dcapUrl)
+            logging.debug('rwsize = %s' % rwsize)
             logging.debug('logLevel = %s' % logLevel)
             logging.debug('loopDelay = %s' % loopDelay)
 
