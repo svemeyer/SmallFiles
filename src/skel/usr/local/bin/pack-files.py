@@ -232,7 +232,7 @@ class GroupPackager:
         with open("/var/log/dcache/pack-files-%s.status" % scriptId, 'w') as statusFile:
             statusFile.write("Container: %s\n" % arcfile)
             statusFile.write("Size: %d/%d\n" % ( currentSize, self.archiveSize ))
-            statusFile.write("Next: %s\n" % nextFile)
+            statusFile.write("Next: %s\n" % nextFile.encode('ascii', 'ignore'))
 
     def run(self):
         global scriptId
@@ -304,7 +304,7 @@ class GroupPackager:
                             self.writeStatus(container.pnfsfilepath, self.archiveSize-container.size, "%s [%s]" % ( f['path'], f['pnfsid'] ))
 
                         try:
-                            localfile = f['path'].replace(dataRoot, mountPoint,1)
+                            localfile = f['path'].replace(dataRoot, mountPoint, 1)
                             self.logger.debug("before container.add(%s[%s], %s)" % (f['path'], f['pnfsid'], f['size']))
                             container.add(f['pnfsid'], f['path'], localfile, f['size'])
                             self.logger.debug("before collection.save")
