@@ -26,6 +26,7 @@ then
   cp "${SRC_BIN}/pack-files.py" "${LOCAL_BIN}"
   cp "${SRC_BIN}/fillmetadata.py" "${LOCAL_BIN}"
   cp "${SRC_BIN}/writebfids.py" "${LOCAL_BIN}"
+  cp "${SRC_BIN}/dcap.py" "${LOCAL_BIN}"
   if [ ${2} != "--update" ];
   then
     echo "Copying configuration file to ${LOCAL_ETC}"
