@@ -32,9 +32,6 @@ mv SmallFiles*/* .
 %build
 
 %install
-install --directory ${RPM_BUILD_ROOT}/usr/share/dcache/lib
-install --mode 755 $RPM_BUILD_DIR/src/skel/usr/share/dcache/lib/hsm-internal.sh ${RPM_BUILD_ROOT}/usr/share/dcache/lib/hsm-internal.sh
-install --mode 755 $RPM_BUILD_DIR/src/skel/usr/share/dcache/lib/datasetPut.js ${RPM_BUILD_ROOT}/usr/share/dcache/lib/datasetPut.js
 install --directory ${RPM_BUILD_ROOT}/etc/dcache
 install --mode 644 $RPM_BUILD_DIR/src/skel/etc/dcache/container.conf ${RPM_BUILD_ROOT}/etc/dcache/container.conf
 install --directory ${RPM_BUILD_ROOT}/etc/init.d
@@ -52,6 +49,4 @@ install --mode 755 $RPM_BUILD_DIR/src/skel/usr/local/bin/writebfids.py ${RPM_BUI
 /usr/local/bin/pack-files.py
 /usr/local/bin/fillmetadata.py
 /usr/local/bin/writebfids.py
-/usr/share/dcache/lib/hsm-internal.sh
-/usr/share/dcache/lib/datasetPut.js
 
