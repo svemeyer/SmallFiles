@@ -42,6 +42,7 @@ class StoreZipFile(ZipFile):
 
     def __init__(self, file):
         ZipFile.__init__(self, file, mode='w', allowZip64=True)
+        self.logger = logging.getLogger(name="ZipFile")
 
     def writeByHandle(self, fh, arcname=None, compress_type=None, blocksize=8192):
         """Put the bytes from file handle fh into the archive under the name
@@ -50,7 +51,9 @@ class StoreZipFile(ZipFile):
             raise RuntimeError(
                 "Attempt to write to ZIP archive that was already closed")
 
+        self.logger.debug("> os.stat(%s)" % fh.name)
         st = os.stat(fh.name)
+        self.logger.debug("< os.stat(%s)" % fh.name)
         isdir = stat.S_ISDIR(st.st_mode)
         mtime = time.localtime(st.st_mtime)
         date_time = mtime[0:6]
@@ -58,7 +61,9 @@ class StoreZipFile(ZipFile):
         if arcname is None:
             raise RuntimeError("arcname has to be provided")
 
+        self.logger.debug("> ZipInfo(%s, date_time)" % arcname)
         zinfo = ZipInfo(arcname, date_time)
+        self.logger.debug("< ZipInfo(%s, date_time)" % arcname)
         zinfo.external_attr = (st[0] & 0xFFFF) << 16L      # Unix attributes
         if compress_type is None:
             zinfo.compress_type = self.compression
@@ -87,7 +92,9 @@ class StoreZipFile(ZipFile):
         # Compressed size can be larger than uncompressed size
         zip64 = self._allowZip64 and \
                 zinfo.file_size * 1.05 > ZIP64_LIMIT
+        self.logger.debug("> self.fp.write(zinfo.FileHeader())")
         self.fp.write(zinfo.FileHeader(zip64))
+        self.logger.debug("< self.fp.write(zinfo.FileHeader())")
         if zinfo.compress_type == ZIP_DEFLATED:
             cmpr = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
                  zlib.DEFLATED, -15)
@@ -95,7 +102,9 @@ class StoreZipFile(ZipFile):
             cmpr = None
         file_size = 0
         while 1:
+            self.logger.debug("> fp.read(%s)" % blocksize)
             buf = fh.read(blocksize)
+            self.logger.debug("< fp.read(%s)" % blocksize)
             if not buf:
                 break
             file_size = file_size + len(buf)
@@ -103,7 +112,9 @@ class StoreZipFile(ZipFile):
             if cmpr:
                 buf = cmpr.compress(buf)
                 compress_size = compress_size + len(buf)
+            self.logger.debug("> fp.write(buf)")
             self.fp.write(buf)
+            self.logger.debug("< fp.write(buf)")
         if cmpr:
             buf = cmpr.flush()
             compress_size = compress_size + len(buf)
@@ -120,12 +131,14 @@ class StoreZipFile(ZipFile):
                 raise RuntimeError('Compressed size larger than uncompressed size')
         # Seek backwards and write file header (which will now include
         # correct CRC and file sizes)
+        self.logger.debug("> write file header")
         position = self.fp.tell()       # Preserve current position in file
         self.fp.seek(zinfo.header_offset, 0)
         self.fp.write(zinfo.FileHeader(zip64))
         self.fp.seek(position, 0)
         self.filelist.append(zinfo)
         self.NameToInfo[zinfo.filename] = zinfo
+        self.logger.debug("< write file header")
 
 class OpenFileQueue:
 
