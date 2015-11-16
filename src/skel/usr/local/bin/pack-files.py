@@ -8,8 +8,11 @@ import signal
 import time
 import logging
 from datetime import datetime
+from threading import Thread
+from Queue import Queue, Empty
 import re
 import ConfigParser as Parser
+from tempfile import NamedTemporaryFile
 import uuid
 import zlib
 from zipfile import ZipFile, ZipInfo, ZIP64_LIMIT, ZIP_DEFLATED
@@ -40,25 +43,21 @@ class StoreZipFile(ZipFile):
     def __init__(self, file):
         ZipFile.__init__(self, file, mode='w', allowZip64=True)
 
-    def write(self, filename, arcname=None, compress_type=None, blocksize=8192):
-        """Put the bytes from filename into the archive under the name
+    def writeByHandle(self, fh, arcname=None, compress_type=None, blocksize=8192):
+        """Put the bytes from file handle fh into the archive under the name
         arcname."""
         if not self.fp:
             raise RuntimeError(
                 "Attempt to write to ZIP archive that was already closed")
 
-        st = os.stat(filename)
+        st = os.stat(fh.name)
         isdir = stat.S_ISDIR(st.st_mode)
         mtime = time.localtime(st.st_mtime)
         date_time = mtime[0:6]
         # Create ZipInfo instance to store file information
         if arcname is None:
-            arcname = filename
-        arcname = os.path.normpath(os.path.splitdrive(arcname)[1])
-        while arcname[0] in (os.sep, os.altsep):
-            arcname = arcname[1:]
-        if isdir:
-            arcname += '/'
+            raise RuntimeError("arcname has to be provided")
+
         zinfo = ZipInfo(arcname, date_time)
         zinfo.external_attr = (st[0] & 0xFFFF) << 16L      # Unix attributes
         if compress_type is None:
@@ -82,30 +81,29 @@ class StoreZipFile(ZipFile):
             self.fp.write(zinfo.FileHeader(False))
             return
 
-        with open(filename, "rb") as fp:
-            # Must overwrite CRC and sizes with correct data later
-            zinfo.CRC = CRC = 0
-            zinfo.compress_size = compress_size = 0
-            # Compressed size can be larger than uncompressed size
-            zip64 = self._allowZip64 and \
-                    zinfo.file_size * 1.05 > ZIP64_LIMIT
-            self.fp.write(zinfo.FileHeader(zip64))
-            if zinfo.compress_type == ZIP_DEFLATED:
-                cmpr = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
-                                        zlib.DEFLATED, -15)
-            else:
-                cmpr = None
-            file_size = 0
-            while 1:
-                buf = fp.read(blocksize)
-                if not buf:
-                    break
-                file_size = file_size + len(buf)
-                CRC = zlib.crc32(buf, CRC) & 0xffffffff
-                if cmpr:
-                    buf = cmpr.compress(buf)
-                    compress_size = compress_size + len(buf)
-                self.fp.write(buf)
+        # Must overwrite CRC and sizes with correct data later
+        zinfo.CRC = CRC = 0
+        zinfo.compress_size = compress_size = 0
+        # Compressed size can be larger than uncompressed size
+        zip64 = self._allowZip64 and \
+                zinfo.file_size * 1.05 > ZIP64_LIMIT
+        self.fp.write(zinfo.FileHeader(zip64))
+        if zinfo.compress_type == ZIP_DEFLATED:
+            cmpr = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
+                 zlib.DEFLATED, -15)
+        else:
+            cmpr = None
+        file_size = 0
+        while 1:
+            buf = fh.read(blocksize)
+            if not buf:
+                break
+            file_size = file_size + len(buf)
+            CRC = zlib.crc32(buf, CRC) & 0xffffffff
+            if cmpr:
+                buf = cmpr.compress(buf)
+                compress_size = compress_size + len(buf)
+            self.fp.write(buf)
         if cmpr:
             buf = cmpr.flush()
             compress_size = compress_size + len(buf)
@@ -129,6 +127,45 @@ class StoreZipFile(ZipFile):
         self.filelist.append(zinfo)
         self.NameToInfo[zinfo.filename] = zinfo
 
+class OpenFileQueue:
+
+    def __init__(self, cursor=None, queuelen=10):
+        self.queue = Queue(queuelen)
+        self.fileopenThread = Thread(target=self.fileopener)
+        self.cursor = cursor
+
+    def fileopener(self):
+        global running
+        global rwsize
+        for f in self.cursor:
+            if not running:
+                break
+            localpath = f['path'].replace(dataRoot, mountPoint, 1)
+            try:
+                fh = open(localpath, mode='rb', buffering=-1)
+                fh.read(rwsize)
+                fh.seek(0)
+                self.queue.put((f, fh), block=True)
+            except IOError:
+                self.queue.put((f, None), block=True)
+            except OSError:
+                self.queue.put((f, None), block=True)
+
+    def __enter__(self):
+        self.fileopenThread.start()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.fileopenThread.join(2)
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        try:
+            return self.queue.get(block=True, timeout=10)
+        except Empty:
+            raise StopIteration
 
 class Container:
 
@@ -157,12 +194,12 @@ class Container:
         os.chown(self.localfilepath, self.archiveUid, os.getgid())
         os.chmod(self.localfilepath, self.archiveMod)
 
-    def add(self, pnfsid, filepath, localpath, size):
+    def add(self, fh, pnfsid, size):
         global rwsize
-        self.arcfile.write(localpath, arcname=pnfsid, blocksize=rwsize)
+        self.arcfile.writeByHandle(fh, arcname=pnfsid, blocksize=rwsize)
         self.size += size
         self.filecount += 1
-        self.logger.debug("Added file %s with pnfsid %s" % (filepath, pnfsid))
+        self.logger.debug("Added file %s with pnfsid %s" % (fh.name, pnfsid))
 
     def getFilelist(self):
         return self.arcfile.filelist
@@ -273,114 +310,119 @@ class GroupPackager:
                     return
 
                 cursor.rewind()
-                container = None
-                containerChimeraPath = None
-                try:
-                    for f in cursor:
-                        if filecount <= 0 or sumsize <= 0:
-                            self.logger.info("Actual number of files exceeds precalculated number, will collect new files in next run.")
-                            break
+                with OpenFileQueue(cursor, queuelen=100) as files:
+                    container = None
+                    containerChimeraPath = None
+                    try:
+                        for f, fh in files:
+                            if filecount <= 0 or sumsize <= 0:
+                                self.logger.info("Actual number of files exceeds precalculated number, will collect new files in next run.")
+                                break
 
-                        self.logger.debug("Next file %s [%s], remaining %d [%d bytes]" % (f['path'], f['pnfsid'], filecount, sumsize) )
-                        if not running:
-                            if container:
-                                raise UserInterruptException(container.localfilepath)
-                            else:
-                                raise UserInterruptException(None)
+                            self.logger.debug("Next file %s [%s], remaining %d [%d bytes]" % (f['path'], f['pnfsid'], filecount, sumsize) )
+                            if not running:
+                                if container:
+                                    raise UserInterruptException(container.localfilepath)
+                                else:
+                                    raise UserInterruptException(None)
 
-                        if container is None:
-                            if sumsize >= self.archiveSize or old_file_mode:
-                                container = Container(self.archivePath, dcap)
-                                self.logger.info("Creating new container %s . %d files [%d bytes] remaining." % (container.pnfsfilepath, filecount, sumsize))
+                            if container is None:
+                                if sumsize >= self.archiveSize or old_file_mode:
+                                    container = Container(self.archivePath, dcap)
+                                    self.logger.info("Creating new container %s . %d files [%d bytes] remaining." % (container.pnfsfilepath, filecount, sumsize))
+                                else:
+                                    self.logger.info("remaining combined size %d < %d, leaving packager" % (sumsize, self.archiveSize))
+                                    return
+
+                            if old_file_mode:
+                                self.logger.debug("%d bytes remaining for this archive" % sumsize)
+                                self.writeStatus(container.pnfsfilepath, sumsize, "%s [%s]" % ( f['path'], f['pnfsid'] ))
                             else:
-                                self.logger.info("remaining combined size %d < %d, leaving packager" % (sumsize, self.archiveSize))
+                                self.logger.debug("%d bytes remaining for this archive" % (self.archiveSize-container.size))
+                                self.writeStatus(container.pnfsfilepath, self.archiveSize-container.size, "%s [%s]" % ( f['path'], f['pnfsid'] ))
+
+                            try:
+                                if fh is None:
+                                    raise IOError("File %s is not opened for reading" % f['path'])
+                                self.logger.debug("before container.add(%s[%s], %s, %s)" % (fh.name, fh.mode, f['pnfsid'], f['size']))
+                                container.add(fh, f['pnfsid'], f['size'])
+                                self.logger.debug("before collection.save")
+                                f['state'] = "added: %s" % container.pnfsfilepath
+                                f['lock'] = scriptId
+                                cursor.collection.save(f)
+                                self.logger.debug("Added file %s [%s], size: %d" % (f['path'], f['pnfsid'], f['size']))
+                            except IOError as e:
+                                self.logger.exception("IOError while adding file %s to archive %s [%s], %s" % (f['path'], container.arcfile.filename, f['pnfsid'], e.message))
+                                self.logger.debug("Removing entry for file %s" % f['pnfsid'])
+                                self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
+                            except OSError as e:
+                                self.logger.exception("OSError while adding file %s to archive %s [%s], %s" % (f['path'], f['pnfsid'], container.arcfile.filename, e.message))
+                                self.logger.debug("Removing entry for file %s" % f['pnfsid'])
+                                self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
+                            except errors.OperationFailure as e:
+                                self.logger.error("Removing container %s due to OperationalFailure. See below for details." % container.arcfile.filename)
+                                container.close()
+                                os.remove(container.localfilepath)
+                                raise e
+                            except errors.ConnectionFailure as e:
+                                self.logger.error("Removing container %s due to ConnectionFailure. See below for details." % container.arcfile.filename)
+                                container.close()
+                                os.remove(container.localfilepath)
+                                raise e
+                            finally:
+                                fh.close()
+
+                            sumsize -= f['size']
+                            filecount -= 1
+
+                            if container.size >= self.archiveSize:
+                                self.logger.debug("Closing full container %s" % container.localfilepath)
+                                containerChimeraPath = container.pnfsfilepath
+                                container.close()
+
+                                if self.verifyContainer(container):
+                                    self.logger.info("Container %s successfully stored" % container.localfilepath)
+                                    self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'archived: %s' % containerChimeraPath }, '$unset': { 'lock': "" } }, multi = True )
+                                    self.createArchiveEntry(container)
+                                else:
+                                    self.logger.warn("Removing container %s due to verification error" % container.localfilepath)
+                                    self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' }, '$unset': { 'lock': "" } }, multi = True )
+                                    os.remove(container.localfilepath)
+
+                                container = None
+
+
+                        if container:
+                            if not old_file_mode:
+                                self.logger.warn("Removing unful container %s . Maybe a file was deleted during packaging." % container.localfilepath)
+                                container.close()
+                                os.remove(container.localfilepath)
                                 return
 
-                        if old_file_mode:
-                            self.logger.debug("%d bytes remaining for this archive" % sumsize)
-                            self.writeStatus(container.pnfsfilepath, sumsize, "%s [%s]" % ( f['path'], f['pnfsid'] ))
-                        else:
-                            self.logger.debug("%d bytes remaining for this archive" % (self.archiveSize-container.size))
-                            self.writeStatus(container.pnfsfilepath, self.archiveSize-container.size, "%s [%s]" % ( f['path'], f['pnfsid'] ))
-
-                        try:
-                            localfile = f['path'].replace(dataRoot, mountPoint, 1)
-                            self.logger.debug("before container.add(%s[%s], %s)" % (f['path'], f['pnfsid'], f['size']))
-                            container.add(f['pnfsid'], f['path'], localfile, f['size'])
-                            self.logger.debug("before collection.save")
-                            f['state'] = "added: %s" % container.pnfsfilepath
-                            f['lock'] = scriptId
-                            cursor.collection.save(f)
-                            self.logger.debug("Added file %s [%s]" % (f['path'], f['pnfsid']))
-                        except IOError as e:
-                            self.logger.exception("IOError while adding file %s to archive %s [%s], %s" % (f['path'], container.pnfsfilepath, f['pnfsid'], e.message))
-                            self.logger.debug("Removing entry for file %s" % f['pnfsid'])
-                            self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
-                        except OSError as e:
-                            self.logger.exception("OSError while adding file %s to archive %s [%s], %s" % (f['path'], f['pnfsid'], container.pnfsfilepath, e.message))
-                            self.logger.debug("Removing entry for file %s" % f['pnfsid'])
-                            self.db.files.remove( { 'pnfsid': f['pnfsid'] } )
-                        except errors.OperationFailure as e:
-                            self.logger.error("Removing container %s due to OperationalFailure. See below for details." % container.localfilepath)
-                            container.close()
-                            os.remove(container.localfilepath)
-                            raise e
-                        except errors.ConnectionFailure as e:
-                            self.logger.error("Removing container %s due to ConnectionFailure. See below for details." % container.localfilepath)
-                            container.close()
-                            os.remove(container.localfilepath)
-                            raise e
-
-                        sumsize -= f['size']
-                        filecount -= 1
-
-                        if container.size >= self.archiveSize:
-                            self.logger.debug("Closing full container %s" % container.pnfsfilepath)
+                            self.logger.debug("Closing container %s containing remaining old files", container.localfilepath)
                             containerChimeraPath = container.pnfsfilepath
                             container.close()
 
                             if self.verifyContainer(container):
-                                self.logger.info("Container %s successfully stored" % container.pnfsfilepath)
-                                self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'archived: %s' % containerChimeraPath }, '$unset': { 'lock': "" } }, multi=True )
+                                self.logger.info("Container %s with old files successfully stored" % container.arcfile.filename)
+                                self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'archived: %s' % containerChimeraPath }, '$unset': { 'lock': "" } }, multi = True )
                                 self.createArchiveEntry(container)
                             else:
-                                self.logger.warn("Removing container %s due to verification error" % container.localfilepath)
-                                self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' }, '$unset': { 'lock': "" } }, multi=True )
+                                self.logger.warn("Removing container %s with old files due to verification error" % container.arcfile.filename)
+                                self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' }, '$unset': { 'lock': "" } }, multi = True )
                                 os.remove(container.localfilepath)
 
-                            container = None
-
-                    if container:
-                        if not old_file_mode:
-                            self.logger.warn("Removing unful container %s . Maybe a file was deleted during packaging." % container.localfilepath)
-                            container.close()
-                            os.remove(container.localfilepath)
-                            return
-
-                        self.logger.debug("Closing container %s containing remaining old files", container.pnfsfilepath)
-                        containerChimeraPath = container.pnfsfilepath
-                        container.close()
-
-                        if self.verifyContainer(container):
-                            self.logger.info("Container %s with old files successfully stored" % container.pnfsfilepath)
-                            self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'archived: %s' % containerChimeraPath }, '$unset': { 'lock': "" } }, multi=True )
-                            self.createArchiveEntry(container)
-                        else:
-                            self.logger.warn("Removing container %s with old files due to verification error" % container.localfilepath)
-                            self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' }, '$unset': { 'lock': "" } }, multi=True )
-                            os.remove(container.localfilepath)
-
-                except IOError as e:
-                    self.logger.error("%s closing file %s. Trying to clean up files in state: 'added'. This might need additional manual fixing!" % (e.strerror, containerChimeraPath))
-                    self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' }, '$unset': { 'lock': "" } }, multi=True )
-                except errors.OperationFailure as e:
-                    self.logger.error("Operation Exception in database communication while creating container %s . Please check!" % containerChimeraPath )
-                    self.logger.error('%s' % e.message)
-                    os.remove(container.localfilepath)
-                except errors.ConnectionFailure as e:
-                    self.logger.error("Connection Exception in database communication. Removing incomplete container %s ." % containerChimeraPath)
-                    self.logger.error('%s' % e.message)
-                    os.remove(container.localfilepath)
+                    except IOError as e:
+                        self.logger.error("%s closing file %s . Trying to clean up files in state: 'added'. This might need additional manual fixing!" % (e.strerror, containerChimeraPath))
+                        self.db.files.update( { 'state': 'added: %s' % containerChimeraPath }, { '$set': { 'state': 'new' }, '$unset': { 'lock': "" } }, multi = True )
+                    except errors.OperationFailure as e:
+                        self.logger.error("Operation Exception in database communication while creating container %s . Please check!" % containerChimeraPath )
+                        self.logger.error('%s' % e.message)
+                        os.remove(container.localfilepath)
+                    except errors.ConnectionFailure as e:
+                        self.logger.error("Connection Exception in database communication. Removing incomplete container %s ." % containerChimeraPath)
+                        self.logger.error('%s' % e.message)
+                        os.remove(container.localfilepath)
 
         finally:
             dcap.close()
