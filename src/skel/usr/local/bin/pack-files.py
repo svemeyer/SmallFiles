@@ -116,7 +116,7 @@ class StoreZipFile(ZipFile):
                 if cmpr:
                     buf = cmpr.compress(buf)
                     compress_size = compress_size + len(buf)
-             
+
                 self.logger.debug("> fp.write(buf)")
                 self.fp.write(buf)
                 self.logger.debug("< fp.write(buf)")
