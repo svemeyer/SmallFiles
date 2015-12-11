@@ -7,7 +7,7 @@ Version: 1.0
 Release: 1
 License: GPL
 Group: Applications/Services
-Source: https://github.com/dCache/SmallFiles/archive/feature/1MbBufferWriteZipFile/master.zip
+Source: https://github.com/dCache/SmallFiles/archive/master/master.zip
 URL: https://github.com/dCache/SmallFiles.git
 BuildRoot: %{_tmppath}/%{name}-root
 BuildArch: noarch
@@ -26,7 +26,7 @@ systems.
 %prep
 rm -rf $RPM_BUILD_ROOT/*
 rm -rf $RPM_BUILD_DIR/*
-wget -O master.zip https://github.com/dCache/SmallFiles/archive/feature/1MbBufferWriteZipFile/master.zip
+wget -O $RPM_SOURCE_DIR/master.zip https://github.com/dCache/SmallFiles/archive/master/master.zip
 unzip $RPM_SOURCE_DIR/master.zip
 mv SmallFiles*/* .
 
