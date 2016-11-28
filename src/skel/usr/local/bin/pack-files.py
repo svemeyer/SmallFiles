@@ -7,6 +7,7 @@ import stat
 import signal
 import time
 import logging
+import logging.handlers
 from datetime import datetime
 import re
 import ConfigParser as Parser
@@ -394,6 +395,10 @@ def dotfile(filepath, tag):
 def main(configfile = '/etc/dcache/container.conf'):
     global running
 
+    # initialize logging
+    logger = logging.getLogger()
+    log_handler = None
+
     while running:
         try:
             configuration = Parser.RawConfigParser(defaults = { 'scriptId': 'pack', 'archiveUser': 'root', 'archiveMode': '0644', 'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5, 'logLevel': 'ERROR' })
@@ -410,8 +415,18 @@ def main(configfile = '/etc/dcache/container.conf'):
             global rwsize
             scriptId = configuration.get('DEFAULT', 'scriptId')
             
-            logging.basicConfig(filename = '/var/log/dcache/pack-files-%s.log' % scriptId,
-                        format='%(asctime)s %(name)-80s %(levelname)-8s %(message)s')
+            logLevelStr = configuration.get('DEFAULT', 'logLevel')
+            logLevel = getattr(logging, logLevelStr.upper(), None)
+            logger.setLevel(logLevel)
+
+            if log_handler is not None:
+                log_handler.close()
+                logger.removeHandler(log_handler)
+
+            log_handler = logging.handlers.WatchedFileHandler('/var/log/dcache/pack-files-%s.log' % scriptId)
+            formatter = logging.Formatter('%(asctime)s %(name)-80s %(levelname)-8s %(message)s')
+            log_handler.setFormatter(formatter)
+            logger.addHandler(log_handler)
 
             archiveUser = configuration.get('DEFAULT', 'archiveUser')
             archiveMode = configuration.get('DEFAULT', 'archiveMode')
@@ -421,12 +436,9 @@ def main(configfile = '/etc/dcache/container.conf'):
             mongoDb  = configuration.get('DEFAULT', 'mongodb')
             dcapUrl = configuration.get('DEFAULT', 'dcapUrl')
             rwsize = configuration.getint('DEFAULT', 'rwsize')
-            logLevelStr = configuration.get('DEFAULT', 'logLevel')
-            logLevel = getattr(logging, logLevelStr.upper(), None) 
 
             loopDelay = configuration.getint('DEFAULT', 'loopDelay')
 
-            logging.getLogger().setLevel(logLevel)
 
             logging.info('Successfully read configuration from file %s.' % configfile)
             logging.debug('scriptId = %s' % scriptId)
