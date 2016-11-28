@@ -133,7 +133,7 @@ mongoUrl=$(echo "$*"|grep -o -e '-mongoUrl=[^ $]*'|grep -o -e '[^=]*$')
 export mongoUrl
 dcapLib=$(echo "$*"|grep -o -e '-dcapLib=[^ $]*'|grep -o -e '[^=]*$')
 export dcapLib
-uri=$(echo "$*"|grep -o -e '-uri=[^ $]*'|cut -d"=" -f2-)
+uri=$(echo "$*"|grep -o -e '-uri=[^ $]*'|grep -o -e '[^-][^u][^r][^i][^=].*$')
 export uri
 #
 ##################################################################################
