@@ -241,7 +241,7 @@ class GroupPackager:
         global dcapUrl
         dcap = Dcap(dcapUrl)
         try:
-            now = int((datetime.now()-datetime.fromtimestamp(0)).total_seconds())
+            now = int(datetime.now().strftime("%s"))
             ctime_threshold = (now - self.minAge*60)
             self.logger.debug("Looking for files matching { path: %s, group: %s, store: %s, ctime: { $lt: %d } }" % (self.pathPattern.pattern, self.sGroup.pattern, self.storeName.pattern, ctime_threshold) )
             with self.db.files.find( { 'state': 'new', 'path': self.pathPattern, 'group': self.sGroup, 'store': self.storeName, 'ctime': { '$lt': ctime_threshold } }, timeout=False).batch_size(512) as cursor:
@@ -282,7 +282,7 @@ class GroupPackager:
                             self.logger.info("Actual number of files exceeds precalculated number, will collect new files in next run.")
                             break
 
-                        self.logger.debug("Next file %s [%s], age: %s seconds. Remaining %d [%d bytes]" % (f['path'], f['pnfsid'], int((datetime.now()-datetime.fromtimestamp(f['ctime'])).total_seconds()), filecount, sumsize) )
+                        self.logger.debug("Next file %s [%s], remaining %d [%d bytes]" % (f['path'], f['pnfsid'], filecount, sumsize) )
                         if not running:
                             if container:
                                 raise UserInterruptException(container.localfilepath)
