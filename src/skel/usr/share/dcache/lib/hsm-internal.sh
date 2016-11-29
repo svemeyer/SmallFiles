@@ -78,7 +78,7 @@ datasetPut() {
 
    [ ${result} -ne 0 ] && problem 102 "Error running mongo script"
 
-   [ -z ${reply} ] && problem 2 "Not yet ready"
+   [ -z "${reply}" ] && problem 2 "Not yet ready"
 
    iserror=$(expr "${reply}" : "ERROR \([0-9]*\).*")
 
@@ -86,6 +86,11 @@ datasetPut() {
    then
       return ${iserror}
    else 
+      reply=`echo "${reply}" | grep dcache:`
+
+      # no results after filtering
+      [ -z "${reply}" ] && problem 2 "Not yet ready (empty)"
+
       echo "${reply}"
       return 0
    fi
@@ -128,7 +133,7 @@ mongoUrl=$(echo "$*"|grep -o -e '-mongoUrl=[^ $]*'|grep -o -e '[^=]*$')
 export mongoUrl
 dcapLib=$(echo "$*"|grep -o -e '-dcapLib=[^ $]*'|grep -o -e '[^=]*$')
 export dcapLib
-uri=$(echo "$*"|grep -o -e '-uri=[^ $]*'|cut -d"=" -f2-)
+uri=$(echo "$*"|grep -o -e '-uri=[^ $]*'|grep -o -e '[^-][^u][^r][^i][^=].*$')
 export uri
 #
 ##################################################################################

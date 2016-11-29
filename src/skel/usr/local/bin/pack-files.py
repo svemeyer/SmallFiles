@@ -34,14 +34,13 @@ mongoDb  = "smallfiles"
 mountPoint = ""
 dataRoot = ""
 dcapUrl = ""
-rwsize = 8192
 
 class StoreZipFile(ZipFile):
 
     def __init__(self, file):
         ZipFile.__init__(self, file, mode='w', allowZip64=True)
 
-    def write(self, filename, arcname=None, compress_type=None, blocksize=8192):
+    def write(self, filename, arcname=None, compress_type=None):
         """Put the bytes from filename into the archive under the name
         arcname."""
         if not self.fp:
@@ -98,7 +97,7 @@ class StoreZipFile(ZipFile):
                 cmpr = None
             file_size = 0
             while 1:
-                buf = fp.read(blocksize)
+                buf = fp.read(1024 * 1024)
                 if not buf:
                     break
                 file_size = file_size + len(buf)
@@ -159,8 +158,7 @@ class Container:
         os.chmod(self.localfilepath, self.archiveMod)
 
     def add(self, pnfsid, filepath, localpath, size):
-        global rwsize
-        self.arcfile.write(localpath, arcname=pnfsid, blocksize=rwsize)
+        self.arcfile.write(localpath, arcname=pnfsid)
         self.size += size
         self.filecount += 1
         self.logger.debug("Added file %s with pnfsid %s" % (filepath, pnfsid))
@@ -241,7 +239,7 @@ class GroupPackager:
         global dcapUrl
         dcap = Dcap(dcapUrl)
         try:
-            now = int((datetime.now()-datetime.fromtimestamp(0)).total_seconds())
+            now = int(datetime.now().strftime("%s"))
             ctime_threshold = (now - self.minAge*60)
             self.logger.debug("Looking for files matching { path: %s, group: %s, store: %s, ctime: { $lt: %d } }" % (self.pathPattern.pattern, self.sGroup.pattern, self.storeName.pattern, ctime_threshold) )
             with self.db.files.find( { 'state': 'new', 'path': self.pathPattern, 'group': self.sGroup, 'store': self.storeName, 'ctime': { '$lt': ctime_threshold } }, timeout=False).batch_size(512) as cursor:
@@ -282,7 +280,7 @@ class GroupPackager:
                             self.logger.info("Actual number of files exceeds precalculated number, will collect new files in next run.")
                             break
 
-                        self.logger.debug("Next file %s [%s], age: %s seconds. Remaining %d [%d bytes]" % (f['path'], f['pnfsid'], int((datetime.now()-datetime.fromtimestamp(f['ctime'])).total_seconds()), filecount, sumsize) )
+                        self.logger.debug("Next file %s [%s], remaining %d [%d bytes]" % (f['path'], f['pnfsid'], filecount, sumsize) )
                         if not running:
                             if container:
                                 raise UserInterruptException(container.localfilepath)
@@ -412,7 +410,6 @@ def main(configfile = '/etc/dcache/container.conf'):
             global mongoUri
             global mongoDb
             global dcapUrl
-            global rwsize
             scriptId = configuration.get('DEFAULT', 'scriptId')
             
             logLevelStr = configuration.get('DEFAULT', 'logLevel')
@@ -435,7 +432,6 @@ def main(configfile = '/etc/dcache/container.conf'):
             mongoUri = configuration.get('DEFAULT', 'mongoUri')
             mongoDb  = configuration.get('DEFAULT', 'mongodb')
             dcapUrl = configuration.get('DEFAULT', 'dcapUrl')
-            rwsize = configuration.getint('DEFAULT', 'rwsize')
 
             loopDelay = configuration.getint('DEFAULT', 'loopDelay')
 
@@ -449,7 +445,6 @@ def main(configfile = '/etc/dcache/container.conf'):
             logging.debug('mongoUri = %s' % mongoUri)
             logging.debug('mongoDb = %s' % mongoDb)
             logging.debug('dcapUrl = %s' % dcapUrl)
-            logging.debug('rwsize = %s' % rwsize)
             logging.debug('logLevel = %s' % logLevel)
             logging.debug('loopDelay = %s' % loopDelay)
 
