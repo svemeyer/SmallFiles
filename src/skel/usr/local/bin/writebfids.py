@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding=utf-8
 
 import os
@@ -8,18 +8,29 @@ import errno
 import signal
 from zipfile import ZipFile, BadZipfile
 from pymongo import MongoClient, errors
-import ConfigParser as parser
+import configparser as parser
 import logging
 import logging.handlers
 
 running = True
 
+# script_id = 'pack'
+archive_user = 'root'
+archive_mode = '0644'
+mount_point = ""
+data_root = ""
+mongo_uri = "mongodb://localhost/"
+mongo_db = "smallfiles"
+# dcap_url = ""
+
+
 def sigint_handler(signum, frame):
     global running
-    print("Caught signal %d." % signum)
+    print(f"Caught signal {signum}.")
     running = False
 
-def main(configfile = '/etc/dcache/container.conf'):
+
+def main(configfile='/etc/dcache/container.conf'):
     global running
 
     # initialize logging
@@ -28,45 +39,47 @@ def main(configfile = '/etc/dcache/container.conf'):
 
     try:
         while running:
-            configuration = parser.RawConfigParser(defaults = { 'scriptId': 'pack',  'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5, 'logLevel': 'ERROR' })
+            configuration = parser.RawConfigParser(defaults={'scriptId': 'pack', 'mongoUri': 'mongodb://localhost/',
+                                                             'mongoDb': 'smallfiles', 'loopDelay': 5,
+                                                             'logLevel': 'ERROR'})
             configuration.read(configfile)
 
-            global archiveUser
-            global archiveMode
-            global mountPoint
-            global dataRoot
-            global mongoUri
-            global mongoDb
+            global archive_user
+            global archive_mode
+            global mount_point
+            global data_root
+            global mongo_uri
+            global mongo_db
 
-            scriptId = configuration.get('DEFAULT', 'scriptId')
+            script_id = configuration.get('DEFAULT', 'scriptId')
 
-            logLevelStr = configuration.get('DEFAULT', 'logLevel')
-            logLevel = getattr(logging, logLevelStr.upper(), None)
-            logger.setLevel(logLevel)
+            log_level_str = configuration.get('DEFAULT', 'logLevel')
+            log_level = getattr(logging, log_level_str.upper(), None)
+            logger.setLevel(log_level)
 
             if log_handler is not None:
                 log_handler.close()
                 logger.removeHandler(log_handler)
 
-            log_handler = logging.handlers.WatchedFileHandler('/var/log/dcache/writebfids-%s.log' % scriptId)
+            log_handler = logging.handlers.WatchedFileHandler(f'/var/log/dcache/writebfids-{script_id}.log')
             formatter = logging.Formatter('%(asctime)s %(name)-80s %(levelname)-8s %(message)s')
             log_handler.setFormatter(formatter)
             logger.addHandler(log_handler)
 
-            archiveUser = configuration.get('DEFAULT', 'archiveUser')
-            archiveMode = configuration.get('DEFAULT', 'archiveMode')
-            mountPoint = configuration.get('DEFAULT', 'mountPoint')
-            dataRoot = configuration.get('DEFAULT', 'dataRoot')
-            mongoUri = configuration.get('DEFAULT', 'mongoUri')
-            mongoDb  = configuration.get('DEFAULT', 'mongodb')
+            archive_user = configuration.get('DEFAULT', 'archiveUser')
+            archive_mode = configuration.get('DEFAULT', 'archiveMode')
+            mount_point = configuration.get('DEFAULT', 'mountPoint')
+            data_root = configuration.get('DEFAULT', 'dataRoot')
+            mongo_uri = configuration.get('DEFAULT', 'mongoUri')
+            mongo_db = configuration.get('DEFAULT', 'mongodb')
 
-            loopDelay = configuration.getint('DEFAULT', 'loopDelay')
+            loop_delay = configuration.getint('DEFAULT', 'loopDelay')
 
-            logging.info('Successfully read configuration from file %s.' % configfile)
+            logging.info(f'Successfully read configuration from file {configfile}.')
 
             try:
-                client = MongoClient(mongoUri)
-                db = client[mongoDb]
+                client = MongoClient(mongo_uri)
+                db = client[mongo_db]
                 logging.info("Established db connection")
 
                 with db.archives.find() as archives:
@@ -75,58 +88,62 @@ def main(configfile = '/etc/dcache/container.conf'):
                             logging.info("Exiting.")
                             sys.exit(1)
                         try:
-                            localpath = archive['path'].replace(dataRoot, mountPoint, 1)
-                            archivePnfsid = archive['pnfsid']
-                            zf = ZipFile(localpath, mode='r', allowZip64 = True)
+                            localpath = archive['path'].replace(data_root, mount_point, 1)
+                            archive_pnfsid = archive['pnfsid']
+                            zf = ZipFile(localpath, mode='r', allowZip64=True)
                             for f in zf.filelist:
-                                logging.debug("Entering bfid into record for file %s" % f.filename)
-                                filerecord = db.files.find_one( { 'pnfsid': f.filename, 'state': 'archived: %s' % archive['path'] }, await_data=True )
+                                logging.debug(f"Entering bfid into record for file {f.filename}")
+                                filerecord = db.files.find_one(
+                                    {'pnfsid': f.filename, 'state': f'archived: {archive["path"]}'}, await_data=True)
                                 if filerecord:
-                                    url = "dcache://dcache/?store=%s&group=%s&bfid=%s:%s" % (filerecord['store'], filerecord['group'], f.filename, archivePnfsid)
+                                    url = f"dcache://dcache/?store={filerecord['store']}&group={filerecord['group']}" \
+                                          f"&bfid={f.filename}:{archive_pnfsid} "
                                     filerecord['archiveUrl'] = url
-                                    filerecord['state'] = 'verified: %s' % archive['path']
+                                    filerecord['state'] = f'verified: {archive["path"]}'
                                     db.files.save(filerecord)
-                                    logging.debug("Updated record with URL %s in archive %s" % (url,archive['path']))
+                                    logging.debug(f"Updated record with URL {url} in archive {archive['path']}")
                                 else:
-                                    logging.warn("File %s in archive %s has no entry in DB. This could be caused by a previous forced interrupt. Creating failure entry." % (f.filename, archive['path']) )
-                                    db.failures.insert( { 'archiveId': archivePnfsid, 'pnfsid': f.filename } )
+                                    logging.warning(
+                                        f"File {f.filename} in archive {archive['path']} has no entry in DB. This "
+                                        f"could be caused by a previous forced interrupt. Creating failure entry.")
+                                    db.failures.insert({'archiveId': archive_pnfsid, 'pnfsid': f.filename})
 
-                            logging.debug("stat(%s): %s" % (localpath, os.stat(localpath)))
+                            logging.debug(f"stat({localpath}): {os.stat(localpath)}")
 
-                            db.archives.remove( { 'pnfsid': archive['pnfsid'] } )
-                            logging.debug("Removed entry for archive %s[%s]" % ( archive['path'], archive['pnfsid'] ) )
+                            db.archives.remove({'pnfsid': archive['pnfsid']})
+                            logging.debug(f"Removed entry for archive {archive['path']}[{archive['pnfsid']}]")
 
                             pnfsname = os.path.join(os.path.dirname(localpath), archive['pnfsid'])
-                            logging.debug("Renaming archive %s to %s" % (localpath, pnfsname) )
+                            logging.debug(f"Renaming archive {localpath} to {pnfsname}")
                             os.rename(localpath, pnfsname)
 
                         except BadZipfile as e:
-                            logging.warn("Archive %s is not yet ready. Will try later." % localpath)
+                            logging.warning(f"Archive {localpath} is not yet ready. Will try later.")
 
                         except IOError as e:
                             if e.errno != errno.EINTR:
-                                logging.error("IOError: %s" % e.strerror)
+                                logging.error(f"IOError: {e.strerror}")
                             else:
                                 logging.info("User interrupt.")
 
                 client.close()
 
             except errors.ConnectionFailure as e:
-                logging.warn("Connection to DB failed: %s" % e.message)
+                logging.warning(f"Connection to DB failed: {str(e)}")
             except errors.OperationFailure as e:
-                logging.warn("Could not create cursor: %s" % e.message)
+                logging.warning(f"Could not create cursor: {str(e)}")
             except Exception as e:
-                logging.error("Unexpected error: %s" % e.message)
+                logging.error(f"Unexpected error: {str(e)}")
 
-            logging.info("Processed all archive entries. Sleeping 60 seconds.")
-            time.sleep(60)
+            logging.info(f"Processed all archive entries. Sleeping {loop_delay} seconds.")
+            time.sleep(loop_delay)
 
     except parser.NoOptionError as e:
-        print("Missing option: %s" % e.message)
-        logging.error("Missing option: %s" % e.message)
+        print(f"Missing option: {str(e)}")
+        logging.error(f"Missing option: {str(e)}")
     except parser.Error as e:
-        print("Error reading configfile %s: %s" % (configfile, e.message))
-        logging.error("Error reading configfile %s: %s" % (configfile, e.message))
+        print(f"Error reading configfile {configfile}: {str(e)}")
+        logging.error(f"Error reading configfile {configfile}: {str(e)}")
         sys.exit(2)
 
 
@@ -143,4 +160,3 @@ if __name__ == '__main__':
     else:
         print("Usage: writebfids.py <configfile>")
         sys.exit(2)
-
