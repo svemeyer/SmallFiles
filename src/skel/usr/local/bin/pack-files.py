@@ -204,7 +204,8 @@ class GroupPackager:
         self.logger = logging.getLogger(name=f"GroupPackager[{self.path_pattern.pattern}]")
 
     def __del__(self):
-        pass
+        self.client.close()
+        logging.debug("Connection to MongoDB closed, container-object deleted.")
 
     def verify_container(self, container):
         verified = False
