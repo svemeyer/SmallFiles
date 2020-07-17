@@ -3,7 +3,7 @@
 #
 Summary: Scripts that allow handling of small files with dCache
 Name: dcache-smallfiles-packer
-Version: 1.2.3
+Version: 1.2.4
 Release: 1
 License: GPL
 Group: Applications/Services
@@ -41,6 +41,10 @@ install --mode 755 $RPM_BUILD_DIR/src/skel/usr/local/bin/dcap.py ${RPM_BUILD_ROO
 install --mode 755 $RPM_BUILD_DIR/src/skel/usr/local/bin/pack-files.py ${RPM_BUILD_ROOT}/usr/local/bin/pack-files.py
 install --mode 755 $RPM_BUILD_DIR/src/skel/usr/local/bin/fillmetadata.py ${RPM_BUILD_ROOT}/usr/local/bin/fillmetadata.py
 install --mode 755 $RPM_BUILD_DIR/src/skel/usr/local/bin/writebfids.py ${RPM_BUILD_ROOT}/usr/local/bin/writebfids.py
+install --directory ${RPM_BUILD_ROOT}/etc/systemd/system
+install --mode 755 $RPM_BUILD_DIR/src/skel/etc/systemd/system/fillmetadata.service ${RPM_BUILD_ROOT}/etc/systemd/system/fillmetadata.service
+install --mode 755 $RPM_BUILD_DIR/src/skel/etc/systemd/system/pack-files.service ${RPM_BUILD_ROOT}/etc/systemd/system/pack-files.service
+install --mode 755 $RPM_BUILD_DIR/src/skel/etc/systemd/system/writebfids.service ${RPM_BUILD_ROOT}/etc/systemd/system/writebfids.service
 
 %files
 /etc/dcache/container.conf
@@ -49,4 +53,7 @@ install --mode 755 $RPM_BUILD_DIR/src/skel/usr/local/bin/writebfids.py ${RPM_BUI
 /usr/local/bin/pack-files.py
 /usr/local/bin/fillmetadata.py
 /usr/local/bin/writebfids.py
+/etc/systemd/system/fillmetadata.service
+/etc/systemd/system/pack-files.service
+/etc/systemd/system/writebfids.service
 
