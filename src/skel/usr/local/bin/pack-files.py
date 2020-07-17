@@ -469,7 +469,7 @@ def main(configfile='/etc/dcache/container.conf'):
                 logger.removeHandler(log_handler)
 
             log_handler = logging.handlers.WatchedFileHandler(f'/var/log/dcache/pack-files-{script_id}.log')
-            formatter = logging.Formatter('%(asctime)s %(name)-80s %(levelname)-8s %(message)s')
+            formatter = logging.Formatter('%(asctime)s %(name)-10s %(levelname)-8s %(message)s')
             log_handler.setFormatter(formatter)
             logger.addHandler(log_handler)
 

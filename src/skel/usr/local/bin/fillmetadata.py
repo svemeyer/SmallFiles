@@ -63,7 +63,7 @@ def main(configfile='/etc/dcache/container.conf'):
                 logger.removeHandler(log_handler)
 
             log_handler = logging.handlers.WatchedFileHandler(f'/var/log/dcache/fillmetadata-{script_id}.log')
-            formatter = logging.Formatter('%(asctime)s %(name)-80s %(levelname)-8s %(message)s')
+            formatter = logging.Formatter('%(asctime)s %(name)-10s %(levelname)-8s %(message)s')
             log_handler.setFormatter(formatter)
             logger.addHandler(log_handler)
 
@@ -80,7 +80,7 @@ def main(configfile='/etc/dcache/container.conf'):
                 db = client[mongo_db]
 
                 with db.files.find({'state': {'$exists': False}}, snapshot=True) as new_files_cursor:
-                    logging.info(f"found {new_files_cursor.count} new files")
+                    logging.info(f"found {new_files_cursor.count()} new files")
                     for record in new_files_cursor:
                         if not running:
                             sys.exit(1)
@@ -116,7 +116,7 @@ def main(configfile='/etc/dcache/container.conf'):
             except errors.OperationFailure as e:
                 logging.warning(f"Could not create cursor: {str(e)}")
 
-            logging.info("Sleeping for 60 seconds")
+            logging.info(f"Sleeping for {loop_delay} seconds")
             time.sleep(loop_delay)
 
     except parser.NoOptionError as e:
