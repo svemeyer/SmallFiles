@@ -16,7 +16,7 @@ import zlib
 from zipfile import ZipFile, ZipInfo, ZIP64_LIMIT, ZIP_DEFLATED
 from pymongo import MongoClient, errors, ASCENDING
 from pwd import getpwnam
-from .dcap import Dcap
+from dcap import Dcap
 
 running = True
 
