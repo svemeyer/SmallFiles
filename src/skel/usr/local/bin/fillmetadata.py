@@ -130,7 +130,8 @@ def main(configfile='/etc/dcache/container.conf'):
 
 
 if __name__ == '__main__':
-    signal.signal(signal.SIGINT, sigint_handler)
+    signal.signal(signal.SIGINT, sigint_handler)  # Keyboard interrupt
+    signal.signal(signal.SIGTERM, sigint_handler)  # Service stopped
     if not os.getuid() == 0:
         print("fillmetadata.py must run as root!")
         sys.exit(2)
