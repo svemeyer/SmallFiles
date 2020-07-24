@@ -150,7 +150,6 @@ filename="${3}"
 #
 # 
 [ -z "${dcapLib}" ] && problem 3 "Variable 'dcapLib' not defined"
-[ -z "${dcapLib}" ] && problem 3 "Variable 'dcapLib' not defined"
 #
 [ -z "${dcapDoor}" ] && problem 3 "Variable 'dcapDoor' not defined"
 # report "Checking mongoUrl"
