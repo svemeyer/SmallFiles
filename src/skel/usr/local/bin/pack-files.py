@@ -3,7 +3,6 @@
 
 import os
 import sys
-import stat
 import signal
 import time
 import logging
@@ -12,8 +11,7 @@ from datetime import datetime
 import re
 import configparser as parser
 import uuid
-import zlib
-from zipfile import ZipFile, ZipInfo, ZIP64_LIMIT, ZIP_DEFLATED
+from zipfile import ZipFile
 from pymongo import MongoClient, errors, ASCENDING
 from pwd import getpwnam
 from dcap import Dcap
@@ -38,100 +36,6 @@ data_root = ""
 dcap_url = ""
 
 
-class StoreZipFile(ZipFile):
-
-    def __init__(self, file):
-        ZipFile.__init__(self, file, mode='w', allowZip64=True)
-
-    def write(self, filename, arcname=None, compress_type=None, compress_level=None):
-        """Put the bytes from filename into the archive under the name
-        arcname."""
-        if not self.fp:
-            raise RuntimeError(
-                "Attempt to write to ZIP archive that was already closed")
-
-        st = os.stat(filename)
-        isdir = stat.S_ISDIR(st.st_mode)
-        mtime = time.localtime(st.st_mtime)
-        date_time = mtime[0:6]
-        # Create ZipInfo instance to store file information
-        if arcname is None:
-            arcname = filename
-        arcname = os.path.normpath(os.path.splitdrive(arcname)[1])
-        while arcname[0] in (os.sep, os.altsep):
-            arcname = arcname[1:]
-        if isdir:
-            arcname += '/'
-        zinfo = ZipInfo(arcname, date_time)
-        zinfo.external_attr = (st[0] & 0xFFFF) << 16  # Unix attributes
-        if compress_type is None:
-            zinfo.compress_type = self.compression
-        else:
-            zinfo.compress_type = compress_type
-
-        zinfo.file_size = st.st_size
-        zinfo.flag_bits = 0x00
-        zinfo.header_offset = self.fp.tell()  # Start of header bytes
-
-        self._writecheck(zinfo)
-        self._didModify = True
-
-        if isdir:
-            zinfo.file_size = 0
-            zinfo.compress_size = 0
-            zinfo.CRC = 0
-            self.filelist.append(zinfo)
-            self.NameToInfo[zinfo.filename] = zinfo
-            self.fp.write(zinfo.FileHeader(False))
-            return
-
-        with open(filename, "rb") as fp:
-            # Must overwrite CRC and sizes with correct data later
-            zinfo.CRC = CRC = 0
-            zinfo.compress_size = compress_size = 0
-            # Compressed size can be larger than uncompressed size
-            zip64 = self._allowZip64 and zinfo.file_size * 1.05 > ZIP64_LIMIT
-            self.fp.write(zinfo.FileHeader(zip64))
-            if zinfo.compress_type == ZIP_DEFLATED:
-                cmpr = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
-                                        zlib.DEFLATED, -15)
-            else:
-                cmpr = None
-            file_size = 0
-            while 1:
-                buf = fp.read(1024 * 1024)
-                if not buf:
-                    break
-                file_size = file_size + len(buf)
-                CRC = zlib.crc32(buf, CRC) & 0xffffffff
-                if cmpr:
-                    buf = cmpr.compress(buf)
-                    compress_size = compress_size + len(buf)
-                self.fp.write(buf)
-        if cmpr:
-            buf = cmpr.flush()
-            compress_size = compress_size + len(buf)
-            self.fp.write(buf)
-            zinfo.compress_size = compress_size
-        else:
-            zinfo.compress_size = file_size
-        zinfo.CRC = CRC
-        zinfo.file_size = file_size
-        if not zip64 and self._allowZip64:
-            if file_size > ZIP64_LIMIT:
-                raise RuntimeError('File size has increased during compressing')
-            if compress_size > ZIP64_LIMIT:
-                raise RuntimeError('Compressed size larger than uncompressed size')
-        # Seek backwards and write file header (which will now include
-        # correct CRC and file sizes)
-        position = self.fp.tell()  # Preserve current position in file
-        self.fp.seek(zinfo.header_offset, 0)
-        self.fp.write(zinfo.FileHeader(zip64))
-        self.fp.seek(position, 0)
-        self.filelist.append(zinfo)
-        self.NameToInfo[zinfo.filename] = zinfo
-
-
 class Container:
 
     def __init__(self, localtargetdir, dcap):
@@ -144,7 +48,7 @@ class Container:
         self.logger.debug("Initializing")
 
         self.dcaparc = dcap.open_file(self.pnfsfilepath, 'w')
-        self.arcfile = StoreZipFile(self.dcaparc)
+        self.arcfile = ZipFile(self.dcaparc, "w")
         global archive_user
         global archive_mode
         self.archiveUid = getpwnam(archive_user).pw_uid
