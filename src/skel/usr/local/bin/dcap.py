@@ -37,7 +37,7 @@ class Dcap:
         u = urlparse(url)
         self.host = u.hostname
         self.port = u.port
-        self.root =u.path
+        self.root = u.path
         self.seq = 0
         self._connect()
         self._send_hello()
@@ -87,7 +87,7 @@ class Dcap:
     def open_file(self, path, mode='r'):
         session = self.seq
         open_opemmand = "%d 0 client open \"dcap://%s:%d/%s/%s\" %s localhost 1111 -passive -uid=%d -gid=%d -mode=0644" % \
-            (self.seq, self.host, self.port, self.root, path, mode, os.getuid(), os.getgid())
+                        (self.seq, self.host, self.port, self.root, path, mode, os.getuid(), os.getgid())
         self._send_control_msg(open_opemmand)
         reply = self._rcv_control_msg()
         host, port, chalange = self.parse_reply(reply, path)
@@ -113,13 +113,14 @@ class Dcap:
 
     def rename(self, src, dest):
         rename_cmd = "%d 0 client rename dcap://%s:%d/%s/%s %s" % \
-            (self.seq, self.host, self.port, self.root, src, dest )
+                     (self.seq, self.host, self.port, self.root, src, dest)
         self._send_control_msg(rename_cmd)
         reply = self._rcv_control_msg()
 
     def close(self):
         self._send_bye()
         self._close()
+
 
 def readFully(s, count):
     n = count
@@ -129,6 +130,7 @@ def readFully(s, count):
         n = n - len(d)
         data.extend(d)
     return data
+
 
 class DcapStream:
 
@@ -165,16 +167,26 @@ class DcapStream:
             data.extend(readFully(self.socket, count))
         return data
 
-    def read(self, count = -1):
+    def read(self, count=-1):
+
+        if count == -1:
+            data = bytearray()
+            while True:
+                d = self.read(1024 * 1024)
+                if len(d) == 0:
+                    break;
+                data.extend(d)
+            return data
+
         packer = struct.Struct('>IIq')
-        msg = packer.pack( 12, DCAP_READ, count)
+        msg = packer.pack(12, DCAP_READ, count)
         self.socket.sendall(msg)
         self._get_ack()
         return self._get_data()
 
-    def seek(self, offset,  from_what = 0 ):
+    def seek(self, offset, from_what=0):
         packer = struct.Struct('>IIqI')
-        msg = packer.pack( 16, DCAP_SEEK, offset,  from_what );
+        msg = packer.pack(16, DCAP_SEEK, offset, from_what);
         self.socket.sendall(msg)
         cb = self._get_ack()
         unpacker = struct.Struct('>IIIq')
@@ -190,7 +202,6 @@ class DcapStream:
         s = reply.split()
         if s[3] == 'failed':
             raise RuntimeError("failed to close file: " + _merge_string(s[4:]))
-
 
     def close(self):
         packer = struct.Struct('>II')
@@ -214,7 +225,7 @@ class DcapStream:
         data_header = data_packer.pack(4, DATA, statinfo.st_size)
         self.socket.sendall(data_header)
 
-        with open(src,'rb') as f:
+        with open(src, 'rb') as f:
             while True:
                 data = f.read(256 * 1024)
                 if len(data) == 0:
@@ -228,7 +239,7 @@ class DcapStream:
 
     def recv_file(self, dst):
 
-        with open(dst,'wb') as f:
+        with open(dst, 'wb') as f:
             while True:
                 data = self.read(1024 * 1024)
                 if len(data) == 0:
@@ -251,7 +262,7 @@ class DcapStream:
         self._get_ack()
 
     def readv(self, iovecs):
-        n = 8+len(iovecs)*12
+        n = 8 + len(iovecs) * 12
         packer = struct.Struct('>III')
         msg = packer.pack(n, DCAP_READV, len(iovecs))
         self.socket.sendall(msg)
@@ -274,7 +285,7 @@ class DcapStream:
             totalToRead = totalToRead - count
         self._get_ack()
         return data
->>>>>>> dcap: read the whole file when count is not specified
+
 
 def usage_and_exit():
     print("Usage: dcap <PUT|GET> <door> <local file> <remote file>")
