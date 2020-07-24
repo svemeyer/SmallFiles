@@ -151,7 +151,7 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, sigint_handler)  # Keyboard interrupt
     signal.signal(signal.SIGTERM, sigint_handler)  # Stopped service
     if not os.getuid() == 0:
-        print("writebfsids.py must run as root!")
+        print("writebfids.py must run as root!")
         sys.exit(2)
 
     if len(sys.argv) == 1:
