@@ -165,7 +165,7 @@ class DcapStream:
             data.extend(readFully(self.socket, count))
         return data
 
-    def read(self, count):
+    def read(self, count = -1):
         packer = struct.Struct('>IIq')
         msg = packer.pack( 12, DCAP_READ, count)
         self.socket.sendall(msg)
@@ -274,6 +274,7 @@ class DcapStream:
             totalToRead = totalToRead - count
         self._get_ack()
         return data
+>>>>>>> dcap: read the whole file when count is not specified
 
 def usage_and_exit():
     print("Usage: dcap <PUT|GET> <door> <local file> <remote file>")
