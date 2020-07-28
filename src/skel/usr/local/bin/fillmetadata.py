@@ -9,7 +9,6 @@ import configparser as parser
 from pymongo import MongoClient, errors
 import logging
 import logging.handlers
-import utils
 
 running = True
 
@@ -43,10 +42,14 @@ def main(configfile='/etc/dcache/container.conf'):
 
     try:
         while running:
-            configuration = utils.get_conf("fillmetadata", configfile)
-            if type(configuration) == FileNotFoundError:
-                logging.error(f"Configuration file {configfile} not found.")
-                return
+            configuration = parser.RawConfigParser(
+                defaults={'scriptId': 'pack', 'archiveUser': 'root', 'archiveMode': '0644',
+                          'mongoUri': 'mongodb://localhost/', 'mongoDb': 'smallfiles', 'loopDelay': 5,
+                          'logLevel': 'ERROR'})
+            configuration.read(configfile)
+            # if type(configuration) == FileNotFoundError:
+            #     logging.error(f"Configuration file {configfile} not found.")
+            #     return
 
             global mount_point
             global data_root
