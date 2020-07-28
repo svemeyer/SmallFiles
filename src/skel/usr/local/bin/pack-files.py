@@ -24,6 +24,7 @@ def sigint_handler(signum, frame):
     logging.info(f"Caught signal {signum}.")
     print(f"Caught signal {signum}.")
     running = False
+    raise InterruptedError
 
 
 script_id = 'pack'
@@ -58,10 +59,14 @@ class Container:
 
     def close(self):
         self.logger.debug("Closing")
-        self.arcfile.close()
-        self.dcaparc.close()
-        os.chown(self.localfilepath, self.archiveUid, os.getgid())
-        os.chmod(self.localfilepath, self.archiveMod)
+        try:
+            self.arcfile.close()
+            self.dcaparc.close()
+            os.chown(self.localfilepath, self.archiveUid, os.getgid())
+            os.chmod(self.localfilepath, self.archiveMod)
+        except InterruptedError:
+            self.logger.error("Caught interuption signal. Cancelled closing.")
+            raise InterruptedError
 
     def add(self, pnfsid, filepath, localpath, size):
         self.arcfile.write(localpath, arcname=pnfsid)
@@ -132,6 +137,10 @@ class GroupPackager:
             container_pnfsid = read_dotfile(container_local_path, 'id')
 
             self.db.archives.insert({'pnfsid': container_pnfsid, 'path': container_chimera_path})
+        except InterruptedError:
+            self.logger.error("Got interruption signal. Remove entry.")
+            if container_pnfsid:
+                self.db.archives.remove({'pnfsid': container_pnfsid, 'path': container_chimera_path})
         except IOError as e:
             self.logger.critical(
                 f"Could not find archive file {container_chimera_path}, referred to by file entries in database! This "
@@ -308,7 +317,13 @@ class GroupPackager:
                             self.db.files.update({'state': f'added: {container_chimera_path}'},
                                                  {'$set': {'state': 'new'}, '$unset': {'lock': ""}}, multi=True)
                             os.remove(container.localfilepath)
-
+                except InterruptedError:
+                    self.logger.info(f"Caught interruption. Cleanup")
+                    os.remove(container.localfilepath)
+                    # if lock is script_id, the state is set to new and lock removed when while-loop is entered
+                    # in main
+                    dcap.close()
+                    sys.exit("Interruption signal")
                 except IOError as e:
                     self.logger.error(
                         f"{e.strerror} closing file {container_chimera_path}. Trying to clean up files in state: "
